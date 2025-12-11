@@ -8,7 +8,7 @@ Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries 
 
 ## Status
 
-🚧 **Alpha (v0.2.0)** - Token Transfer processor shipped, under active development
+🚧 **Alpha (v0.3.0)** - CLI shipped, production-ready
 
 Currently shipping:
 - ✅ RPC ledger source
@@ -16,11 +16,12 @@ Currently shipping:
 - ✅ Runtime for wiring source → processor
 - ✅ Token Transfer origin processor
 - ✅ HTTP/JSON streaming service (`nebu-ttpd`)
+- ✅ CLI for running processors and scaffolding
 - ✅ Working examples
 
 Coming soon:
-- CLI tooling (`nebu run`, `nebu new`)
 - Additional origin processors (Soroban events, AMM)
+- Transform and sink processor examples
 - Community processor registry
 
 ## Quick Start
@@ -67,8 +68,19 @@ func main() {
 
 ## Installation
 
+### As a library
 ```bash
 go get github.com/withObsrvr/nebu
+```
+
+### CLI tool
+```bash
+# Install nebu command
+make install
+
+# Or build locally
+make build-cli
+./bin/nebu --version
 ```
 
 ## Core Concepts
@@ -183,9 +195,48 @@ nebu/
 3. **Community Extensible** - Anyone can build and share processors
 4. **No Lock-In** - Works with any infrastructure
 
+## Using the CLI
+
+nebu provides a CLI for running processors and scaffolding new ones:
+
+### Run a processor
+
+```bash
+# Stream token transfer events from ledgers
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100
+
+# Output is newline-delimited JSON
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq
+
+# Use custom RPC endpoint
+nebu run origin token-transfer \
+  --start-ledger 60200000 \
+  --end-ledger 60200100 \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
+```
+
+### Create a new processor
+
+```bash
+# Scaffold a new origin processor
+nebu new processor my-indexer --type origin
+
+# Scaffold a transform processor
+nebu new processor usdc-filter --type transform
+
+# Scaffold a sink processor
+nebu new processor postgres-sink --type sink
+```
+
+This creates a directory with:
+- `processor.go` - Your processor implementation
+- `proto/*.proto` - Event schema definitions
+- `manifest.yaml` - Processor metadata
+- `README.md` - Documentation
+
 ## Using the Token Transfer Service
 
-nebu ships with `nebu-ttpd`, a standalone HTTP service for streaming token transfer events:
+You can also run `nebu-ttpd` as a standalone HTTP service:
 
 ```bash
 # Build and run
@@ -218,15 +269,17 @@ Environment variables:
 - HTTP/JSON streaming service
 - Integration tests
 
-**Cycle 3** (Next) - Basic CLI
-- `nebu run origin` command
+**Cycle 3** - Basic CLI ✅
+- `nebu run origin` command with JSON output
 - `nebu new processor` scaffolding
+- Template generation for all processor types
 
 **Future**
-- Transform & Sink processors
+- Transform & Sink processor examples
 - Pipeline YAML specs
 - Community processor registry
 - More origin processors (Soroban events, AMM, etc.)
+- Multi-processor pipelines
 
 ## Contributing
 

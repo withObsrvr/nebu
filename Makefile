@@ -1,4 +1,4 @@
-.PHONY: all test build lint clean fmt vet build-ttpd run-ttpd
+.PHONY: all test build lint clean fmt vet build-ttpd run-ttpd build-cli install
 
 all: test build
 
@@ -8,9 +8,17 @@ test:
 build:
 	go build -v ./...
 
+build-cli:
+	mkdir -p bin
+	go build -o bin/nebu ./cmd/nebu
+
 build-ttpd:
 	mkdir -p bin
 	go build -o bin/nebu-ttpd ./cmd/nebu-ttpd
+
+install: build-cli
+	@echo "Installing nebu to $(GOPATH)/bin (or ~/go/bin)"
+	go install ./cmd/nebu
 
 run-ttpd: build-ttpd
 	./bin/nebu-ttpd
