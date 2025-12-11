@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package nebu.ttp;
+
+option go_package = "github.com/withObsrvr/nebu/processors/core/token_transfer/proto;ttpb";
+
+// GetEventsRequest specifies a bounded range of ledgers to process.
+message GetEventsRequest {
+  // Start ledger sequence (inclusive)
+  uint32 start_ledger = 1;
+
+  // End ledger sequence (inclusive)
+  uint32 end_ledger = 2;
+}
+
+// TokenTransferEvent is the core event emitted by the processor.
+// We define it here to avoid external dependencies in our proto.
+// This mirrors the structure from Stellar SDK's token_transfer.TokenTransferEvent
+message TokenTransferEvent {
+  // Event metadata (ledger, tx, operation info)
+  EventMeta meta = 1;
+
+  // Event type (one of the following)
+  oneof event {
+    Transfer transfer = 2;
+    Mint mint = 3;
+    Burn burn = 4;
+    Clawback clawback = 5;
+    Fee fee = 6;
+  }
+}
+
+message EventMeta {
+  uint32 ledger_sequence = 1;
+  int64 closed_at_unix = 2;
+  string tx_hash = 3;
+  uint32 transaction_index = 4;
+  uint32 operation_index = 5;
+  string contract_address = 6;
+}
+
+message Transfer {
+  string from = 1;
+  string to = 2;
+  string asset_code = 3;
+  string asset_issuer = 4;
+  string amount = 5;
+}
+
+message Mint {
+  string to = 1;
+  string asset_code = 2;
+  string asset_issuer = 3;
+  string amount = 4;
+}
+
+message Burn {
+  string from = 1;
+  string asset_code = 2;
+  string asset_issuer = 3;
+  string amount = 4;
+}
+
+message Clawback {
+  string from = 1;
+  string asset_code = 2;
+  string asset_issuer = 3;
+  string amount = 4;
+}
+
+message Fee {
+  string from = 1;
+  string asset_code = 2;
+  string asset_issuer = 3;
+  string amount = 4;
+}
+
+// TokenTransferService streams token transfer events from Stellar ledgers.
+service TokenTransferService {
+  // GetEvents streams token transfer events from a bounded ledger range.
+  // Events are emitted in ledger sequence order.
+  rpc GetEvents(GetEventsRequest) returns (stream TokenTransferEvent);
+}

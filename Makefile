@@ -1,12 +1,19 @@
-.PHONY: all test build lint clean fmt vet
+.PHONY: all test build lint clean fmt vet build-ttpd run-ttpd
 
-all: test
+all: test build
 
 test:
 	go test -v ./...
 
 build:
 	go build -v ./...
+
+build-ttpd:
+	mkdir -p bin
+	go build -o bin/nebu-ttpd ./cmd/nebu-ttpd
+
+run-ttpd: build-ttpd
+	./bin/nebu-ttpd
 
 lint:
 	@which golangci-lint > /dev/null || (echo "golangci-lint not installed, skipping"; exit 0)

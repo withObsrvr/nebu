@@ -8,18 +8,19 @@ Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries 
 
 ## Status
 
-🚧 **Alpha (v0.1.0)** - Core runtime implemented, under active development
+🚧 **Alpha (v0.2.0)** - Token Transfer processor shipped, under active development
 
 Currently shipping:
 - ✅ RPC ledger source
 - ✅ Processor interfaces (Origin, Transform, Sink)
 - ✅ Runtime for wiring source → processor
+- ✅ Token Transfer origin processor
+- ✅ HTTP/JSON streaming service (`nebu-ttpd`)
 - ✅ Working examples
 
 Coming soon:
-- Token Transfer origin processor
-- gRPC service wrappers
-- CLI tooling
+- CLI tooling (`nebu run`, `nebu new`)
+- Additional origin processors (Soroban events, AMM)
 - Community processor registry
 
 ## Quick Start
@@ -182,20 +183,42 @@ nebu/
 3. **Community Extensible** - Anyone can build and share processors
 4. **No Lock-In** - Works with any infrastructure
 
+## Using the Token Transfer Service
+
+nebu ships with `nebu-ttpd`, a standalone HTTP service for streaming token transfer events:
+
+```bash
+# Build and run
+make build-ttpd
+./bin/nebu-ttpd
+
+# Stream events from ledgers 60200000-60200100
+curl "http://localhost:8080/events?start=60200000&end=60200100"
+
+# Each line is a JSON event:
+# {"type":"transfer","ledger_sequence":60200000,"tx_hash":"...","from":"...","to":"...","amount":"100.0","asset":{"code":"USDC","issuer":"..."}}
+# {"type":"mint","ledger_sequence":60200001,"tx_hash":"...","to":"...","amount":"50.0","asset":{"code":"native"}}
+```
+
+Environment variables:
+- `NEBU_RPC_URL` - Stellar RPC endpoint (default: mainnet)
+- `NEBU_LISTEN_ADDR` - HTTP listen address (default: :8080)
+- `NEBU_NETWORK` - Network passphrase (default: mainnet)
+
 ## Roadmap
 
-**Cycle 1** (Current) - Core Runtime ✅
+**Cycle 1** - Core Runtime ✅
 - RPC source
 - Processor interfaces
 - Basic runtime
 - Examples
 
-**Cycle 2** (Next) - Token Transfer Processor
+**Cycle 2** - Token Transfer Processor ✅
 - Wrap Stellar's token_transfer.EventsProcessor
-- gRPC service wrapper
-- First real-world processor
+- HTTP/JSON streaming service
+- Integration tests
 
-**Cycle 3** - Basic CLI
+**Cycle 3** (Next) - Basic CLI
 - `nebu run origin` command
 - `nebu new processor` scaffolding
 
