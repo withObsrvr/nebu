@@ -28,7 +28,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/withObsrvr/nebu/pkg/source"
-	"github.com/withObsrvr/nebu/processors/core/token_transfer"
+	"github.com/withObsrvr/nebu/examples/processors/token-transfer"
 )
 
 func main() {

@@ -1,0 +1,69 @@
+# nebu Processor Registry
+#
+# This file defines available processors that can be run via `nebu run`.
+# Processors can be local (in examples/) or external (git repos, go modules).
+
+version: 1
+
+processors:
+  # Token Transfer Origin Processor
+  - name: token-transfer
+    type: origin
+    description: Stream token transfer events from Stellar ledgers (transfers, mints, burns, clawbacks, fees)
+
+    # Local example processor
+    location:
+      type: local
+      path: ./examples/processors/token-transfer
+      package: github.com/withObsrvr/nebu/examples/processors/token-transfer
+
+    # Service binary (for standalone mode)
+    service:
+      binary: ./cmd/nebu-ttpd
+      default_port: 8080
+      env:
+        - NEBU_RPC_URL
+        - NEBU_LISTEN_ADDR
+        - NEBU_NETWORK
+
+    # Protocol buffer definitions
+    proto:
+      # Uses Stellar's official token_transfer.proto
+      source: github.com/stellar/go-stellar-sdk/protos/processors/token_transfer
+      package: token_transfer
+
+    # Metadata
+    manifest: ./examples/processors/token-transfer/manifest.yaml
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # Future processors can be added here
+  # Example of external processor:
+  # - name: soroban-events
+  #   type: origin
+  #   location:
+  #     type: git
+  #     url: https://github.com/withObsrvr/nebu-processor-soroban
+  #   ...
+
+  # DuckDB Sink Processor
+  - name: duckdb-sink
+    type: sink
+    description: Sink processor that writes token transfer events to a DuckDB database for local analytics
+
+    # Local example processor
+    location:
+      type: local
+      path: ./examples/processors/duckdb-sink
+      package: github.com/withObsrvr/nebu/examples/processors/duckdb-sink
+
+    # Dependencies
+    dependencies:
+      - github.com/marcboeker/go-duckdb
+
+    # Metadata
+    manifest: ./examples/processors/duckdb-sink/manifest.yaml
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com

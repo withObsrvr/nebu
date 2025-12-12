@@ -1,6 +1,6 @@
 module github.com/withObsrvr/nebu/examples/processors/duckdb-sink
 
-go 1.24.0
+go 1.21
 
 require github.com/marcboeker/go-duckdb v1.7.0
 

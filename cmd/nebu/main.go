@@ -25,6 +25,7 @@ by composing processors that operate on Stellar ledger data.`,
 	// Add subcommands
 	rootCmd.AddCommand(newRunCmd())
 	rootCmd.AddCommand(newNewCmd())
+	rootCmd.AddCommand(newListCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

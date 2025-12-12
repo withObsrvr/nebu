@@ -11,9 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/processors/token_transfer"
+	"github.com/withObsrvr/nebu/pkg/registry"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 	"github.com/withObsrvr/nebu/pkg/source"
-	ttp "github.com/withObsrvr/nebu/processors/core/token_transfer"
+	ttp "github.com/withObsrvr/nebu/examples/processors/token-transfer"
 )
 
 func newRunCmd() *cobra.Command {
@@ -24,6 +25,7 @@ func newRunCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newRunOriginCmd())
+	cmd.AddCommand(newRunSinkCmd())
 
 	return cmd
 }
@@ -56,6 +58,28 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			processorName := args[0]
 
+			// Load registry and validate processor exists
+			reg, err := registry.LoadDefault()
+			if err != nil {
+				return fmt.Errorf("failed to load registry: %w\nHint: Make sure you're in the nebu project directory", err)
+			}
+
+			proc, err := reg.FindProcessor(processorName)
+			if err != nil {
+				// Show available processors
+				available := reg.ListProcessors("origin")
+				var names []string
+				for _, p := range available {
+					names = append(names, p.Name)
+				}
+				return fmt.Errorf("processor '%s' not found in registry\nAvailable origin processors: %v\n\nRun 'nebu list' to see all processors", processorName, names)
+			}
+
+			// Validate it's an origin processor
+			if proc.Type != "origin" {
+				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run origin' requires type 'origin'", processorName, proc.Type)
+			}
+
 			// Validate required flags
 			if startLedger == 0 {
 				return fmt.Errorf("--start-ledger is required")
@@ -85,7 +109,8 @@ Examples:
 			case "token-transfer":
 				return runTokenTransfer(ctx, rpcURL, networkPass, startLedger, endLedger, jsonOutput)
 			default:
-				return fmt.Errorf("unknown processor: %s\nSupported processors: token-transfer", processorName)
+				return fmt.Errorf("processor '%s' is registered but not yet implemented in CLI\nProcessor info: %s\nLocation: %s",
+					processorName, proc.Description, proc.Location.Path)
 			}
 		},
 	}
@@ -142,8 +167,7 @@ func runTokenTransfer(ctx context.Context, rpcURL, networkPass string, start, en
 		return fmt.Errorf("runtime error: %w", err)
 	}
 
-	// Close origin and wait for event collection to finish
-	origin.Close()
+	// Wait for event collection to finish (origin.Close() called by defer)
 	if err := <-done; err != nil {
 		return err
 	}
@@ -232,3 +256,62 @@ func getEventType(ev *token_transfer.TokenTransferEvent) string {
 		return "unknown"
 	}
 }
+
+func newRunSinkCmd() *cobra.Command {
+	var (
+		dbPath string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "sink [processor-name]",
+		Short: "Run a sink processor",
+		Long: `Run a sink processor that consumes events from stdin.
+
+Currently supported processors:
+  duckdb-sink  - Write events to DuckDB database
+
+Examples:
+  # Stream token transfers into DuckDB
+  nebu run origin token-transfer --start 60200000 --end 60200100 | nebu run sink duckdb-sink --db events.db
+
+  # Query the data
+  duckdb events.db "SELECT COUNT(*) FROM token_transfer_events"
+`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			processorName := args[0]
+
+			// Load registry and validate processor exists
+			reg, err := registry.LoadDefault()
+			if err != nil {
+				return fmt.Errorf("failed to load registry: %w\nHint: Make sure you're in the nebu project directory", err)
+			}
+
+			proc, err := reg.FindProcessor(processorName)
+			if err != nil {
+				// Show available processors
+				available := reg.ListProcessors("sink")
+				var names []string
+				for _, p := range available {
+					names = append(names, p.Name)
+				}
+				return fmt.Errorf("processor '%s' not found in registry\nAvailable sink processors: %v\n\nRun 'nebu list' to see all processors", processorName, names)
+			}
+
+			// Validate it's a sink processor
+			if proc.Type != "sink" {
+				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run sink' requires type 'sink'", processorName, proc.Type)
+			}
+
+			// For now, sinks are not directly embedded in the CLI
+			// Users should use the processor's standalone binary or library
+			return fmt.Errorf("processor '%s' is registered but CLI integration is not yet implemented\n\nTo use this sink processor:\n1. Build it: cd %s/cmd && go build -o duckdb-sink\n2. Pipe events: nebu run origin <name> | %s/cmd/duckdb-sink --db events.db\n\nOr use it programmatically - see %s/README.md",
+				processorName, proc.Location.Path, proc.Location.Path, proc.Location.Path)
+		},
+	}
+
+	cmd.Flags().StringVar(&dbPath, "db", "", "DuckDB database path (for duckdb-sink)")
+
+	return cmd
+}
+

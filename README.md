@@ -8,20 +8,21 @@ Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries 
 
 ## Status
 
-🚧 **Alpha (v0.3.0)** - CLI shipped, production-ready
+🚧 **Alpha (v0.3.0)** - Lightweight runtime with registry-based processor discovery
 
 Currently shipping:
 - ✅ RPC ledger source
 - ✅ Processor interfaces (Origin, Transform, Sink)
 - ✅ Runtime for wiring source → processor
-- ✅ Token Transfer origin processor
+- ✅ Registry-based processor discovery
+- ✅ CLI for running and scaffolding processors
+- ✅ Example processors (token-transfer, duckdb-sink)
 - ✅ HTTP/JSON streaming service (`nebu-ttpd`)
-- ✅ CLI for running processors and scaffolding
-- ✅ Working examples
 
 Coming soon:
 - Additional origin processors (Soroban events, AMM)
-- Transform and sink processor examples
+- Transform processor examples
+- External processor support (git, go modules)
 - Community processor registry
 
 ## Quick Start
@@ -98,7 +99,12 @@ type Origin interface {
 
 **Transform** - Consumes events, emits transformed events *(coming soon)*
 
-**Sink** - Consumes events, produces side effects (DB writes, etc.) *(coming soon)*
+**Sink** - Consumes events, produces side effects (DB writes, etc.)
+```go
+type Sink interface {
+    ConsumeEvent(ctx context.Context, event interface{}) error
+}
+```
 
 ### Sources
 
@@ -122,16 +128,25 @@ rt := runtime.NewRuntime()
 rt.RunOrigin(ctx, source, processor, startLedger, endLedger)
 ```
 
-## Examples
+## Example Processors
 
-See the [`examples/`](./examples/) directory for working examples:
+nebu ships with example processors in [`examples/processors/`](./examples/processors/):
 
+### Origin Processors
+- **[token-transfer](./examples/processors/token-transfer/)** - Stream token transfer events (transfers, mints, burns, clawbacks, fees)
+
+### Sink Processors
+- **[duckdb-sink](./examples/processors/duckdb-sink/)** - Write events to DuckDB for local analytics
+
+### Basic Examples
 - [`simple_origin`](./examples/simple_origin/) - Count and print ledger info
 
 Run an example:
 ```bash
 go run examples/simple_origin/main.go
 ```
+
+See the [Processor Registry](#processor-registry) section to learn how processors are discovered and run.
 
 ## Architecture
 
@@ -183,21 +198,43 @@ nebu/
 ├── pkg/
 │   ├── source/     # RPC & ledger sources
 │   ├── processor/  # Processor interfaces
-│   └── runtime/    # Pipeline execution
-├── examples/       # Working examples
+│   ├── runtime/    # Pipeline execution
+│   └── registry/   # Processor discovery
+├── examples/
+│   ├── processors/    # Example processor implementations
+│   │   ├── token-transfer/  # Origin: token transfers
+│   │   └── duckdb-sink/     # Sink: DuckDB storage
+│   └── simple_origin/ # Basic usage example
+├── cmd/
+│   ├── nebu/       # CLI tool
+│   └── nebu-ttpd/  # Token transfer HTTP service
+├── registry.yaml   # Processor registry
 └── Makefile
 ```
 
 ## Design Principles
 
-1. **Minimal Core** - nebu does one thing: stream data through processors
+1. **Minimal Core** - nebu provides the runtime; processors are separate and composable
 2. **IDL-First** - All processors communicate via protobuf messages
-3. **Community Extensible** - Anyone can build and share processors
-4. **No Lock-In** - Works with any infrastructure
+3. **Registry-Based Discovery** - Processors are registered in `registry.yaml`, not bundled
+4. **Community Extensible** - Anyone can build and share processors
+5. **No Lock-In** - Works with any infrastructure
 
 ## Using the CLI
 
-nebu provides a CLI for running processors and scaffolding new ones:
+nebu provides a CLI for running processors and scaffolding new ones.
+
+### List available processors
+
+```bash
+# Show all processors in registry
+nebu list
+
+# Output:
+# NAME              TYPE    LOCATION                                    DESCRIPTION
+# token-transfer    origin  ./examples/processors/token-transfer        Stream token transfer events from Stellar...
+# duckdb-sink       sink    ./examples/processors/duckdb-sink           Sink processor that writes token transfer...
+```
 
 ### Run a processor
 
@@ -213,6 +250,37 @@ nebu run origin token-transfer \
   --start-ledger 60200000 \
   --end-ledger 60200100 \
   --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
+```
+
+### Build a Pipeline
+
+Stream events from origin processors into sink processors using Unix pipes:
+
+```bash
+# Build a simple JSON file sink
+go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/
+
+# Stream token transfers into a JSON file
+nebu run origin token-transfer --start 60200000 --end 60200100 | \
+  ./bin/json-file-sink --out events.jsonl
+
+# Query the events
+cat events.jsonl | jq 'select(.type == "transfer") | {from, to, amount, asset}'
+```
+
+For DuckDB sink (requires CGO):
+
+```bash
+# Build with Nix for proper dependencies
+cd examples/processors/duckdb-sink
+nix develop  # or: nix build
+
+# Stream into DuckDB
+nebu run origin token-transfer --start 60200000 --end 60200100 | \
+  ./cmd/duckdb-sink --db events.db
+
+# Query with DuckDB CLI
+duckdb events.db "SELECT asset_code, COUNT(*) FROM token_transfer_events GROUP BY asset_code"
 ```
 
 ### Create a new processor
@@ -233,6 +301,56 @@ This creates a directory with:
 - `proto/*.proto` - Event schema definitions
 - `manifest.yaml` - Processor metadata
 - `README.md` - Documentation
+
+## Processor Registry
+
+Processors are discovered through `registry.yaml` in the project root. This lightweight approach keeps nebu's core minimal while supporting extensibility.
+
+### Registry Format
+
+```yaml
+version: 1
+processors:
+  - name: token-transfer
+    type: origin
+    description: Stream token transfer events from Stellar ledgers
+    location:
+      type: local
+      path: ./examples/processors/token-transfer
+    proto:
+      source: github.com/stellar/go-stellar-sdk/protos/processors/token_transfer
+    manifest: ./examples/processors/token-transfer/manifest.yaml
+```
+
+### Adding Your Own Processor
+
+1. **Create your processor** following the interfaces in `pkg/processor/`
+2. **Add to registry.yaml**:
+   ```yaml
+   - name: my-processor
+     type: origin  # or transform, sink
+     description: What it does
+     location:
+       type: local
+       path: ./path/to/processor
+     manifest: ./path/to/processor/manifest.yaml
+   ```
+3. **Run it**: `nebu run origin my-processor --start-ledger X --end-ledger Y`
+
+### Future: External Processors
+
+The registry will support external processors from git repos or go modules:
+
+```yaml
+processors:
+  - name: soroban-events
+    type: origin
+    location:
+      type: git
+      url: https://github.com/withObsrvr/nebu-processor-soroban
+    proto:
+      source: github.com/withObsrvr/nebu-processor-soroban/proto
+```
 
 ## Using the Token Transfer Service
 
