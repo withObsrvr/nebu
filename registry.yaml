@@ -45,6 +45,29 @@ processors:
       name: OBSRVR
       url: https://withobsrvr.com
 
+  # Contract Events Origin Processor
+  - name: contract-events
+    type: origin
+    description: Extract all contract events from Stellar ledgers (not limited to token transfers)
+
+    # Local example processor
+    location:
+      type: local
+      path: ./examples/processors/contract-events
+      package: github.com/withObsrvr/nebu/examples/processors/contract-events
+      module_package: github.com/withObsrvr/nebu/examples/processors/contract-events/cmd/contract-events
+
+    # JSON Schema (for CLI output)
+    schema:
+      version: v1
+      identifier: nebu.contract-events.v1
+      documentation: ./examples/processors/contract-events/README.md
+
+    # Metadata
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
   # JSON File Sink
   - name: json-file-sink
     type: sink

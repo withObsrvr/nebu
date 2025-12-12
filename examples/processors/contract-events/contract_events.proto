@@ -1,0 +1,189 @@
+// Protocol buffer definition for contract events processor.
+//
+// This schema defines the output format for all contract events extracted
+// from Stellar ledgers, including contract invocations, token transfers,
+// swaps, and custom contract events.
+
+syntax = "proto3";
+
+package contract_events;
+
+option go_package = "github.com/withObsrvr/nebu/examples/processors/contract-events";
+
+// ContractEvent represents a single contract event emitted on-chain.
+message ContractEvent {
+  // Ledger close timestamp (Unix seconds)
+  int64 timestamp = 1;
+
+  // Ledger sequence number
+  uint32 ledger_sequence = 2;
+
+  // Transaction hash (hex-encoded)
+  string transaction_hash = 3;
+
+  // Contract ID that emitted the event (strkey-encoded)
+  string contract_id = 4;
+
+  // Event type classification
+  ContractEventType type = 5;
+
+  // Detected event type from topics (e.g., "transfer", "mint", "swap")
+  string event_type = 6;
+
+  // Decoded topic values
+  repeated ScVal topic_decoded = 7;
+
+  // Decoded event data
+  ScVal data_decoded = 8;
+
+  // Whether this event was in a successful transaction
+  bool in_successful_tx = 9;
+
+  // Event index within the transaction
+  int32 event_index = 10;
+
+  // Operation index (-1 for transaction-level events)
+  int32 operation_index = 11;
+
+  // Diagnostic events associated with this contract event
+  repeated DiagnosticEvent diagnostic_events = 12;
+
+  // Network passphrase
+  string network_passphrase = 13;
+}
+
+// ContractEventType classifies the contract event.
+enum ContractEventType {
+  // Standard contract event
+  CONTRACT = 0;
+
+  // System-level event
+  SYSTEM = 1;
+
+  // Diagnostic event
+  DIAGNOSTIC = 2;
+}
+
+// ScVal represents a decoded Stellar Contract Value (ScVal).
+// This maps XDR ScVal types to a JSON-friendly format.
+message ScVal {
+  oneof value {
+    // Boolean value
+    bool bool_value = 1;
+
+    // Void/null value
+    ScVoid void_value = 2;
+
+    // Unsigned 32-bit integer
+    uint32 u32_value = 3;
+
+    // Signed 32-bit integer
+    int32 i32_value = 4;
+
+    // Unsigned 64-bit integer
+    uint64 u64_value = 5;
+
+    // Signed 64-bit integer
+    int64 i64_value = 6;
+
+    // 128-bit unsigned integer (hex string)
+    string u128_value = 7;
+
+    // 128-bit signed integer (hex string)
+    string i128_value = 8;
+
+    // 256-bit unsigned integer (hex string)
+    string u256_value = 9;
+
+    // 256-bit signed integer (hex string)
+    string i256_value = 10;
+
+    // Byte array
+    bytes bytes_value = 11;
+
+    // String value
+    string string_value = 12;
+
+    // Symbol value
+    string symbol_value = 13;
+
+    // Vector (array) of values
+    ScVec vec_value = 14;
+
+    // Map of key-value pairs
+    ScMap map_value = 15;
+
+    // Address (account or contract)
+    string address_value = 16;
+
+    // Timepoint (ISO8601 timestamp string)
+    string timepoint_value = 17;
+
+    // Duration (seconds)
+    uint64 duration_value = 18;
+
+    // Ledger key types
+    string ledger_key_value = 19;
+  }
+}
+
+// ScVoid represents an empty/null value
+message ScVoid {}
+
+// ScVec represents a vector (array) of ScVal values
+message ScVec {
+  repeated ScVal values = 1;
+}
+
+// ScMap represents a map of key-value pairs
+message ScMap {
+  repeated ScMapEntry entries = 1;
+}
+
+// ScMapEntry represents a single key-value pair in a map
+message ScMapEntry {
+  ScVal key = 1;
+  ScVal val = 2;
+}
+
+// DiagnosticEvent captures diagnostic information from contract execution
+message DiagnosticEvent {
+  // Contract ID that emitted the diagnostic event
+  string contract_id = 1;
+
+  // Event type
+  ContractEventType type = 2;
+
+  // Detected event type from topics
+  string event_type = 3;
+
+  // Decoded topic values
+  repeated ScVal topic_decoded = 4;
+
+  // Decoded event data
+  ScVal data_decoded = 5;
+
+  // Whether the contract call was successful
+  bool in_successful_contract_call = 6;
+}
+
+// Metadata about the contract events processor
+message ProcessorMetadata {
+  // Processor version
+  string version = 1;
+
+  // Schema version
+  string schema_version = 2;
+
+  // Network passphrase used for processing
+  string network_passphrase = 3;
+
+  // Total events processed
+  uint64 total_events = 4;
+
+  // Processing start ledger
+  uint32 start_ledger = 5;
+
+  // Processing end ledger (0 for unbounded)
+  uint32 end_ledger = 6;
+}
