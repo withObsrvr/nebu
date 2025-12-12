@@ -162,7 +162,7 @@ MIN_AMOUNT=10000000 MAX_AMOUNT=1000000000 ASSET_CODE=USDC \
 
 **Dockerfile:**
 ```dockerfile
-FROM golang:1.21 AS builder
+FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o /bin/amount-filter-grpc-server \

@@ -559,7 +559,7 @@ tar -czf my-processor-v1.0.0-linux-amd64.tar.gz \
 
 **Docker image:**
 ```dockerfile
-FROM golang:1.21 AS builder
+FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o /bin/my-processor ./examples/processors/my-processor/cmd

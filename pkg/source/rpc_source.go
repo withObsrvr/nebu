@@ -74,7 +74,9 @@ func NewRPCLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*R
 }
 
 // Stream implements LedgerSource.Stream.
-// For the MVP, only bounded ranges are supported (start and end must be > 0).
+// Supports both bounded and unbounded ranges:
+//   - Bounded: start > 0, end > 0 (streams ledgers from start to end)
+//   - Unbounded: start > 0, end == 0 (streams ledgers from start continuously)
 func (s *RPCLedgerSource) Stream(
 	ctx context.Context,
 	start, end uint32,
@@ -82,23 +84,42 @@ func (s *RPCLedgerSource) Stream(
 ) error {
 	defer close(out)
 
-	// Validate bounded range
-	if start == 0 || end == 0 {
-		return fmt.Errorf("bounded range required: start and end must be > 0 (got start=%d, end=%d)", start, end)
+	// Validate start ledger
+	if start == 0 {
+		return fmt.Errorf("start ledger must be > 0 (got %d)", start)
 	}
 
-	if start > end {
+	// Validate bounded range
+	if end > 0 && start > end {
 		return fmt.Errorf("invalid range: start (%d) must be <= end (%d)", start, end)
 	}
 
-	// Prepare the range
-	if err := s.backend.PrepareRange(ctx, ledgerbackend.BoundedRange(start, end)); err != nil {
-		log.Errorf("failed to prepare range [%d, %d]: %v", start, end, err)
-		return fmt.Errorf("failed to prepare range [%d, %d]: %w", start, end, err)
+	// Prepare the range (bounded or unbounded)
+	var rang ledgerbackend.Range
+	if end == 0 {
+		// Unbounded range - stream continuously from start
+		rang = ledgerbackend.UnboundedRange(start)
+		log.Infof("Preparing unbounded range starting at ledger %d", start)
+	} else {
+		// Bounded range - stream from start to end
+		rang = ledgerbackend.BoundedRange(start, end)
+		log.Infof("Preparing bounded range [%d, %d]", start, end)
+	}
+
+	if err := s.backend.PrepareRange(ctx, rang); err != nil {
+		log.Errorf("failed to prepare range: %v", err)
+		return fmt.Errorf("failed to prepare range: %w", err)
 	}
 
 	// Stream ledgers
-	for seq := start; seq <= end; seq++ {
+	seq := start
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		ledger, err := s.backend.GetLedger(ctx, seq)
 		if err != nil {
 			return fmt.Errorf("failed to get ledger %d: %w", seq, err)
@@ -110,9 +131,14 @@ func (s *RPCLedgerSource) Stream(
 		case out <- ledger:
 			// Ledger sent successfully
 		}
-	}
 
-	return nil
+		seq++
+
+		// Stop if bounded range and reached end
+		if end > 0 && seq > end {
+			return nil
+		}
+	}
 }
 
 // Close implements LedgerSource.Close.

@@ -338,12 +338,35 @@ nebu/
 
 ## Design Principles
 
+nebu is optimized for **simplicity and speed** - get from idea to results in minutes, not hours.
+
 1. **Unix Philosophy** - Processors are composable via stdin/stdout pipes; each does one thing well
 2. **Minimal Core** - nebu provides the runtime; processors are separate and composable
-3. **IDL-First** - All processors communicate via protobuf messages (or JSON for simplicity)
-4. **Registry-Based Discovery** - Processors are registered in `registry.yaml`, not bundled
-5. **Community Extensible** - Anyone can build and share processors
-6. **No Lock-In** - Works with any infrastructure (local pipes, gRPC microservices, HTTP)
+3. **CLI-Focused** - No service management, no orchestration, no YAML files - just commands and pipes
+4. **JSON Wire Format** - Processors communicate via newline-delimited JSON (easy to debug, works with `jq`, DuckDB, etc.)
+5. **Registry-Based Discovery** - Processors are registered in `registry.yaml`, not bundled
+6. **Community Extensible** - Anyone can build and share processors
+7. **Fast Prototyping** - Two-minute setup, instant results, easy debugging
+
+**Note on Protobuf:** Processors use protobuf structs _internally_ (from Stellar SDK) for type safety, but output JSON for CLI compatibility. Future flowctl integration would use native protobuf over gRPC.
+
+### When to Use nebu vs flowctl
+
+**Use nebu for:**
+- Quick prototyping and ad-hoc analysis
+- Single-machine pipelines with Unix pipes
+- Piping to `jq`, DuckDB, shell scripts
+- Simple Go processors
+- When you want results in 2 minutes
+
+**Use [flowctl](https://github.com/withObsrvr/flowctl) for:**
+- Production pipelines with service orchestration
+- Multi-language processors (Python, Rust, TypeScript)
+- Distributed systems across multiple machines
+- Full observability (metrics, health checks, tracing)
+- Complex DAG topologies
+
+See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale.
 
 ## Schema Versioning
 
@@ -428,8 +451,11 @@ nebu install token-transfer
 # This builds and installs the processor to $GOPATH/bin
 # Output: Installed: /home/user/go/bin/token-transfer
 
-# Run the processor directly
+# Run the processor directly (bounded range)
 token-transfer --start-ledger 60200000 --end-ledger 60200100
+
+# Stream continuously from ledger 60200000 (unbounded)
+token-transfer --start-ledger 60200000
 
 # Output is newline-delimited JSON
 token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq
@@ -453,8 +479,11 @@ token-transfer \
 Use `nebu fetch` to download raw ledger XDR that can be piped to processors:
 
 ```bash
-# Fetch ledgers to file
+# Fetch bounded range
 nebu fetch 60200000 60200100 --output ledgers.xdr
+
+# Fetch unbounded (stream continuously from ledger 60200000)
+nebu fetch 60200000 0 > ledgers.xdr
 
 # Or pipe directly to a processor
 nebu fetch 60200000 60200100 | token-transfer

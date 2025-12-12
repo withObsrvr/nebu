@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
@@ -21,6 +22,11 @@ import (
 	"github.com/withObsrvr/nebu/pkg/source"
 	"github.com/withObsrvr/nebu/pkg/version"
 )
+
+// getAuthHeader returns the authorization header value from the NEBU_RPC_AUTH environment variable.
+func getAuthHeader() string {
+	return os.Getenv("NEBU_RPC_AUTH")
+}
 
 // OriginConfig holds configuration for running an origin processor as a CLI tool.
 type OriginConfig struct {
@@ -54,13 +60,19 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 		Long: fmt.Sprintf(`%s
 
 This processor can run in three modes:
-  1. RPC mode: Fetch ledgers from Stellar RPC
+  1. RPC mode: Fetch ledgers from Stellar RPC (bounded or unbounded)
   2. stdin mode: Read XDR ledgers from stdin
   3. File mode: Read XDR ledgers from a file
 
 Examples:
-  # Fetch from RPC
+  # Fetch bounded range (specific ledgers)
   %s --start-ledger 60200000 --end-ledger 60200100
+
+  # Fetch unbounded (stream continuously from ledger 60200000)
+  %s --start-ledger 60200000
+
+  # Or explicitly set unbounded
+  %s --start-ledger 60200000 --end-ledger 0
 
   # Read from stdin
   cat ledgers.xdr | %s
@@ -70,7 +82,7 @@ Examples:
 
   # Pipe to other tools
   nebu fetch 60200000 60200100 | %s | jq 'select(.type == "transfer")'
-`, config.Description, config.Name, config.Name, config.Name, config.Name),
+`, config.Description, config.Name, config.Name, config.Name, config.Name, config.Name, config.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check input mode
 			var inputFile string
@@ -92,9 +104,10 @@ Examples:
 
 			// Validate flags
 			if !useStdin && inputFile == "" {
-				if startLedger == 0 || endLedger == 0 {
-					return fmt.Errorf("--start-ledger and --end-ledger are required (or provide input file/stdin)")
+				if startLedger == 0 {
+					return fmt.Errorf("--start-ledger is required for RPC mode (or provide input file/stdin)")
 				}
+				// endLedger == 0 is valid (unbounded streaming)
 			}
 
 			// Create context with cancellation
@@ -110,6 +123,13 @@ Examples:
 					fmt.Fprintln(os.Stderr, "\nShutting down...")
 				}
 				cancel()
+
+				// Force exit after 2 seconds if graceful shutdown fails
+				time.Sleep(2 * time.Second)
+				if !quietMode {
+					fmt.Fprintln(os.Stderr, "Force shutdown after timeout")
+				}
+				os.Exit(1)
 			}()
 
 			// Create processor
@@ -146,9 +166,15 @@ Examples:
 				err = processFromFile(ctx, origin, inputFile)
 			} else {
 				if !quietMode {
-					fmt.Fprintf(os.Stderr, "Processing ledgers %d to %d...\n", startLedger, endLedger)
+					if endLedger == 0 {
+						fmt.Fprintf(os.Stderr, "Streaming ledgers from %d (unbounded)...\n", startLedger)
+					} else {
+						fmt.Fprintf(os.Stderr, "Processing ledgers %d to %d...\n", startLedger, endLedger)
+					}
 				}
-				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger)
+				// Get auth header from environment
+				authHeader := getAuthHeader()
+				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -179,8 +205,18 @@ Examples:
 	}
 }
 
-func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32) error {
-	src, err := source.NewRPCLedgerSource(rpcURL)
+func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string) error {
+	// Create RPC source with optional auth headers
+	var src *source.RPCLedgerSource
+	var err error
+
+	if authHeader != "" {
+		headers := map[string]string{"Authorization": authHeader}
+		src, err = source.NewRPCLedgerSourceWithHeaders(rpcURL, headers)
+	} else {
+		src, err = source.NewRPCLedgerSource(rpcURL)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to create RPC source: %w", err)
 	}

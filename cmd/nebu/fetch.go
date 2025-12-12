@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
@@ -28,12 +29,15 @@ func newFetchCmd() *cobra.Command {
 		Short: "Fetch ledgers from Stellar RPC and output XDR",
 		Long: `Fetch ledgers from Stellar RPC and output raw XDR to stdout or file.
 
-This command fetches ledgers in the specified range and outputs them as raw XDR
-data that can be piped to processors or saved for later use.
+This command fetches ledgers in the specified range (bounded or unbounded) and
+outputs them as raw XDR data that can be piped to processors or saved for later use.
 
 Examples:
-  # Fetch to stdout
+  # Fetch bounded range
   nebu fetch 60200000 60200100 > ledgers.xdr
+
+  # Fetch unbounded (stream continuously from ledger 60200000)
+  nebu fetch 60200000 0 > ledgers.xdr
 
   # Fetch to file
   nebu fetch 60200000 60200100 --output ledgers.xdr
@@ -57,10 +61,11 @@ Examples:
 				return fmt.Errorf("invalid end ledger: %s", args[1])
 			}
 
-			if startLedger == 0 || endLedger == 0 {
-				return fmt.Errorf("ledger numbers must be > 0")
+			if startLedger == 0 {
+				return fmt.Errorf("start ledger must be > 0")
 			}
-			if startLedger > endLedger {
+			// endLedger == 0 is valid (unbounded streaming)
+			if endLedger > 0 && startLedger > endLedger {
 				return fmt.Errorf("start ledger must be <= end ledger")
 			}
 
@@ -82,12 +87,16 @@ Examples:
 				outputDest = outputFile
 			}
 			authConfig := getAuthConfig(authHeader)
+			rangeDisplay := fmt.Sprintf("%d → %d", startLedger, endLedger)
+			if endLedger == 0 {
+				rangeDisplay = fmt.Sprintf("%d → ∞ (unbounded)", startLedger)
+			}
 			printStartupBanner("fetch", map[string]ConfigSource{
 				"RPC":     rpcConfig,
 				"Network": {Value: getNetworkDisplay(networkConfig.Value), Source: networkConfig.Source},
 				"Auth":    authConfig,
 			}, map[string]string{
-				"Range":  fmt.Sprintf("%d → %d", startLedger, endLedger),
+				"Range":  rangeDisplay,
 				"Output": outputDest,
 			})
 
@@ -102,6 +111,11 @@ Examples:
 				<-sigCh
 				logInfo("\nShutting down...")
 				cancel()
+
+				// Force exit after 2 seconds if graceful shutdown fails
+				time.Sleep(2 * time.Second)
+				logInfo("Force shutdown after timeout")
+				os.Exit(1)
 			}()
 
 			return fetchLedgers(ctx, rpcConfig.Value, networkConfig.Value, startLedger, endLedger, outputFile, authHeader)
@@ -173,8 +187,17 @@ func fetchLedgers(ctx context.Context, rpcURL, networkPass string, start, end ui
 		}
 
 		ledgerCount++
-		if ledgerCount%10 == 0 {
-			logInfo("Fetched %d ledgers...", ledgerCount)
+		// For unbounded streaming, report progress more frequently
+		reportInterval := 10
+		if end == 0 {
+			reportInterval = 100 // Report every 100 ledgers for unbounded
+		}
+		if ledgerCount%reportInterval == 0 {
+			if end == 0 {
+				logInfo("Streaming... fetched %d ledgers (current: %d)", ledgerCount, ledger.LedgerSequence())
+			} else {
+				logInfo("Fetched %d ledgers...", ledgerCount)
+			}
 		}
 	}
 
@@ -183,6 +206,10 @@ func fetchLedgers(ctx context.Context, rpcURL, networkPass string, start, end ui
 		return fmt.Errorf("stream error: %w", err)
 	}
 
-	logInfo("Fetched %d ledgers", ledgerCount)
+	if end == 0 {
+		logInfo("Stopped streaming at %d ledgers", ledgerCount)
+	} else {
+		logInfo("Fetched %d ledgers", ledgerCount)
+	}
 	return nil
 }
