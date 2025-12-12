@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/support/log"
@@ -15,9 +16,36 @@ type RPCLedgerSource struct {
 	rpcURL  string
 }
 
+// headerTransport is an HTTP transport that adds custom headers to all requests.
+type headerTransport struct {
+	base    http.RoundTripper
+	headers map[string]string
+}
+
+// RoundTrip implements http.RoundTripper by adding custom headers.
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Clone the request to avoid modifying the original
+	reqCopy := req.Clone(req.Context())
+
+	// Add custom headers
+	for key, value := range t.headers {
+		reqCopy.Header.Set(key, value)
+	}
+
+	// Use the base transport to actually make the request
+	return t.base.RoundTrip(reqCopy)
+}
+
 // NewRPCLedgerSource creates a new ledger source that connects to Stellar RPC.
 // The rpcURL should be a fully qualified URL (e.g., "https://mainnet.sorobanrpc.com").
 func NewRPCLedgerSource(rpcURL string) (*RPCLedgerSource, error) {
+	return NewRPCLedgerSourceWithHeaders(rpcURL, nil)
+}
+
+// NewRPCLedgerSourceWithHeaders creates a new ledger source with custom HTTP headers.
+// The headers map allows adding authentication headers like:
+//   headers := map[string]string{"Authorization": "Api-Key YOUR_KEY"}
+func NewRPCLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*RPCLedgerSource, error) {
 	if rpcURL == "" {
 		return nil, fmt.Errorf("rpcURL cannot be empty")
 	}
@@ -25,6 +53,18 @@ func NewRPCLedgerSource(rpcURL string) (*RPCLedgerSource, error) {
 	opts := ledgerbackend.RPCLedgerBackendOptions{
 		RPCServerURL: rpcURL,
 	}
+
+	// If custom headers are provided, create an HTTP client with custom transport
+	if len(headers) > 0 {
+		transport := &headerTransport{
+			base:    http.DefaultTransport,
+			headers: headers,
+		}
+		opts.HttpClient = &http.Client{
+			Transport: transport,
+		}
+	}
+
 	backend := ledgerbackend.NewRPCLedgerBackend(opts)
 
 	return &RPCLedgerSource{

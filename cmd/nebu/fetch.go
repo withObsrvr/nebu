@@ -20,6 +20,7 @@ func newFetchCmd() *cobra.Command {
 		endLedger   uint32
 		networkPass string
 		outputFile  string
+		rpcHeaders  []string
 	)
 
 	cmd := &cobra.Command{
@@ -63,6 +64,33 @@ Examples:
 				return fmt.Errorf("start ledger must be <= end ledger")
 			}
 
+			// Get configuration from environment or flags
+			rpcConfig := getEnvOrFlag("NEBU_RPC_URL", rpcURL, "https://mainnet.sorobanrpc.com")
+			networkConfig := getEnvOrFlag("NEBU_NETWORK", networkPass, network.PublicNetworkPassphrase)
+
+			// Get auth headers
+			authHeader := getAuthHeader(rpcHeaders)
+
+			// Validate network configuration
+			if err := validateNetworkConfig(rpcConfig.Value, networkConfig.Value); err != nil {
+				return err
+			}
+
+			// Display startup banner
+			outputDest := "stdout"
+			if outputFile != "" {
+				outputDest = outputFile
+			}
+			authConfig := getAuthConfig(authHeader)
+			printStartupBanner("fetch", map[string]ConfigSource{
+				"RPC":     rpcConfig,
+				"Network": {Value: getNetworkDisplay(networkConfig.Value), Source: networkConfig.Source},
+				"Auth":    authConfig,
+			}, map[string]string{
+				"Range":  fmt.Sprintf("%d → %d", startLedger, endLedger),
+				"Output": outputDest,
+			})
+
 			// Create context with cancellation
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -76,20 +104,30 @@ Examples:
 				cancel()
 			}()
 
-			return fetchLedgers(ctx, rpcURL, networkPass, startLedger, endLedger, outputFile)
+			return fetchLedgers(ctx, rpcConfig.Value, networkConfig.Value, startLedger, endLedger, outputFile, authHeader)
 		},
 	}
 
-	cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint")
-	cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
+	cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint (or set NEBU_RPC_URL)")
+	cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase: 'mainnet' or 'testnet' (or set NEBU_NETWORK)")
 	cmd.Flags().StringVar(&outputFile, "output", "", "Output file (default: stdout)")
+	cmd.Flags().StringArrayVar(&rpcHeaders, "rpc-header", nil, "Custom HTTP header for RPC (format: 'Key: Value', repeatable)")
 
 	return cmd
 }
 
-func fetchLedgers(ctx context.Context, rpcURL, networkPass string, start, end uint32, outputFile string) error {
-	// Create RPC source
-	src, err := source.NewRPCLedgerSource(rpcURL)
+func fetchLedgers(ctx context.Context, rpcURL, networkPass string, start, end uint32, outputFile, authHeader string) error {
+	// Create RPC source with optional auth headers
+	var src *source.RPCLedgerSource
+	var err error
+
+	if authHeader != "" {
+		headers := map[string]string{"Authorization": authHeader}
+		src, err = source.NewRPCLedgerSourceWithHeaders(rpcURL, headers)
+	} else {
+		src, err = source.NewRPCLedgerSource(rpcURL)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to create RPC source: %w", err)
 	}
@@ -104,10 +142,8 @@ func fetchLedgers(ctx context.Context, rpcURL, networkPass string, start, end ui
 		}
 		defer f.Close()
 		output = f
-		logInfo("Fetching ledgers %d to %d to %s...", start, end, outputFile)
 	} else {
 		output = os.Stdout
-		logInfo("Fetching ledgers %d to %d...", start, end)
 	}
 
 	// Stream ledgers

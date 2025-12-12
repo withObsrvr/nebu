@@ -1,21 +1,10 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"github.com/stellar/go-stellar-sdk/network"
-	"github.com/stellar/go-stellar-sdk/processors/token_transfer"
 	"github.com/withObsrvr/nebu/pkg/registry"
-	"github.com/withObsrvr/nebu/pkg/runtime"
-	"github.com/withObsrvr/nebu/pkg/source"
-	ttp "github.com/withObsrvr/nebu/examples/processors/token-transfer"
 )
 
 func newRunCmd() *cobra.Command {
@@ -32,61 +21,41 @@ func newRunCmd() *cobra.Command {
 }
 
 func newRunOriginCmd() *cobra.Command {
-	var (
-		rpcURL      string
-		startLedger uint32
-		endLedger   uint32
-		networkPass string
-		jsonOutput  bool
-	)
-
 	cmd := &cobra.Command{
-		Use:   "origin [processor-name] [input-file]",
-		Short: "Run an origin processor",
-		Long: `Run an origin processor against Stellar RPC or from stdin/file.
+		Use:   "origin [processor-name]",
+		Short: "Show how to run an origin processor",
+		Long: `Origin processors run as standalone binaries, not embedded in nebu.
+This command validates that a processor is registered and provides instructions
+for installing and running it.
 
-Currently supported processors:
-  token-transfer  - Stream token transfer events (transfers, mints, burns, etc.)
+The nebu CLI provides runtime infrastructure (registry, fetch, install), but
+processors themselves run as separate executables to keep nebu minimal.
+
+Workflow:
+  1. List available processors:     nebu list
+  2. Install a processor:            nebu install <processor-name>
+  3. Run the processor:              <processor-name> --start-ledger X --end-ledger Y
+  4. Or pipe from nebu fetch:        nebu fetch X Y | <processor-name>
 
 Examples:
-  # Stream token transfers from RPC
-  nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100
+  # See available processors
+  nebu list
 
-  # Process from stdin
-  cat ledgers.xdr | nebu run origin token-transfer
+  # Install token-transfer processor
+  nebu install token-transfer
 
-  # Process from file
-  nebu run origin token-transfer ledgers.xdr
+  # Run it directly
+  token-transfer --start-ledger 60200000 --end-ledger 60200100
 
-  # Explicit stdin marker
-  nebu run origin token-transfer - < ledgers.xdr
+  # Or pipe from nebu fetch
+  nebu fetch 60200000 60200100 | token-transfer
 
-  # Use custom RPC endpoint
-  nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
+  # Build manually if needed
+  cd examples/processors/token-transfer/cmd && go build -o token-transfer
 `,
-		Args: cobra.RangeArgs(1, 2),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			processorName := args[0]
-
-			// Check if reading from stdin or file
-			var inputFile string
-			useStdin := false
-
-			if len(args) == 2 {
-				// Second argument provided
-				if args[1] == "-" {
-					useStdin = true
-				} else {
-					inputFile = args[1]
-				}
-			} else {
-				// Auto-detect stdin
-				stat, _ := os.Stdin.Stat()
-				if (stat.Mode() & os.ModeCharDevice) == 0 {
-					// stdin is a pipe
-					useStdin = true
-				}
-			}
 
 			// Load registry and validate processor exists
 			reg, err := registry.LoadDefault()
@@ -110,294 +79,72 @@ Examples:
 				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run origin' requires type 'origin'", processorName, proc.Type)
 			}
 
-			// Validate required flags (only if not using stdin/file)
-			if !useStdin && inputFile == "" {
-				if startLedger == 0 {
-					return fmt.Errorf("--start-ledger is required (or provide input file/stdin)")
-				}
-				if endLedger == 0 {
-					return fmt.Errorf("--end-ledger is required (or provide input file/stdin)")
-				}
-				if startLedger > endLedger {
-					return fmt.Errorf("start ledger must be <= end ledger")
-				}
-			}
+			// Origin processors must be installed and run as standalone binaries
+			// The nebu CLI does not embed processor logic - it only provides runtime infrastructure
+			return fmt.Errorf(`Processor '%s' is registered but must be installed and run as a standalone binary.
 
-			// Create context with cancellation
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+To use this processor:
 
-			// Handle Ctrl+C
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				<-sigCh
-				logInfo("\nShutting down...")
-				cancel()
-			}()
+  1. Install it:
+     nebu install %s
 
-			// Run the appropriate processor
-			switch processorName {
-			case "token-transfer":
-				// Check if using stdin/file
-				if useStdin {
-					return runTokenTransferFromStdin(ctx, networkPass, os.Stdin, jsonOutput)
-				} else if inputFile != "" {
-					return runTokenTransferFromFile(ctx, networkPass, inputFile, jsonOutput)
-				}
-				// Default: RPC mode
-				return runTokenTransfer(ctx, rpcURL, networkPass, startLedger, endLedger, jsonOutput)
-			default:
-				return fmt.Errorf("processor '%s' is registered but not yet implemented in CLI\nProcessor info: %s\nLocation: %s",
-					processorName, proc.Description, proc.Location.Path)
-			}
+  2. Run it directly:
+     %s --start-ledger START --end-ledger END
+
+  3. Or pipe from nebu fetch:
+     nebu fetch START END | %s
+
+  4. Or build manually:
+     cd %s/cmd && go build -o %s
+
+Processor info: %s
+Location: %s
+
+See 'nebu install --help' for more details.`,
+				processorName,
+				processorName,
+				processorName,
+				processorName,
+				proc.Location.Path, processorName,
+				proc.Description,
+				proc.Location.Path)
 		},
 	}
-
-	cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint")
-	cmd.Flags().Uint32Var(&startLedger, "start-ledger", 0, "Start ledger sequence (required)")
-	cmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence (required)")
-	cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
-	cmd.Flags().BoolVar(&jsonOutput, "json", true, "Output events as JSON (default true)")
 
 	return cmd
 }
 
-func runTokenTransfer(ctx context.Context, rpcURL, networkPass string, start, end uint32, jsonOutput bool) error {
-	// Create RPC source
-	src, err := source.NewRPCLedgerSource(rpcURL)
-	if err != nil {
-		return fmt.Errorf("failed to create RPC source: %w", err)
-	}
-	defer src.Close()
-
-	// Create token transfer origin processor
-	origin := ttp.NewOrigin(networkPass)
-	defer origin.Close()
-
-	// Start collecting events in background
-	eventCount := 0
-	done := make(chan error, 1)
-
-	go func() {
-		encoder := json.NewEncoder(os.Stdout)
-		for ev := range origin.Out() {
-			eventCount++
-			if jsonOutput {
-				// Convert to simplified JSON format
-				simplified := simplifyTokenTransferEvent(ev)
-				if err := encoder.Encode(simplified); err != nil {
-					done <- err
-					return
-				}
-			} else {
-				// Just print a summary
-				fmt.Printf("Event %d: %s\n", eventCount, getEventType(ev))
-			}
-		}
-		done <- nil
-	}()
-
-	// Run the runtime
-	logInfo("Processing ledgers %d to %d...", start, end)
-
-	rt := runtime.NewRuntime()
-	if err := rt.RunOrigin(ctx, src, origin, start, end); err != nil && err != context.Canceled {
-		return fmt.Errorf("runtime error: %w", err)
-	}
-
-	// Wait for event collection to finish (origin.Close() called by defer)
-	if err := <-done; err != nil {
-		return err
-	}
-
-	logInfo("Processed %d events", eventCount)
-	return nil
-}
-
-// runTokenTransferFromStdin processes ledgers from stdin
-func runTokenTransferFromStdin(ctx context.Context, networkPass string, input io.Reader, jsonOutput bool) error {
-	// Create token transfer origin processor
-	origin := ttp.NewOrigin(networkPass)
-	defer origin.Close()
-
-	// Start collecting events in background
-	eventCount := 0
-	done := make(chan error, 1)
-
-	go func() {
-		encoder := json.NewEncoder(os.Stdout)
-		for ev := range origin.Out() {
-			eventCount++
-			if jsonOutput {
-				simplified := simplifyTokenTransferEvent(ev)
-				if err := encoder.Encode(simplified); err != nil {
-					done <- err
-					return
-				}
-			} else {
-				fmt.Printf("Event %d: %s\n", eventCount, getEventType(ev))
-			}
-		}
-		done <- nil
-	}()
-
-	// Process from stdin
-	logInfo("Reading ledgers from stdin...")
-	if err := processFromStdin(ctx, origin, input); err != nil && err != context.Canceled {
-		return err
-	}
-
-	// Wait for event collection to finish
-	if err := <-done; err != nil {
-		return err
-	}
-
-	logInfo("Processed %d events", eventCount)
-	return nil
-}
-
-// runTokenTransferFromFile processes ledgers from a file
-func runTokenTransferFromFile(ctx context.Context, networkPass string, filePath string, jsonOutput bool) error {
-	// Create token transfer origin processor
-	origin := ttp.NewOrigin(networkPass)
-	defer origin.Close()
-
-	// Start collecting events in background
-	eventCount := 0
-	done := make(chan error, 1)
-
-	go func() {
-		encoder := json.NewEncoder(os.Stdout)
-		for ev := range origin.Out() {
-			eventCount++
-			if jsonOutput {
-				simplified := simplifyTokenTransferEvent(ev)
-				if err := encoder.Encode(simplified); err != nil {
-					done <- err
-					return
-				}
-			} else {
-				fmt.Printf("Event %d: %s\n", eventCount, getEventType(ev))
-			}
-		}
-		done <- nil
-	}()
-
-	// Process from file
-	if err := processFromFile(ctx, origin, filePath); err != nil && err != context.Canceled {
-		return err
-	}
-
-	// Wait for event collection to finish
-	if err := <-done; err != nil {
-		return err
-	}
-
-	logInfo("Processed %d events", eventCount)
-	return nil
-}
-
-// simplifyTokenTransferEvent converts a protobuf event to a JSON-friendly map
-func simplifyTokenTransferEvent(ev *token_transfer.TokenTransferEvent) map[string]interface{} {
-	meta := ev.GetMeta()
-	event := map[string]interface{}{
-		"ledger_sequence": meta.LedgerSequence,
-		"tx_hash":         meta.TxHash,
-	}
-
-	if meta.ContractAddress != "" {
-		event["contract_address"] = meta.ContractAddress
-	}
-
-	// Handle asset
-	if asset := ev.GetAsset(); asset != nil {
-		assetInfo := make(map[string]string)
-		if asset.GetNative() {
-			assetInfo["code"] = "native"
-		} else if issued := asset.GetIssuedAsset(); issued != nil {
-			assetInfo["code"] = issued.AssetCode
-			assetInfo["issuer"] = issued.Issuer
-		}
-		event["asset"] = assetInfo
-	}
-
-	// Handle different event types
-	switch {
-	case ev.GetTransfer() != nil:
-		transfer := ev.GetTransfer()
-		event["type"] = "transfer"
-		event["from"] = transfer.From
-		event["to"] = transfer.To
-		event["amount"] = transfer.Amount
-
-	case ev.GetMint() != nil:
-		mint := ev.GetMint()
-		event["type"] = "mint"
-		event["to"] = mint.To
-		event["amount"] = mint.Amount
-
-	case ev.GetBurn() != nil:
-		burn := ev.GetBurn()
-		event["type"] = "burn"
-		event["from"] = burn.From
-		event["amount"] = burn.Amount
-
-	case ev.GetClawback() != nil:
-		clawback := ev.GetClawback()
-		event["type"] = "clawback"
-		event["from"] = clawback.From
-		event["amount"] = clawback.Amount
-
-	case ev.GetFee() != nil:
-		fee := ev.GetFee()
-		event["type"] = "fee"
-		event["from"] = fee.From
-		event["amount"] = fee.Amount
-
-	default:
-		event["type"] = "unknown"
-	}
-
-	return event
-}
-
-func getEventType(ev *token_transfer.TokenTransferEvent) string {
-	switch {
-	case ev.GetTransfer() != nil:
-		return "transfer"
-	case ev.GetMint() != nil:
-		return "mint"
-	case ev.GetBurn() != nil:
-		return "burn"
-	case ev.GetClawback() != nil:
-		return "clawback"
-	case ev.GetFee() != nil:
-		return "fee"
-	default:
-		return "unknown"
-	}
-}
-
 func newRunSinkCmd() *cobra.Command {
-	var (
-		dbPath string
-	)
-
 	cmd := &cobra.Command{
 		Use:   "sink [processor-name]",
-		Short: "Run a sink processor",
-		Long: `Run a sink processor that consumes events from stdin.
+		Short: "Show how to run a sink processor",
+		Long: `Sink processors run as standalone binaries, not embedded in nebu.
+This command validates that a processor is registered and provides instructions
+for installing and running it.
 
-Currently supported processors:
-  duckdb-sink  - Write events to DuckDB database
+Sink processors consume events from stdin (typically piped from origin processors).
+
+Workflow:
+  1. List available processors:     nebu list
+  2. Install processors:             nebu install <processor-name>
+  3. Run origin → sink pipeline:    <origin-processor> | <sink-processor>
 
 Examples:
-  # Stream token transfers into DuckDB
-  nebu run origin token-transfer --start 60200000 --end 60200100 | nebu run sink duckdb-sink --db events.db
+  # See available processors
+  nebu list
 
-  # Query the data
-  duckdb events.db "SELECT COUNT(*) FROM token_transfer_events"
+  # Install processors
+  nebu install token-transfer
+  nebu install duckdb-sink
+
+  # Run pipeline: token-transfer → duckdb-sink
+  token-transfer --start-ledger 60200000 --end-ledger 60200100 | duckdb-sink --db events.db
+
+  # Or use nebu fetch
+  nebu fetch 60200000 60200100 | token-transfer | duckdb-sink --db events.db
+
+  # Build manually if needed
+  cd examples/processors/duckdb-sink/cmd && go build -o duckdb-sink
 `,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -425,14 +172,33 @@ Examples:
 				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run sink' requires type 'sink'", processorName, proc.Type)
 			}
 
-			// For now, sinks are not directly embedded in the CLI
-			// Users should use the processor's standalone binary or library
-			return fmt.Errorf("processor '%s' is registered but CLI integration is not yet implemented\n\nTo use this sink processor:\n1. Build it: cd %s/cmd && go build -o duckdb-sink\n2. Pipe events: nebu run origin <name> | %s/cmd/duckdb-sink --db events.db\n\nOr use it programmatically - see %s/README.md",
-				processorName, proc.Location.Path, proc.Location.Path, proc.Location.Path)
+			// Sink processors must be installed and run as standalone binaries
+			// The nebu CLI does not embed processor logic - it only provides runtime infrastructure
+			return fmt.Errorf(`Processor '%s' is registered but must be installed and run as a standalone binary.
+
+To use this processor:
+
+  1. Install it:
+     nebu install %s
+
+  2. Run it (consuming events from stdin):
+     <origin-processor> | %s [flags]
+
+  3. Or build manually:
+     cd %s/cmd && go build -o %s
+
+Processor info: %s
+Location: %s
+
+See 'nebu install --help' for more details.`,
+				processorName,
+				processorName,
+				processorName,
+				proc.Location.Path, processorName,
+				proc.Description,
+				proc.Location.Path)
 		},
 	}
-
-	cmd.Flags().StringVar(&dbPath, "db", "", "DuckDB database path (for duckdb-sink)")
 
 	return cmd
 }

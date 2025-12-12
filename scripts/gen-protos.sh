@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to generate Go code from protobuf definitions
 
@@ -32,7 +32,7 @@ protoc \
   --go-grpc_out=. \
   --go-grpc_opt=paths=source_relative \
   --proto_path=. \
-  processors/core/token_transfer/proto/token_transfer_service.proto
+  examples/processors/token-transfer/proto/token_transfer_service.proto
 
 # Generate amount_filter
 protoc \

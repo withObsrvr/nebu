@@ -32,8 +32,84 @@ processors:
       source: github.com/stellar/go-stellar-sdk/protos/processors/token_transfer
       package: token_transfer
 
+    # JSON Schema (for CLI output)
+    schema:
+      version: v1
+      identifier: nebu.token_transfer.v1
+      documentation: ./examples/processors/token-transfer/SCHEMA.md
+
     # Metadata
     manifest: ./examples/processors/token-transfer/manifest.yaml
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # JSON File Sink
+  - name: json-file-sink
+    type: sink
+    description: Write events to newline-delimited JSON (JSONL) files
+
+    location:
+      type: local
+      path: ./examples/processors/json-file-sink
+      package: github.com/withObsrvr/nebu/examples/processors/json-file-sink
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # Amount Filter Transform
+  - name: amount-filter
+    type: transform
+    description: Filter token transfer events by amount ranges and asset codes
+
+    location:
+      type: local
+      path: ./examples/processors/amount-filter
+      package: github.com/withObsrvr/nebu/examples/processors/amount-filter
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # USDC Filter Transform
+  - name: usdc-filter
+    type: transform
+    description: Filter token transfer events for USDC transfers only
+
+    location:
+      type: local
+      path: ./examples/processors/usdc-filter
+      package: github.com/withObsrvr/nebu/examples/processors/usdc-filter
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # Dedup Transform
+  - name: dedup
+    type: transform
+    description: Deduplicate events by key field (e.g., tx_hash)
+
+    location:
+      type: local
+      path: ./examples/processors/dedup
+      package: github.com/withObsrvr/nebu/examples/processors/dedup
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # Time Window Transform
+  - name: time-window
+    type: transform
+    description: Filter events by time window or ledger sequence range
+
+    location:
+      type: local
+      path: ./examples/processors/time-window
+      package: github.com/withObsrvr/nebu/examples/processors/time-window
+
     maintainer:
       name: OBSRVR
       url: https://withobsrvr.com

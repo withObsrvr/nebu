@@ -42,7 +42,8 @@ or external packages.`,
 			if procType != "" {
 				fmt.Printf("Available %s processors:\n\n", procType)
 			} else {
-				fmt.Println("Available processors:\n")
+				fmt.Println("Available processors:")
+			fmt.Println()
 			}
 
 			// Create table writer

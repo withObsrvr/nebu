@@ -1,5 +1,9 @@
 .PHONY: all test build lint clean fmt vet build-ttpd run-ttpd build-cli install gen-protos build-processors test-integration
 
+# Version information
+VERSION ?= 0.3.0
+LDFLAGS = -X github.com/withObsrvr/nebu/pkg/version.Version=$(VERSION)
+
 all: test build
 
 test:
@@ -10,11 +14,11 @@ build:
 
 build-cli:
 	mkdir -p bin
-	go build -o bin/nebu ./cmd/nebu
+	go build -ldflags "$(LDFLAGS)" -o bin/nebu ./cmd/nebu
 
 build-ttpd:
 	mkdir -p bin
-	go build -o bin/nebu-ttpd ./cmd/nebu-ttpd
+	go build -ldflags "$(LDFLAGS)" -o bin/nebu-ttpd ./cmd/nebu-ttpd
 
 install: build-cli
 	@echo "Installing nebu to $(GOPATH)/bin (or ~/go/bin)"
@@ -50,12 +54,12 @@ gen-protos:
 build-processors:
 	@echo "Building processor binaries..."
 	@mkdir -p bin
-	go build -o bin/token-transfer ./examples/processors/token-transfer/cmd
-	go build -o bin/usdc-filter ./examples/processors/usdc-filter/cmd
-	go build -o bin/amount-filter ./examples/processors/amount-filter/cmd
-	go build -o bin/time-window ./examples/processors/time-window/cmd
-	go build -o bin/dedup ./examples/processors/dedup/cmd
-	go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd
+	go build -ldflags "$(LDFLAGS)" -o bin/token-transfer ./examples/processors/token-transfer/cmd
+	go build -ldflags "$(LDFLAGS)" -o bin/usdc-filter ./examples/processors/usdc-filter/cmd
+	go build -ldflags "$(LDFLAGS)" -o bin/amount-filter ./examples/processors/amount-filter/cmd
+	go build -ldflags "$(LDFLAGS)" -o bin/time-window ./examples/processors/time-window/cmd
+	go build -ldflags "$(LDFLAGS)" -o bin/dedup ./examples/processors/dedup/cmd
+	go build -ldflags "$(LDFLAGS)" -o bin/json-file-sink ./examples/processors/json-file-sink/cmd
 	@echo "✓ All processors built in ./bin/"
 
 # Run integration tests

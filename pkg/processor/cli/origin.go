@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ import (
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/version"
 )
 
 // OriginConfig holds configuration for running an origin processor as a CLI tool.
@@ -202,7 +204,8 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 		var ledger xdr.LedgerCloseMeta
 		_, err := xdr.Unmarshal(reader, &ledger)
 		if err != nil {
-			if err == io.EOF {
+			// Clean EOF or EOF-related errors after processing ledgers are OK
+			if err == io.EOF || (ledgerCount > 0 && isEOFError(err)) {
 				return nil
 			}
 			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
@@ -214,6 +217,17 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 
 		ledgerCount++
 	}
+}
+
+// isEOFError checks if an error is EOF-related (e.g., "EOF while decoding")
+func isEOFError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	// Check for EOF patterns - the XDR decoder can return various EOF-related errors
+	// when it hits end of stream while reading a ledger
+	return err == io.EOF || strings.Contains(errMsg, "EOF")
 }
 
 func processFromFile(ctx context.Context, origin processor.Origin, filePath string) error {
@@ -229,6 +243,8 @@ func processFromFile(ctx context.Context, origin processor.Origin, filePath stri
 func simplifyEvent(ev *token_transfer.TokenTransferEvent) map[string]interface{} {
 	meta := ev.GetMeta()
 	event := map[string]interface{}{
+		"_schema":        version.GetSchemaVersion("token_transfer"),
+		"_nebu_version":  version.Version,
 		"ledger_sequence": meta.LedgerSequence,
 		"tx_hash":         meta.TxHash,
 	}

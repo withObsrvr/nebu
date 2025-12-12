@@ -15,9 +15,9 @@ Currently shipping:
 - ✅ Processor interfaces (Origin, Transform, Sink)
 - ✅ Runtime for wiring source → processor
 - ✅ Registry-based processor discovery
-- ✅ CLI for running and scaffolding processors
-- ✅ Example processors (token-transfer)
-- ✅ HTTP/JSON streaming service (`nebu-ttpd`)
+- ✅ CLI for processor installation and ledger fetching
+- ✅ Example processors (token-transfer, json-file-sink, duckdb-sink, filters)
+- ✅ Standalone processor binaries (not embedded in nebu)
 - ✅ DuckDB integration via Unix pipes
 
 Coming soon:
@@ -36,13 +36,19 @@ Stream token transfer events and analyze them with standard Unix tools:
 # Install nebu CLI
 make install
 
+# Install token-transfer processor
+nebu install token-transfer
+
 # Stream events to JSON file
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   jq 'select(.asset.code == "USDC")' > usdc-transfers.jsonl
 
 # Or pipe directly to DuckDB for SQL analytics
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
+
+# Or use nebu fetch to separate ledger fetching from processing
+nebu fetch 60200000 60200100 | token-transfer | jq 'select(.type == "transfer")'
 ```
 
 ### As a Go Library
@@ -245,9 +251,66 @@ nebu/
 5. **Community Extensible** - Anyone can build and share processors
 6. **No Lock-In** - Works with any infrastructure (local pipes, gRPC microservices, HTTP)
 
+## Schema Versioning
+
+nebu includes schema version information in all JSON output to prevent silent breakage when formats change.
+
+Every JSON event includes:
+- `_schema`: Schema version identifier (e.g., `nebu.token_transfer.v1`)
+- `_nebu_version`: The nebu CLI version that produced the event (e.g., `0.3.0`)
+
+```json
+{
+  "_schema": "nebu.token_transfer.v1",
+  "_nebu_version": "0.3.0",
+  "type": "transfer",
+  "ledger_sequence": 60200000,
+  "tx_hash": "abc...",
+  "from": "GA...",
+  "to": "GB...",
+  "amount": "1000000"
+}
+```
+
+### Why Schema Versioning?
+
+When you pipe nebu output to DuckDB, jq, or other tools, those tools rely on the JSON schema. If nebu renames a field (e.g., `from` → `from_address`), your queries break. Schema versioning lets you:
+
+- **Detect format changes**: Filter by `_schema` version in queries
+- **Handle migrations**: Process old and new formats separately
+- **Track provenance**: Know which nebu version produced your data
+
+### Schema Version Policy
+
+- **Breaking changes** (field renames, removals, type changes) → increment version (v1 → v2)
+- **Non-breaking changes** (new fields, new event types) → keep version (stay at v1)
+
+Each processor documents its schema in `SCHEMA.md`:
+- [Token Transfer Schema Documentation](./examples/processors/token-transfer/SCHEMA.md)
+
+### Using Schema Versions
+
+```bash
+# Filter events by schema version in DuckDB
+duckdb analytics.db -c "
+  SELECT * FROM transfers
+  WHERE _schema = 'nebu.token_transfer.v1'
+"
+
+# Check nebu version distribution
+duckdb analytics.db -c "
+  SELECT _nebu_version, COUNT(*) as count
+  FROM transfers
+  GROUP BY _nebu_version
+"
+
+# Filter with jq
+cat events.jsonl | jq 'select(._schema == "nebu.token_transfer.v1")'
+```
+
 ## Using the CLI
 
-nebu provides a CLI for running processors and scaffolding new ones.
+nebu provides a CLI for processor discovery, installation, and ledger fetching. **Processors run as standalone binaries** to keep nebu minimal.
 
 ### List available processors
 
@@ -256,24 +319,113 @@ nebu provides a CLI for running processors and scaffolding new ones.
 nebu list
 
 # Output:
-# NAME              TYPE    LOCATION                                    DESCRIPTION
-# token-transfer    origin  ./examples/processors/token-transfer        Stream token transfer events from Stellar...
+# NAME              TYPE    LOCATION  DESCRIPTION
+# token-transfer    origin  local     Stream token transfer events from Stellar...
 ```
 
-### Run a processor
+### Install and run processors
+
+Processors are **not embedded** in the nebu binary. Install them first:
 
 ```bash
-# Stream token transfer events from ledgers
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100
+# Install a processor
+nebu install token-transfer
+
+# This builds and installs the processor to $GOPATH/bin
+# Output: Installed: /home/user/go/bin/token-transfer
+
+# Run the processor directly
+token-transfer --start-ledger 60200000 --end-ledger 60200100
 
 # Output is newline-delimited JSON
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq
+token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq
 
-# Use custom RPC endpoint
-nebu run origin token-transfer \
+# Use custom RPC endpoint and network
+token-transfer \
   --start-ledger 60200000 \
   --end-ledger 60200100 \
-  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co \
+  --network mainnet
+
+# Use testnet
+token-transfer \
+  --start-ledger 100 \
+  --end-ledger 200 \
+  --network testnet
+```
+
+### Fetch ledgers (without processing)
+
+Use `nebu fetch` to download raw ledger XDR that can be piped to processors:
+
+```bash
+# Fetch ledgers to file
+nebu fetch 60200000 60200100 --output ledgers.xdr
+
+# Or pipe directly to a processor
+nebu fetch 60200000 60200100 | token-transfer
+
+# This separates ledger fetching from processing,
+# allowing you to process the same data multiple times
+nebu fetch 60200000 60200100 > ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.type == "transfer")'
+cat ledgers.xdr | token-transfer | duckdb-sink --db events.db
+```
+
+### Configuration & Environment Variables
+
+Configure processors and `nebu fetch` via flags or environment variables:
+
+```bash
+# Set defaults via environment (applies to both nebu fetch and processors)
+export NEBU_RPC_URL="https://rpc-pubnet.nodeswithobsrvr.co"
+export NEBU_NETWORK="mainnet"
+
+# Run processor without specifying flags (uses environment)
+token-transfer --start-ledger 60200000 --end-ledger 60200100
+
+# Or use with nebu fetch
+nebu fetch 60200000 60200100 | token-transfer
+```
+
+**Available environment variables:**
+- `NEBU_RPC_URL` - Stellar RPC endpoint (default: `https://mainnet.sorobanrpc.com`)
+- `NEBU_NETWORK` - Network: `mainnet`, `testnet`, or full passphrase (default: mainnet)
+- `NEBU_RPC_AUTH` - RPC authorization header value (e.g., `Api-Key YOUR_KEY`)
+
+**RPC Authorization:**
+
+Many premium RPC endpoints require authorization headers. Processors and `nebu fetch` support this via environment variables:
+
+```bash
+# Using environment variable (recommended for secrets)
+export NEBU_RPC_AUTH="Api-Key YOUR_API_KEY_HERE"
+
+# Works with processors
+token-transfer \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co \
+  --start-ledger 60200000 --end-ledger 60200100
+
+# Works with nebu fetch
+nebu fetch 60200000 60200100 \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co \
+  --output ledgers.xdr
+
+# Or pipe fetch to processor
+nebu fetch 60200000 60200100 \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co | token-transfer
+```
+
+**Quiet mode:**
+
+Suppress informational output for scripting:
+
+```bash
+# With processors
+token-transfer --quiet --start-ledger 60200000 --end-ledger 60200100 | jq
+
+# With nebu fetch
+nebu fetch --quiet 60200000 60200100 | token-transfer --quiet | jq
 ```
 
 ### Build a Pipeline
@@ -281,11 +433,17 @@ nebu run origin token-transfer \
 Stream events from origin processors into sink processors using Unix pipes:
 
 ```bash
-# Build a simple JSON file sink
-go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/
+# Install processors
+nebu install token-transfer
+nebu install json-file-sink
 
 # Stream token transfers into a JSON file
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  json-file-sink --out events.jsonl
+
+# Or build manually
+go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   ./bin/json-file-sink --out events.jsonl
 
 # Query the events
@@ -304,7 +462,7 @@ Pipe events into a persistent DuckDB table:
 
 ```bash
 # Create table from event stream
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
 
 # Query the data
@@ -317,7 +475,7 @@ Query event streams directly without saving to disk:
 
 ```bash
 # Count transfers by asset
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
       json_extract_string(asset, '$.code') as asset_code,
@@ -330,7 +488,7 @@ nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   "
 
 # Find largest transfers
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
       type,
@@ -351,7 +509,7 @@ Apply SQL transformations while ingesting data:
 
 ```bash
 # Filter and transform USDC transfers only
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb analytics.db -c "
     CREATE TABLE usdc_transfers AS
     SELECT
@@ -385,7 +543,7 @@ Create multiple related tables from a single stream:
 
 ```bash
 # Process stream once, create multiple views
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb analytics.db -c "
     CREATE TABLE all_events AS SELECT * FROM read_json('/dev/stdin');
 
@@ -415,7 +573,7 @@ duckdb analytics.db -c "
 Analyze event patterns over time:
 
 ```bash
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
+token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
   duckdb -c "
     WITH ledger_stats AS (
       SELECT
@@ -447,7 +605,7 @@ nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
 Track top addresses by activity:
 
 ```bash
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     WITH address_activity AS (
       SELECT \"from\" as address, COUNT(*) as sends, 0 as receives
@@ -480,7 +638,7 @@ Export query results to various formats:
 
 ```bash
 # Export to CSV
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     COPY (
       SELECT type, asset, COUNT(*) as count
@@ -490,7 +648,7 @@ nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   "
 
 # Export to Parquet (columnar format)
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     COPY (
       SELECT * FROM read_json('/dev/stdin')
@@ -498,7 +656,7 @@ nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   "
 
 # Export to JSON
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     COPY (
       SELECT * FROM read_json('/dev/stdin')
@@ -513,11 +671,11 @@ Append new data to existing tables:
 
 ```bash
 # Initial load
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
 
 # Append new data
-nebu run origin token-transfer --start-ledger 60200101 --end-ledger 60200200 | \
+token-transfer --start-ledger 60200101 --end-ledger 60200200 | \
   duckdb events.db -c "INSERT INTO transfers SELECT * FROM read_json('/dev/stdin')"
 
 # Check for duplicates

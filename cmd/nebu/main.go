@@ -6,9 +6,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/withObsrvr/nebu/pkg/version"
 )
-
-var version = "0.2.0"
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -19,7 +18,7 @@ modular data pipelines on Stellar.
 
 Build custom indexers, analytics pipelines, and real-time automation
 by composing processors that operate on Stellar ledger data.`,
-		Version: version,
+		Version: version.Version,
 	}
 
 	// Add global flags
