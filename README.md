@@ -16,8 +16,9 @@ Currently shipping:
 - ✅ Runtime for wiring source → processor
 - ✅ Registry-based processor discovery
 - ✅ CLI for running and scaffolding processors
-- ✅ Example processors (token-transfer, duckdb-sink)
+- ✅ Example processors (token-transfer)
 - ✅ HTTP/JSON streaming service (`nebu-ttpd`)
+- ✅ DuckDB integration via Unix pipes
 
 Coming soon:
 - Additional origin processors (Soroban events, AMM)
@@ -26,6 +27,25 @@ Coming soon:
 - Community processor registry
 
 ## Quick Start
+
+### Using the CLI (Unix Pipes)
+
+Stream token transfer events and analyze them with standard Unix tools:
+
+```bash
+# Install nebu CLI
+make install
+
+# Stream events to JSON file
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  jq 'select(.asset.code == "USDC")' > usdc-transfers.jsonl
+
+# Or pipe directly to DuckDB for SQL analytics
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
+```
+
+### As a Go Library
 
 ```go
 package main
@@ -136,7 +156,9 @@ nebu ships with example processors in [`examples/processors/`](./examples/proces
 - **[token-transfer](./examples/processors/token-transfer/)** - Stream token transfer events (transfers, mints, burns, clawbacks, fees)
 
 ### Sink Processors
-- **[duckdb-sink](./examples/processors/duckdb-sink/)** - Write events to DuckDB for local analytics
+- **[json-file-sink](./examples/processors/json-file-sink/)** - Write events to JSONL files (simplest sink)
+
+**💡 DuckDB users:** See the [DuckDB Cookbook](#duckdb-cookbook) below for piping events directly to DuckDB without custom sinks
 
 ### Basic Examples
 - [`simple_origin`](./examples/simple_origin/) - Count and print ledger info
@@ -145,6 +167,8 @@ Run an example:
 ```bash
 go run examples/simple_origin/main.go
 ```
+
+**💡 Want to see Unix-style pipeline examples?** Check out [PIPELINE.md](./PIPELINE.md) for examples using `jq`, `tee`, filtering, and multi-sink fanouts.
 
 See the [Processor Registry](#processor-registry) section to learn how processors are discovered and run.
 
@@ -203,7 +227,7 @@ nebu/
 ├── examples/
 │   ├── processors/    # Example processor implementations
 │   │   ├── token-transfer/  # Origin: token transfers
-│   │   └── duckdb-sink/     # Sink: DuckDB storage
+│   │   └── json-file-sink/  # Sink: JSONL file storage
 │   └── simple_origin/ # Basic usage example
 ├── cmd/
 │   ├── nebu/       # CLI tool
@@ -214,11 +238,12 @@ nebu/
 
 ## Design Principles
 
-1. **Minimal Core** - nebu provides the runtime; processors are separate and composable
-2. **IDL-First** - All processors communicate via protobuf messages
-3. **Registry-Based Discovery** - Processors are registered in `registry.yaml`, not bundled
-4. **Community Extensible** - Anyone can build and share processors
-5. **No Lock-In** - Works with any infrastructure
+1. **Unix Philosophy** - Processors are composable via stdin/stdout pipes; each does one thing well
+2. **Minimal Core** - nebu provides the runtime; processors are separate and composable
+3. **IDL-First** - All processors communicate via protobuf messages (or JSON for simplicity)
+4. **Registry-Based Discovery** - Processors are registered in `registry.yaml`, not bundled
+5. **Community Extensible** - Anyone can build and share processors
+6. **No Lock-In** - Works with any infrastructure (local pipes, gRPC microservices, HTTP)
 
 ## Using the CLI
 
@@ -233,7 +258,6 @@ nebu list
 # Output:
 # NAME              TYPE    LOCATION                                    DESCRIPTION
 # token-transfer    origin  ./examples/processors/token-transfer        Stream token transfer events from Stellar...
-# duckdb-sink       sink    ./examples/processors/duckdb-sink           Sink processor that writes token transfer...
 ```
 
 ### Run a processor
@@ -261,27 +285,257 @@ Stream events from origin processors into sink processors using Unix pipes:
 go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/
 
 # Stream token transfers into a JSON file
-nebu run origin token-transfer --start 60200000 --end 60200100 | \
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   ./bin/json-file-sink --out events.jsonl
 
 # Query the events
 cat events.jsonl | jq 'select(.type == "transfer") | {from, to, amount, asset}'
 ```
 
-For DuckDB sink (requires CGO):
+For DuckDB integration, see the [DuckDB Cookbook](#duckdb-cookbook) below.
+
+## DuckDB Cookbook
+
+DuckDB can read JSON directly from stdin using `read_json('/dev/stdin')`, making it perfect for analyzing nebu event streams without custom sinks. The JSON extension is auto-loaded in modern DuckDB versions.
+
+### Basic Ingestion
+
+Pipe events into a persistent DuckDB table:
 
 ```bash
-# Build with Nix for proper dependencies
-cd examples/processors/duckdb-sink
-nix develop  # or: nix build
+# Create table from event stream
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
 
-# Stream into DuckDB
-nebu run origin token-transfer --start 60200000 --end 60200100 | \
-  ./cmd/duckdb-sink --db events.db
-
-# Query with DuckDB CLI
-duckdb events.db "SELECT asset_code, COUNT(*) FROM token_transfer_events GROUP BY asset_code"
+# Query the data
+duckdb events.db -c "SELECT type, COUNT(*) FROM transfers GROUP BY type"
 ```
+
+### Ad-Hoc Analytics (No Persistence)
+
+Query event streams directly without saving to disk:
+
+```bash
+# Count transfers by asset
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    SELECT
+      json_extract_string(asset, '$.code') as asset_code,
+      COUNT(*) as transfer_count,
+      SUM(CAST(amount AS DOUBLE)) as total_volume
+    FROM read_json('/dev/stdin')
+    WHERE type = 'transfer'
+    GROUP BY asset_code
+    ORDER BY total_volume DESC
+  "
+
+# Find largest transfers
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    SELECT
+      type,
+      from_address,
+      to_address,
+      CAST(amount AS DOUBLE) / 10000000.0 as amount_decimal,
+      json_extract_string(asset, '$.code') as asset
+    FROM read_json('/dev/stdin')
+    WHERE type = 'transfer'
+    ORDER BY CAST(amount AS DOUBLE) DESC
+    LIMIT 10
+  "
+```
+
+### Transform on Ingestion
+
+Apply SQL transformations while ingesting data:
+
+```bash
+# Filter and transform USDC transfers only
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb analytics.db -c "
+    CREATE TABLE usdc_transfers AS
+    SELECT
+      ledger_sequence,
+      tx_hash,
+      \"from\",
+      \"to\",
+      CAST(amount AS BIGINT) as amount_stroops,
+      CAST(amount AS BIGINT) / 10000000.0 as amount_usd
+    FROM read_json('/dev/stdin')
+    WHERE
+      type = 'transfer'
+      AND json_extract_string(asset, '$.code') = 'USDC'
+  "
+
+# Query transformed data
+duckdb analytics.db -c "
+  SELECT
+    ledger_sequence,
+    COUNT(*) as transfers,
+    SUM(amount_usd) as volume_usd
+  FROM usdc_transfers
+  GROUP BY ledger_sequence
+  ORDER BY ledger_sequence
+"
+```
+
+### Multi-Table Analytics
+
+Create multiple related tables from a single stream:
+
+```bash
+# Process stream once, create multiple views
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb analytics.db -c "
+    CREATE TABLE all_events AS SELECT * FROM read_json('/dev/stdin');
+
+    CREATE VIEW transfers AS
+      SELECT * FROM all_events WHERE type = 'transfer';
+
+    CREATE VIEW mints AS
+      SELECT * FROM all_events WHERE type = 'mint';
+
+    CREATE VIEW burns AS
+      SELECT * FROM all_events WHERE type = 'burn';
+  "
+
+# Cross-table analytics
+duckdb analytics.db -c "
+  SELECT
+    'transfers' as event_type, COUNT(*) FROM transfers
+  UNION ALL
+  SELECT 'mints', COUNT(*) FROM mints
+  UNION ALL
+  SELECT 'burns', COUNT(*) FROM burns
+"
+```
+
+### Time-Series Analysis
+
+Analyze event patterns over time:
+
+```bash
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
+  duckdb -c "
+    WITH ledger_stats AS (
+      SELECT
+        ledger_sequence,
+        json_extract_string(asset, '$.code') as asset_code,
+        COUNT(*) as event_count,
+        SUM(CAST(amount AS DOUBLE)) as volume
+      FROM read_json('/dev/stdin')
+      WHERE type = 'transfer'
+      GROUP BY ledger_sequence, asset_code
+    )
+    SELECT
+      ledger_sequence,
+      asset_code,
+      event_count,
+      volume,
+      AVG(volume) OVER (
+        PARTITION BY asset_code
+        ORDER BY ledger_sequence
+        ROWS BETWEEN 99 PRECEDING AND CURRENT ROW
+      ) as moving_avg_100_ledgers
+    FROM ledger_stats
+    ORDER BY ledger_sequence, volume DESC
+  "
+```
+
+### Address Activity Tracking
+
+Track top addresses by activity:
+
+```bash
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    WITH address_activity AS (
+      SELECT \"from\" as address, COUNT(*) as sends, 0 as receives
+      FROM read_json('/dev/stdin')
+      WHERE type = 'transfer' AND \"from\" IS NOT NULL
+      GROUP BY \"from\"
+
+      UNION ALL
+
+      SELECT \"to\" as address, 0 as sends, COUNT(*) as receives
+      FROM read_json('/dev/stdin')
+      WHERE type = 'transfer' AND \"to\" IS NOT NULL
+      GROUP BY \"to\"
+    )
+    SELECT
+      address,
+      SUM(sends) as total_sends,
+      SUM(receives) as total_receives,
+      SUM(sends + receives) as total_activity
+    FROM address_activity
+    GROUP BY address
+    ORDER BY total_activity DESC
+    LIMIT 20
+  "
+```
+
+### Export Results
+
+Export query results to various formats:
+
+```bash
+# Export to CSV
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    COPY (
+      SELECT type, asset, COUNT(*) as count
+      FROM read_json('/dev/stdin')
+      GROUP BY type, asset
+    ) TO 'summary.csv' (HEADER, DELIMITER ',')
+  "
+
+# Export to Parquet (columnar format)
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    COPY (
+      SELECT * FROM read_json('/dev/stdin')
+    ) TO 'transfers.parquet' (FORMAT PARQUET)
+  "
+
+# Export to JSON
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    COPY (
+      SELECT * FROM read_json('/dev/stdin')
+      WHERE type = 'transfer'
+    ) TO 'transfers.json' (FORMAT JSON)
+  "
+```
+
+### Incremental Updates
+
+Append new data to existing tables:
+
+```bash
+# Initial load
+nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
+
+# Append new data
+nebu run origin token-transfer --start-ledger 60200101 --end-ledger 60200200 | \
+  duckdb events.db -c "INSERT INTO transfers SELECT * FROM read_json('/dev/stdin')"
+
+# Check for duplicates
+duckdb events.db -c "
+  SELECT ledger_sequence, tx_hash, COUNT(*)
+  FROM transfers
+  GROUP BY ledger_sequence, tx_hash
+  HAVING COUNT(*) > 1
+"
+```
+
+### Tips
+
+- **Schema Detection**: DuckDB auto-detects JSON schema, but nested objects are preserved as JSON strings
+- **Extract Nested Fields**: Use `json_extract_string(field, '$.path')` for nested data
+- **Performance**: For large datasets, use Parquet format or create indexes on frequently queried columns
+- **Memory**: DuckDB is in-process and memory-efficient, but very large streams may need batching
+- **Parallel Processing**: Run multiple `nebu run` commands for different ledger ranges, then `UNION ALL` in DuckDB
 
 ### Create a new processor
 

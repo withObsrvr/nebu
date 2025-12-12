@@ -46,24 +46,3 @@ processors:
   #     type: git
   #     url: https://github.com/withObsrvr/nebu-processor-soroban
   #   ...
-
-  # DuckDB Sink Processor
-  - name: duckdb-sink
-    type: sink
-    description: Sink processor that writes token transfer events to a DuckDB database for local analytics
-
-    # Local example processor
-    location:
-      type: local
-      path: ./examples/processors/duckdb-sink
-      package: github.com/withObsrvr/nebu/examples/processors/duckdb-sink
-
-    # Dependencies
-    dependencies:
-      - github.com/marcboeker/go-duckdb
-
-    # Metadata
-    manifest: ./examples/processors/duckdb-sink/manifest.yaml
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com

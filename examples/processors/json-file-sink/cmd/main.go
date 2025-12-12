@@ -1,82 +1,68 @@
 // Package main implements a simple JSON file sink that reads events from stdin.
+//
+// This processor writes JSON events to a JSONL file.
+//
+// Usage:
+//
+//	# Write to file
+//	cat events.jsonl | json-file-sink --out output.jsonl
+//
+//	# Chain with origin processor
+//	nebu fetch 60200000 60200100 | token-transfer | json-file-sink --out transfers.jsonl
+//
+//	# Full pipeline with transform
+//	token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+//	  usdc-filter | \
+//	  json-file-sink --out usdc-transfers.jsonl
 package main
 
 import (
 	"bufio"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
+
+	"github.com/spf13/cobra"
+	"github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
-func main() {
-	outFile := flag.String("out", "events.jsonl", "Output file path (JSONL format)")
-	flag.Parse()
+var version = "0.1.0"
 
-	if err := run(*outFile); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+var outputFile string
+var fileWriter *bufio.Writer
+var file *os.File
+
+func main() {
+	config := cli.SinkConfig{
+		Name:        "json-file-sink",
+		Description: "Write JSON events to a JSONL file",
+		Version:     version,
 	}
+
+	cli.RunSinkCLI(config, writeToFile, addFlags)
 }
 
-func run(outFile string) error {
-	// Handle Ctrl+C
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		fmt.Fprintln(os.Stderr, "\nShutting down...")
-		os.Exit(0)
-	}()
+func addFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVar(&outputFile, "out", "events.jsonl", "Output file path (JSONL format)")
+}
 
-	fmt.Fprintf(os.Stderr, "JSON File Sink - writing to %s\n", outFile)
-	fmt.Fprintf(os.Stderr, "Reading events from stdin...\n")
-
-	// Open output file
-	f, err := os.Create(outFile)
-	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
-	}
-	defer f.Close()
-
-	writer := bufio.NewWriter(f)
-	defer writer.Flush()
-
-	// Read events from stdin
-	scanner := bufio.NewScanner(os.Stdin)
-	eventCount := 0
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			continue
+func writeToFile(event map[string]interface{}) error {
+	// Open file on first event
+	if file == nil {
+		var err error
+		file, err = os.Create(outputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
 		}
-
-		// Validate JSON
-		var event map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: invalid JSON: %v\n", err)
-			continue
-		}
-
-		// Write to file
-		if _, err := writer.WriteString(line + "\n"); err != nil {
-			return fmt.Errorf("failed to write event: %w", err)
-		}
-
-		eventCount++
-		if eventCount%100 == 0 {
-			fmt.Fprintf(os.Stderr, "Processed %d events...\n", eventCount)
-			writer.Flush() // Flush periodically
-		}
+		fileWriter = bufio.NewWriter(file)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading stdin: %w", err)
+	// Write event as JSON line
+	encoder := json.NewEncoder(fileWriter)
+	if err := encoder.Encode(event); err != nil {
+		return fmt.Errorf("failed to write event: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Processed %d events total\n", eventCount)
-	return nil
+	// Flush periodically to ensure data is written
+	return fileWriter.Flush()
 }

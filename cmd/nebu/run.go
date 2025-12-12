@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -40,23 +41,52 @@ func newRunOriginCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "origin [processor-name]",
+		Use:   "origin [processor-name] [input-file]",
 		Short: "Run an origin processor",
-		Long: `Run an origin processor against Stellar RPC.
+		Long: `Run an origin processor against Stellar RPC or from stdin/file.
 
 Currently supported processors:
   token-transfer  - Stream token transfer events (transfers, mints, burns, etc.)
 
 Examples:
-  # Stream token transfers from ledgers 60200000-60200100
-  nebu run origin token-transfer --start 60200000 --end 60200100
+  # Stream token transfers from RPC
+  nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100
+
+  # Process from stdin
+  cat ledgers.xdr | nebu run origin token-transfer
+
+  # Process from file
+  nebu run origin token-transfer ledgers.xdr
+
+  # Explicit stdin marker
+  nebu run origin token-transfer - < ledgers.xdr
 
   # Use custom RPC endpoint
-  nebu run origin token-transfer --start 60200000 --end 60200100 --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
+  nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100 --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
 `,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			processorName := args[0]
+
+			// Check if reading from stdin or file
+			var inputFile string
+			useStdin := false
+
+			if len(args) == 2 {
+				// Second argument provided
+				if args[1] == "-" {
+					useStdin = true
+				} else {
+					inputFile = args[1]
+				}
+			} else {
+				// Auto-detect stdin
+				stat, _ := os.Stdin.Stat()
+				if (stat.Mode() & os.ModeCharDevice) == 0 {
+					// stdin is a pipe
+					useStdin = true
+				}
+			}
 
 			// Load registry and validate processor exists
 			reg, err := registry.LoadDefault()
@@ -80,15 +110,17 @@ Examples:
 				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run origin' requires type 'origin'", processorName, proc.Type)
 			}
 
-			// Validate required flags
-			if startLedger == 0 {
-				return fmt.Errorf("--start-ledger is required")
-			}
-			if endLedger == 0 {
-				return fmt.Errorf("--end-ledger is required")
-			}
-			if startLedger > endLedger {
-				return fmt.Errorf("start ledger must be <= end ledger")
+			// Validate required flags (only if not using stdin/file)
+			if !useStdin && inputFile == "" {
+				if startLedger == 0 {
+					return fmt.Errorf("--start-ledger is required (or provide input file/stdin)")
+				}
+				if endLedger == 0 {
+					return fmt.Errorf("--end-ledger is required (or provide input file/stdin)")
+				}
+				if startLedger > endLedger {
+					return fmt.Errorf("start ledger must be <= end ledger")
+				}
 			}
 
 			// Create context with cancellation
@@ -100,13 +132,20 @@ Examples:
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				<-sigCh
-				fmt.Fprintln(os.Stderr, "\nShutting down...")
+				logInfo("\nShutting down...")
 				cancel()
 			}()
 
 			// Run the appropriate processor
 			switch processorName {
 			case "token-transfer":
+				// Check if using stdin/file
+				if useStdin {
+					return runTokenTransferFromStdin(ctx, networkPass, os.Stdin, jsonOutput)
+				} else if inputFile != "" {
+					return runTokenTransferFromFile(ctx, networkPass, inputFile, jsonOutput)
+				}
+				// Default: RPC mode
 				return runTokenTransfer(ctx, rpcURL, networkPass, startLedger, endLedger, jsonOutput)
 			default:
 				return fmt.Errorf("processor '%s' is registered but not yet implemented in CLI\nProcessor info: %s\nLocation: %s",
@@ -160,7 +199,7 @@ func runTokenTransfer(ctx context.Context, rpcURL, networkPass string, start, en
 	}()
 
 	// Run the runtime
-	fmt.Fprintf(os.Stderr, "Processing ledgers %d to %d...\n", start, end)
+	logInfo("Processing ledgers %d to %d...", start, end)
 
 	rt := runtime.NewRuntime()
 	if err := rt.RunOrigin(ctx, src, origin, start, end); err != nil && err != context.Canceled {
@@ -172,7 +211,90 @@ func runTokenTransfer(ctx context.Context, rpcURL, networkPass string, start, en
 		return err
 	}
 
-	fmt.Fprintf(os.Stderr, "Processed %d events\n", eventCount)
+	logInfo("Processed %d events", eventCount)
+	return nil
+}
+
+// runTokenTransferFromStdin processes ledgers from stdin
+func runTokenTransferFromStdin(ctx context.Context, networkPass string, input io.Reader, jsonOutput bool) error {
+	// Create token transfer origin processor
+	origin := ttp.NewOrigin(networkPass)
+	defer origin.Close()
+
+	// Start collecting events in background
+	eventCount := 0
+	done := make(chan error, 1)
+
+	go func() {
+		encoder := json.NewEncoder(os.Stdout)
+		for ev := range origin.Out() {
+			eventCount++
+			if jsonOutput {
+				simplified := simplifyTokenTransferEvent(ev)
+				if err := encoder.Encode(simplified); err != nil {
+					done <- err
+					return
+				}
+			} else {
+				fmt.Printf("Event %d: %s\n", eventCount, getEventType(ev))
+			}
+		}
+		done <- nil
+	}()
+
+	// Process from stdin
+	logInfo("Reading ledgers from stdin...")
+	if err := processFromStdin(ctx, origin, input); err != nil && err != context.Canceled {
+		return err
+	}
+
+	// Wait for event collection to finish
+	if err := <-done; err != nil {
+		return err
+	}
+
+	logInfo("Processed %d events", eventCount)
+	return nil
+}
+
+// runTokenTransferFromFile processes ledgers from a file
+func runTokenTransferFromFile(ctx context.Context, networkPass string, filePath string, jsonOutput bool) error {
+	// Create token transfer origin processor
+	origin := ttp.NewOrigin(networkPass)
+	defer origin.Close()
+
+	// Start collecting events in background
+	eventCount := 0
+	done := make(chan error, 1)
+
+	go func() {
+		encoder := json.NewEncoder(os.Stdout)
+		for ev := range origin.Out() {
+			eventCount++
+			if jsonOutput {
+				simplified := simplifyTokenTransferEvent(ev)
+				if err := encoder.Encode(simplified); err != nil {
+					done <- err
+					return
+				}
+			} else {
+				fmt.Printf("Event %d: %s\n", eventCount, getEventType(ev))
+			}
+		}
+		done <- nil
+	}()
+
+	// Process from file
+	if err := processFromFile(ctx, origin, filePath); err != nil && err != context.Canceled {
+		return err
+	}
+
+	// Wait for event collection to finish
+	if err := <-done; err != nil {
+		return err
+	}
+
+	logInfo("Processed %d events", eventCount)
 	return nil
 }
 

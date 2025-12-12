@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package nebu.amount_filter;
+
+option go_package = "github.com/withObsrvr/nebu/examples/processors/amount-filter/proto;amount_filter_pb";
+
+// TransformRequest contains a single event to transform
+message TransformRequest {
+  // JSON-encoded event
+  bytes event_json = 1;
+}
+
+// TransformResponse contains the transformed event or indicates it was filtered
+message TransformResponse {
+  // JSON-encoded transformed event (empty if filtered out)
+  bytes event_json = 1;
+
+  // Whether the event was filtered out
+  bool filtered = 2;
+}
+
+// FilterConfig configures the amount filter parameters
+message FilterConfig {
+  // Minimum amount (inclusive, in stroops). 0 = no minimum
+  int64 min_amount = 1;
+
+  // Maximum amount (inclusive, in stroops). 0 = no maximum
+  int64 max_amount = 2;
+
+  // Asset code to filter by (e.g., "USDC", "XLM"). Empty = any asset
+  string asset_code = 3;
+}
+
+// ConfigureRequest sets the filter parameters
+message ConfigureRequest {
+  FilterConfig config = 1;
+}
+
+// ConfigureResponse confirms configuration was applied
+message ConfigureResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// GetConfigRequest requests the current configuration
+message GetConfigRequest {}
+
+// GetConfigResponse returns the current configuration
+message GetConfigResponse {
+  FilterConfig config = 1;
+}
+
+// AmountFilterService is a gRPC transform service for filtering events by amount
+service AmountFilterService {
+  // Configure sets the filter parameters
+  rpc Configure(ConfigureRequest) returns (ConfigureResponse);
+
+  // GetConfig returns the current filter configuration
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+
+  // Transform applies the filter to a single event
+  rpc Transform(TransformRequest) returns (TransformResponse);
+
+  // TransformStream applies the filter to a stream of events
+  rpc TransformStream(stream TransformRequest) returns (stream TransformResponse);
+}

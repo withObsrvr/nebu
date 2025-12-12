@@ -22,8 +22,13 @@ by composing processors that operate on Stellar ledger data.`,
 		Version: version,
 	}
 
+	// Add global flags
+	rootCmd.PersistentFlags().BoolVarP(&quietMode, "quiet", "q", false, "suppress non-error output")
+
 	// Add subcommands
+	rootCmd.AddCommand(newFetchCmd())
 	rootCmd.AddCommand(newRunCmd())
+	rootCmd.AddCommand(newInstallCmd())
 	rootCmd.AddCommand(newNewCmd())
 	rootCmd.AddCommand(newListCmd())
 
