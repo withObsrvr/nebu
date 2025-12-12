@@ -1,0 +1,59 @@
+name: duckdb-sink
+version: 0.1.0
+type: sink
+
+display_name: DuckDB Sink
+description: |
+  Sink processor that writes token transfer events to a DuckDB database.
+  Creates a local analytics-ready database for querying events with SQL.
+
+input:
+  - token_transfer.TokenTransferEvent (or compatible JSON events)
+
+output:
+  - DuckDB table: token_transfer_events
+
+features:
+  - Automatic table creation
+  - SQL queryable event storage
+  - Efficient columnar storage
+  - Local file-based database
+
+usage:
+  standalone: |
+    # The sink can consume events from stdin (JSON lines)
+    nebu run origin token-transfer --start 60200000 --end 60200100 | duckdb-sink --db events.db
+
+  programmatic: |
+    sink, _ := duckdb_sink.NewSink("events.db")
+    defer sink.Close()
+
+    // Consume events
+    sink.ConsumeEvent(ctx, event)
+
+    // Query data
+    results, _ := sink.Query("SELECT * FROM token_transfer_events LIMIT 10")
+
+schema: |
+  CREATE TABLE token_transfer_events (
+    id INTEGER PRIMARY KEY,
+    event_type VARCHAR NOT NULL,
+    ledger_sequence INTEGER NOT NULL,
+    tx_hash VARCHAR NOT NULL,
+    contract_address VARCHAR,
+    from_address VARCHAR,
+    to_address VARCHAR,
+    amount VARCHAR NOT NULL,
+    asset_code VARCHAR,
+    asset_issuer VARCHAR,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+
+maintainer:
+  name: OBSRVR
+  url: https://withobsrvr.com
+
+dependencies:
+  - github.com/marcboeker/go-duckdb
+
+license: MIT
