@@ -65,7 +65,7 @@ Examples:
 			}
 
 			// Get configuration from environment or flags
-			rpcConfig := getEnvOrFlag("NEBU_RPC_URL", rpcURL, "https://mainnet.sorobanrpc.com")
+			rpcConfig := getEnvOrFlag("NEBU_RPC_URL", rpcURL, "https://rpc.lightsail.network")
 			networkConfig := getEnvOrFlag("NEBU_NETWORK", networkPass, network.PublicNetworkPassphrase)
 
 			// Get auth headers
