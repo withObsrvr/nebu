@@ -57,7 +57,7 @@ Examples:
 			}
 
 			// Build and install
-			return installProcessor(proc.Name, proc.Location.Path, installPath)
+			return installProcessorSmart(proc, installPath)
 		},
 	}
 
@@ -81,11 +81,29 @@ func getDefaultInstallPath() string {
 	return "/usr/local/bin"
 }
 
-func installProcessor(name, processorPath, installPath string) error {
-	logInfo("Installing %s...", name)
+// installProcessorSmart auto-detects whether to build locally or use go install
+func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) error {
+	// Try local build first (dev mode with cloned repo)
+	if proc.Location.Path != "" {
+		if _, err := os.Stat(proc.Location.Path); err == nil {
+			logInfo("Installing %s from local source...", proc.Name)
+			return installProcessorLocal(proc.Name, proc.Location.Path, installPath)
+		}
+	}
 
-	// Build the binary
-	cmdPath := filepath.Join(processorPath, "cmd")
+	// Fall back to go install (for users without cloned repo)
+	if proc.Location.ModulePackage != "" {
+		logInfo("Installing %s from Go module...", proc.Name)
+		return installProcessorModule(proc.Name, proc.Location.ModulePackage, installPath)
+	}
+
+	return fmt.Errorf("processor location not found (no local path or module package available)")
+}
+
+// installProcessorLocal builds a processor from local source
+func installProcessorLocal(name, processorPath, installPath string) error {
+	// Build the binary from cmd/processor-name subdirectory
+	cmdPath := filepath.Join(processorPath, "cmd", name)
 	binaryName := name
 
 	logInfo("Building %s from %s...", name, cmdPath)
@@ -104,6 +122,28 @@ func installProcessor(name, processorPath, installPath string) error {
 	logInfo("You can now run:")
 	logInfo("  %s --help", binaryName)
 	logInfo("  nebu fetch 60200000 60200100 | %s", binaryName)
+
+	return nil
+}
+
+// installProcessorModule installs a processor using go install
+func installProcessorModule(name, modulePackage, installPath string) error {
+	logInfo("Running: go install %s@latest", modulePackage)
+
+	cmd := exec.Command("go", "install", modulePackage+"@latest")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go install failed: %w", err)
+	}
+
+	installedPath := filepath.Join(installPath, name)
+	logInfo("Installed: %s", installedPath)
+	logInfo("")
+	logInfo("You can now run:")
+	logInfo("  %s --help", name)
+	logInfo("  nebu fetch 60200000 60200100 | %s", name)
 
 	return nil
 }

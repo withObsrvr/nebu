@@ -16,39 +16,75 @@ Currently shipping:
 - ✅ Runtime for wiring source → processor
 - ✅ Registry-based processor discovery
 - ✅ CLI for processor installation and ledger fetching
-- ✅ Example processors (token-transfer, json-file-sink, duckdb-sink, filters)
+- ✅ Example processors (token-transfer, json-file-sink, filters)
 - ✅ Standalone processor binaries (not embedded in nebu)
 - ✅ DuckDB integration via Unix pipes
+- ✅ Community processor registry
+- ✅ Schema versioning for all JSON output
+- ✅ RPC authentication support (premium endpoints)
+- ✅ Network validation (testnet/mainnet detection)
 
 Coming soon:
-- Additional origin processors (Soroban events, AMM)
-- Transform processor examples
-- External processor support (git, go modules)
-- Community processor registry
+- Additional origin processors (Soroban events, AMM, DEX)
+- External processor support (install from git repos)
+- More transform processor examples
 
 ## Quick Start
 
-### Using the CLI (Unix Pipes)
+**Get running in 2 minutes:**
 
-Stream token transfer events and analyze them with standard Unix tools:
+### Option A: Using `go install` (Recommended)
 
 ```bash
-# Install nebu CLI
-make install
+# 1. Install nebu CLI (10 seconds)
+go install github.com/withObsrvr/nebu/cmd/nebu@latest
 
-# Install token-transfer processor
+# 2. Add Go bin to PATH (if not already done)
+export PATH="$HOME/go/bin:$PATH"
+
+# 3. Install token-transfer processor (30 seconds)
 nebu install token-transfer
 
-# Stream events to JSON file
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.asset.code == "USDC")' > usdc-transfers.jsonl
+# 4. See results! (30 seconds - processes 2 ledgers)
+token-transfer --start-ledger 60200000 --end-ledger 60200001
+```
 
-# Or pipe directly to DuckDB for SQL analytics
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
+### Option B: Clone and Build (For Development)
 
-# Or use nebu fetch to separate ledger fetching from processing
-nebu fetch 60200000 60200100 | token-transfer | jq 'select(.type == "transfer")'
+```bash
+# 1. Clone and install nebu CLI (30 seconds)
+git clone https://github.com/withObsrvr/nebu && cd nebu
+make install
+
+# 2. Add Go bin to PATH (if not already done)
+export PATH="$HOME/go/bin:$PATH"
+
+# 3. Install token-transfer processor (builds locally)
+nebu install token-transfer
+
+# 4. See results!
+token-transfer --start-ledger 60200000 --end-ledger 60200001
+```
+
+**Output:** You'll see newline-delimited JSON events streaming to stdout, like:
+```json
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"0.3.0","type":"transfer","ledger_sequence":60200000,"tx_hash":"abc...","from":"GA...","to":"GB...","amount":"1000000","asset":{"code":"USDC","issuer":"GA..."}}
+```
+
+**Next steps - Build pipelines:**
+
+```bash
+# Pipe to jq for filtering
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  jq 'select(.asset.code == "USDC")'
+
+# Pipe to DuckDB for SQL analytics
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "SELECT type, COUNT(*) FROM read_json('/dev/stdin') GROUP BY type"
+
+# Separate fetching from processing (reusable data)
+nebu fetch 60200000 60200100 > ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.type == "transfer")'
 ```
 
 ### As a Go Library
@@ -95,19 +131,73 @@ func main() {
 
 ## Installation
 
-### As a library
+### For Users: `go install` (Recommended)
+
+Install nebu without cloning the repository:
+
 ```bash
-go get github.com/withObsrvr/nebu
+# Install nebu CLI
+go install github.com/withObsrvr/nebu/cmd/nebu@latest
+
+# Add Go bin to PATH (if not already done)
+export PATH="$HOME/go/bin:$PATH"
+
+# Verify installation
+nebu --version
 ```
 
-### CLI tool
+**How it works:**
+- `nebu` CLI embeds the processor registry
+- `nebu list` works immediately (no repo needed)
+- `nebu install <processor>` automatically uses `go install` for processors
+
+### For Developers: Clone and Build
+
+For local development or contributing:
+
 ```bash
-# Install nebu command
+# Clone the repository
+git clone https://github.com/withObsrvr/nebu
+cd nebu
+
+# Install nebu CLI
 make install
 
-# Or build locally
+# Or build locally without installing
 make build-cli
 ./bin/nebu --version
+```
+
+**How it works:**
+- Uses file system `registry.yaml` (can be edited)
+- `nebu install <processor>` builds from local source
+- Perfect for developing new processors
+
+### PATH Setup
+
+Both methods install binaries to `$GOPATH/bin` (typically `~/go/bin`). Add to PATH:
+
+```bash
+# Add to ~/.bashrc, ~/.zshrc, or ~/.profile
+export PATH="$HOME/go/bin:$PATH"
+
+# Reload configuration
+source ~/.bashrc
+
+# Verify
+nebu --version
+```
+
+**Without PATH modification:**
+```bash
+# Use full paths
+~/go/bin/nebu fetch 60200000 60200100 | ~/go/bin/token-transfer
+```
+
+### As a Go Library
+
+```bash
+go get github.com/withObsrvr/nebu
 ```
 
 ## Core Concepts
@@ -187,19 +277,23 @@ See the [Processor Registry](#processor-registry) section to learn how processor
          │ LedgerCloseMeta (XDR)
          ▼
 ┌────────────────────┐
-│      ORIGIN        │
-│  (your processor)  │
+│      ORIGIN        │  (e.g., token-transfer)
+│  (extracts events) │
 └────────┬───────────┘
-         │ typed events
+         │ typed events (JSON)
          ▼
 ┌────────────────────┐
-│     TRANSFORM      │  (future)
+│     TRANSFORM      │  (e.g., usdc-filter, dedup)
+│  (filters/modify)  │
 └────────┬───────────┘
-         │
+         │ filtered events
          ▼
 ┌────────────────────┐
-│       SINK         │  (future)
+│       SINK         │  (e.g., json-file-sink, duckdb)
+│  (stores/outputs)  │
 └────────────────────┘
+
+All processors communicate via Unix pipes (stdin/stdout)
 ```
 
 ## Development
@@ -693,26 +787,7 @@ duckdb events.db -c "
 - **Extract Nested Fields**: Use `json_extract_string(field, '$.path')` for nested data
 - **Performance**: For large datasets, use Parquet format or create indexes on frequently queried columns
 - **Memory**: DuckDB is in-process and memory-efficient, but very large streams may need batching
-- **Parallel Processing**: Run multiple `nebu run` commands for different ledger ranges, then `UNION ALL` in DuckDB
-
-### Create a new processor
-
-```bash
-# Scaffold a new origin processor
-nebu new processor my-indexer --type origin
-
-# Scaffold a transform processor
-nebu new processor usdc-filter --type transform
-
-# Scaffold a sink processor
-nebu new processor postgres-sink --type sink
-```
-
-This creates a directory with:
-- `processor.go` - Your processor implementation
-- `proto/*.proto` - Event schema definitions
-- `manifest.yaml` - Processor metadata
-- `README.md` - Documentation
+- **Parallel Processing**: Run multiple processors for different ledger ranges, then `UNION ALL` in DuckDB
 
 ## Processor Registry
 
@@ -745,23 +820,53 @@ processors:
      location:
        type: local
        path: ./path/to/processor
-     manifest: ./path/to/processor/manifest.yaml
+     maintainer:
+       name: Your Name
+       url: https://github.com/yourname
    ```
-3. **Run it**: `nebu run origin my-processor --start-ledger X --end-ledger Y`
+3. **Install and run it**:
+   ```bash
+   nebu install my-processor
+   my-processor --start-ledger 60200000 --end-ledger 60200100
+   ```
+
+### Community Processor Registry
+
+Browse community-contributed processors at the [nebu Community Processor Registry](https://github.com/withObsrvr/nebu-processor-registry).
+
+The community registry is a directory of processors built by the community:
+- Each processor lives in its own GitHub repository
+- Submissions are validated automatically (builds, tests, documentation)
+- Processors are maintained by their authors, not the nebu core team
+
+**Discovering community processors:**
+```bash
+# Browse at: https://github.com/withObsrvr/nebu-processor-registry
+# View processor list: https://github.com/withObsrvr/nebu-processor-registry/blob/main/PROCESSORS.md
+```
+
+**Installing community processors (currently manual):**
+```bash
+# Clone and build from processor's repository
+git clone https://github.com/user/awesome-processor
+cd awesome-processor
+go build -o $GOPATH/bin/awesome-processor ./cmd
+
+# Use like any other processor
+awesome-processor --start-ledger 60200000 --end-ledger 60200100 | jq
+```
+
+**Contributing your processor:**
+
+See the [Contributing Guide](https://github.com/withObsrvr/nebu-processor-registry/blob/main/CONTRIBUTING.md) for submission guidelines.
 
 ### Future: External Processors
 
-The registry will support external processors from git repos or go modules:
+The registry will support installing directly from git repos:
 
-```yaml
-processors:
-  - name: soroban-events
-    type: origin
-    location:
-      type: git
-      url: https://github.com/withObsrvr/nebu-processor-soroban
-    proto:
-      source: github.com/withObsrvr/nebu-processor-soroban/proto
+```bash
+# Future: install community processors with one command
+nebu install awesome-processor  # Clones from git, builds, installs
 ```
 
 ## Using the Token Transfer Service
@@ -799,27 +904,42 @@ Environment variables:
 - HTTP/JSON streaming service
 - Integration tests
 
-**Cycle 3** - Basic CLI ✅
-- `nebu run origin` command with JSON output
-- `nebu new processor` scaffolding
-- Template generation for all processor types
-
-**Future**
-- Transform & Sink processor examples
-- Pipeline YAML specs
+**Cycle 3** - CLI and Processor Infrastructure ✅
+- `nebu install` command for building processors
+- `nebu fetch` command for ledger XDR streaming
+- `nebu list` for processor discovery
+- Standalone processor binaries (not embedded in nebu)
+- Registry-based processor management
+- Schema versioning
+- RPC authentication support
 - Community processor registry
-- More origin processors (Soroban events, AMM, etc.)
-- Multi-processor pipelines
+
+**Current Focus**
+- Additional origin processors (Soroban events, AMM, DEX)
+- More transform processor examples
+- External processor support (install from git repos)
+- Performance optimizations
 
 ## Contributing
 
 nebu is under active development. Contributions welcome!
 
-Areas we need help:
-- Additional origin processors
-- Transform processor examples
-- Sink implementations (Postgres, Kafka, DuckDB, etc.)
+### Core nebu contributions
+- Source improvements (RPC, ledger handling)
+- Runtime enhancements
+- CLI features
 - Documentation and examples
+
+### Processor contributions
+
+**Building processors?** Submit them to the [Community Processor Registry](https://github.com/withObsrvr/nebu-processor-registry)!
+
+We especially need:
+- **Origin processors**: Soroban events, AMM operations, DEX trades, etc.
+- **Transform processors**: Filtering, aggregation, enrichment
+- **Sink processors**: Postgres, Kafka, TimescaleDB, ClickHouse, etc.
+
+See the [Processor Contribution Guide](https://github.com/withObsrvr/nebu-processor-registry/blob/main/CONTRIBUTING.md) for details.
 
 ## License
 

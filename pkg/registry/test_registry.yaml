@@ -1,0 +1,8 @@
+version: 1
+processors:
+  - name: test-processor
+    type: origin
+    description: Test processor for embed spike
+    location:
+      type: local
+      path: ./test

@@ -2,12 +2,16 @@
 package registry
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed registry.yaml
+var embeddedRegistry []byte
 
 // Registry represents the processor registry.
 type Registry struct {
@@ -29,10 +33,11 @@ type ProcessorEntry struct {
 
 // ProcessorLocation describes where the processor code lives.
 type ProcessorLocation struct {
-	Type    string `yaml:"type"` // local, git, module
-	Path    string `yaml:"path,omitempty"`
-	URL     string `yaml:"url,omitempty"`
-	Package string `yaml:"package,omitempty"`
+	Type          string `yaml:"type"` // local, git, module
+	Path          string `yaml:"path,omitempty"`
+	ModulePackage string `yaml:"module_package,omitempty"` // Go module path for go install
+	URL           string `yaml:"url,omitempty"`
+	Package       string `yaml:"package,omitempty"`
 }
 
 // ServiceConfig describes how to run the processor as a standalone service.
@@ -61,6 +66,11 @@ func Load(path string) (*Registry, error) {
 		return nil, fmt.Errorf("failed to read registry file: %w", err)
 	}
 
+	return LoadFromBytes(data)
+}
+
+// LoadFromBytes loads a registry from bytes.
+func LoadFromBytes(data []byte) (*Registry, error) {
 	var reg Registry
 	if err := yaml.Unmarshal(data, &reg); err != nil {
 		return nil, fmt.Errorf("failed to parse registry YAML: %w", err)
@@ -70,8 +80,10 @@ func Load(path string) (*Registry, error) {
 }
 
 // LoadDefault loads the default registry from the nebu repo root.
+// It first tries to load from the file system (for development with cloned repo),
+// then falls back to the embedded registry (for go install users).
 func LoadDefault() (*Registry, error) {
-	// Look for registry.yaml in current directory or parent directories
+	// Try file system first (dev mode with cloned repo)
 	paths := []string{
 		"registry.yaml",
 		"../registry.yaml",
@@ -84,7 +96,8 @@ func LoadDefault() (*Registry, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("registry.yaml not found")
+	// Fall back to embedded registry (go install mode)
+	return LoadFromBytes(embeddedRegistry)
 }
 
 // FindProcessor finds a processor by name in the registry.
