@@ -55,10 +55,16 @@ func addFlags(cmd *cobra.Command) {
 // filterByTimeWindow filters events based on time ranges.
 // Uses ledger_sequence to estimate event time (ledgers close ~every 5 seconds).
 func filterByTimeWindow(event map[string]interface{}) map[string]interface{} {
-	// Get ledger sequence
-	ledgerSeq, ok := event["ledger_sequence"].(float64)
+	// Get meta object (protojson format)
+	meta, ok := event["meta"].(map[string]interface{})
 	if !ok {
-		return nil // No ledger_sequence, filter out
+		return nil // No meta, filter out
+	}
+
+	// Get ledger sequence from meta
+	ledgerSeq, ok := meta["ledgerSequence"].(float64)
+	if !ok {
+		return nil // No ledgerSequence, filter out
 	}
 
 	// Estimate event time: genesis + (ledger * 5 seconds)

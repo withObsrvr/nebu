@@ -23,8 +23,24 @@ func NewFilter(minAmount, maxAmount int64, assetCode string) *Filter {
 // FilterEvent applies the amount filter logic to an event.
 // Returns the event if it passes the filters, nil if it should be filtered out.
 func (f *Filter) FilterEvent(event map[string]interface{}) map[string]interface{} {
-	// Get amount field
-	amountStr, ok := event["amount"].(string)
+	// Extract the event data from protojson format
+	// Events can be: transfer, mint, burn, clawback, fee
+	var eventData map[string]interface{}
+	var ok bool
+
+	// Try each event type
+	for _, eventType := range []string{"transfer", "mint", "burn", "clawback", "fee"} {
+		if eventData, ok = event[eventType].(map[string]interface{}); ok {
+			break
+		}
+	}
+
+	if eventData == nil {
+		return nil // Not a recognized event type
+	}
+
+	// Get amount field from the event data
+	amountStr, ok := eventData["amount"].(string)
 	if !ok {
 		return nil // No amount field, filter out
 	}
@@ -47,14 +63,26 @@ func (f *Filter) FilterEvent(event map[string]interface{}) map[string]interface{
 
 	// Check asset if specified
 	if f.AssetCode != "" {
-		asset, ok := event["asset"].(map[string]interface{})
+		asset, ok := eventData["asset"].(map[string]interface{})
 		if !ok {
 			return nil
 		}
 
-		code, ok := asset["code"].(string)
-		if !ok || code != f.AssetCode {
-			return nil
+		// Check for issued asset
+		issuedAsset, ok := asset["issuedAsset"].(map[string]interface{})
+		if ok {
+			// Issued asset - check asset code
+			code, ok := issuedAsset["assetCode"].(string)
+			if !ok || code != f.AssetCode {
+				return nil
+			}
+		} else if nativeAsset, ok := asset["native"].(bool); ok && nativeAsset {
+			// Native asset - check if looking for native/XLM
+			if f.AssetCode != "native" && f.AssetCode != "XLM" {
+				return nil
+			}
+		} else {
+			return nil // Unknown asset format
 		}
 	}
 

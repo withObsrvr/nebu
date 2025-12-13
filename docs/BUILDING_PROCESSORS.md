@@ -24,11 +24,11 @@ Transform processors read JSON events from stdin, transform/filter them, and wri
 
 **1. Create directory structure:**
 ```bash
-mkdir -p examples/processors/my-filter/cmd
+mkdir -p examples/processors/my-filter/cmd/my-filter
 cd examples/processors/my-filter
 ```
 
-**2. Create `cmd/main.go`:**
+**2. Create `cmd/my-filter/main.go`:**
 ```go
 package main
 
@@ -65,7 +65,7 @@ func filterFunc(event map[string]interface{}) map[string]interface{} {
 
 **3. Build and test:**
 ```bash
-go build -o ../../../bin/my-filter ./cmd
+go build -o ../../../bin/my-filter ./cmd/my-filter
 
 # Test it
 echo '{"type":"transfer","amount":"100"}
@@ -160,10 +160,10 @@ func enrichFunc(event map[string]interface{}) map[string]interface{} {
 ### Real-World Examples
 
 See these processors for complete examples:
-- [`usdc-filter`](../examples/processors/usdc-filter/cmd/main.go) - Filter by asset code
-- [`amount-filter`](../examples/processors/amount-filter/cmd/main.go) - Filter by amount range with custom flags
-- [`time-window`](../examples/processors/time-window/cmd/main.go) - Filter by time range
-- [`dedup`](../examples/processors/dedup/cmd/main.go) - Stateful deduplication
+- [`usdc-filter`](../examples/processors/usdc-filter/cmd/usdc-filter/main.go) - Filter by asset code
+- [`amount-filter`](../examples/processors/amount-filter/cmd/amount-filter/main.go) - Filter by amount range with custom flags
+- [`time-window`](../examples/processors/time-window/cmd/time-window/main.go) - Filter by time range
+- [`dedup`](../examples/processors/dedup/cmd/dedup/main.go) - Stateful deduplication
 
 ---
 
@@ -183,11 +183,11 @@ Sink processors read JSON events from stdin and produce side effects (write to d
 
 **1. Create directory structure:**
 ```bash
-mkdir -p examples/processors/my-sink/cmd
+mkdir -p examples/processors/my-sink/cmd/my-sink
 cd examples/processors/my-sink
 ```
 
-**2. Create `cmd/main.go`:**
+**2. Create `cmd/my-sink/main.go`:**
 ```go
 package main
 
@@ -325,7 +325,7 @@ func sinkFunc(event map[string]interface{}) error {
 ### Real-World Examples
 
 See this processor for a complete example:
-- [`json-file-sink`](../examples/processors/json-file-sink/cmd/main.go) - Write to JSONL files
+- [`json-file-sink`](../examples/processors/json-file-sink/cmd/json-file-sink/main.go) - Write to JSONL files
 
 ---
 
@@ -333,67 +333,112 @@ See this processor for a complete example:
 
 Origin processors fetch raw data (XDR ledgers) and output JSON events to stdout.
 
+**IMPORTANT:** Always use the **proto-first** approach when building origin processors. This ensures:
+- Type safety via protobuf schemas
+- Consistency across processors
+- flowctl-ready from day one (just add gRPC server)
+- Automatic JSON conversion via protojson
+
 ### When to Use
 
 - Extract different event types from Stellar ledgers (NFT transfers, trades, liquidity pools)
 - Parse custom smart contract events
 - Process other blockchain data formats
 
-### Quick Start (15 Minutes)
+### Quick Start (Proto-First) - 20 Minutes
 
 **1. Create directory structure:**
 ```bash
-mkdir -p examples/processors/my-origin/cmd
-mkdir -p examples/processors/my-origin
+mkdir -p examples/processors/my-origin/cmd/my-origin
+cd examples/processors/my-origin
 ```
 
-**2. Create processor interface (`my_origin.go`):**
+**2. Define protobuf schema (`my_origin.proto`):**
+```protobuf
+syntax = "proto3";
+
+package my_origin;
+
+option go_package = "github.com/withObsrvr/nebu/examples/processors/my-origin";
+
+message MyEvent {
+  int64 timestamp = 1;
+  uint32 ledger_sequence = 2;
+  string transaction_hash = 3;
+  string event_type = 4;
+  // Add your custom fields here
+  string custom_field = 5;
+}
+```
+
+**3. Generate Go code:**
+```bash
+# Install protoc-gen-go if not already installed
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+# Generate
+export PATH="$HOME/go/bin:$PATH"
+nix-shell -p protobuf --run "protoc --go_out=. --go_opt=paths=source_relative my_origin.proto"
+```
+
+**4. Create processor (`my_origin.go`):**
 ```go
 package my_origin
 
 import (
 	"context"
-	"encoding/json"
-	"os"
+	"fmt"
 
-	"github.com/stellar/go/xdr"
+	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/withObsrvr/nebu/pkg/processor"
 )
 
 type Origin struct {
 	networkPass string
+	out         chan *MyEvent
 }
 
 func NewOrigin(networkPass string) *Origin {
-	return &Origin{networkPass: networkPass}
+	return &Origin{
+		networkPass: networkPass,
+		out:         make(chan *MyEvent, 128),
+	}
 }
 
 func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
 	// Extract events from ledger
 	events := o.extractEvents(ledger)
 
-	// Emit each event as JSON
-	encoder := json.NewEncoder(os.Stdout)
+	// Emit each event
 	for _, event := range events {
-		if err := encoder.Encode(event); err != nil {
-			return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case o.out <- event:
+			// Event sent
 		}
 	}
 
 	return nil
 }
 
-func (o *Origin) extractEvents(ledger xdr.LedgerCloseMeta) []map[string]interface{} {
-	var events []map[string]interface{}
+func (o *Origin) extractEvents(ledger xdr.LedgerCloseMeta) []*MyEvent {
+	var events []*MyEvent
 
 	// Your extraction logic here
-	// Parse ledger.V1.TxSet, ledger.V1.Transactions, etc.
+	// Parse ledger and build MyEvent protobuf messages
 
 	return events
 }
+
+// Required processor.Origin interface methods
+func (o *Origin) Out() <-chan *MyEvent { return o.out }
+func (o *Origin) Close()                { close(o.out) }
+func (o *Origin) Name() string          { return "my-origin" }
+func (o *Origin) Type() processor.Type  { return processor.TypeOrigin }
 ```
 
-**3. Create CLI wrapper (`cmd/main.go`):**
+**5. Create CLI wrapper (`cmd/my-origin/main.go`):**
 ```go
 package main
 
@@ -411,15 +456,22 @@ func main() {
 		Version:     version,
 	}
 
-	cli.RunOriginCLI(config, func(networkPass string) cli.TokenTransferOriginProcessor {
+	// Use RunProtoOriginCLI for proto-first processors
+	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*my_origin.MyEvent] {
 		return my_origin.NewOrigin(networkPass)
 	})
 }
 ```
 
-**4. Build and test:**
+**6. Create go.mod:**
 ```bash
-go build -o ../../../bin/my-origin ./cmd
+go mod init github.com/withObsrvr/nebu/examples/processors/my-origin
+go mod tidy
+```
+
+**7. Build and test:**
+```bash
+go build -o ../../../bin/my-origin ./cmd/my-origin
 
 # Test with real data
 ./bin/my-origin --start-ledger 60200000 --end-ledger 60200001 | head
@@ -615,18 +667,18 @@ ENTRYPOINT ["my-processor"]
 ## Summary
 
 **Transform Processor in 3 Steps:**
-1. Create `cmd/main.go` with `cli.RunTransformCLI()`
+1. Create `cmd/processor-name/main.go` with `cli.RunTransformCLI()`
 2. Implement `filterFunc(event) event|nil`
 3. Build and test in pipelines
 
 **Sink Processor in 3 Steps:**
-1. Create `cmd/main.go` with `cli.RunSinkCLI()`
+1. Create `cmd/processor-name/main.go` with `cli.RunSinkCLI()`
 2. Implement `sinkFunc(event) error`
 3. Build and test with real data
 
 **Origin Processor in 4 Steps:**
 1. Implement `ProcessLedger(ledger) error`
-2. Create `cmd/main.go` with `cli.RunOriginCLI()`
+2. Create `cmd/processor-name/main.go` with `cli.RunOriginCLI()`
 3. Build and test with Stellar data
 4. Chain with transforms and sinks
 

@@ -12,8 +12,8 @@
 package main
 
 import (
-	"github.com/stellar/go-stellar-sdk/processors/token_transfer"
 	token_transfer_processor "github.com/withObsrvr/nebu/examples/processors/token-transfer"
+	ttpb "github.com/withObsrvr/nebu/examples/processors/token-transfer/proto"
 	"github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
@@ -26,7 +26,7 @@ func main() {
 		Version:     version,
 	}
 
-	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*token_transfer.TokenTransferEvent] {
+	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*ttpb.TokenTransferEvent] {
 		return token_transfer_processor.NewOrigin(networkPass)
 	})
 }

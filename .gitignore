@@ -36,3 +36,5 @@ dist/
 # Documentation
 shapes/
 nebu
+etl.cast
+etl.gif

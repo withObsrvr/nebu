@@ -36,19 +36,26 @@ func main() {
 // filterUSDC filters events to only include USDC transfers.
 // Returns the event if it's a USDC transfer, nil otherwise.
 func filterUSDC(event map[string]interface{}) map[string]interface{} {
-	// Check if this is a transfer event
-	eventType, ok := event["type"].(string)
-	if !ok || eventType != "transfer" {
+	// Check if this is a transfer event (protojson format)
+	transfer, ok := event["transfer"].(map[string]interface{})
+	if !ok {
 		return nil // Filter out non-transfer events
 	}
 
-	// Check if the asset is USDC
-	asset, ok := event["asset"].(map[string]interface{})
+	// Get the asset object
+	asset, ok := transfer["asset"].(map[string]interface{})
 	if !ok {
 		return nil
 	}
 
-	assetCode, ok := asset["code"].(string)
+	// Check for issued asset (not native)
+	issuedAsset, ok := asset["issuedAsset"].(map[string]interface{})
+	if !ok {
+		return nil // Not an issued asset
+	}
+
+	// Check if the asset code is USDC
+	assetCode, ok := issuedAsset["assetCode"].(string)
 	if !ok || assetCode != "USDC" {
 		return nil // Filter out non-USDC events
 	}

@@ -131,7 +131,7 @@ Examples:
 			// Configure protojson marshaler
 			marshaler := protojson.MarshalOptions{
 				UseProtoNames:   false, // Use JSON names (camelCase)
-				EmitUnpopulated: false, // Don't emit zero values
+				EmitUnpopulated: true,  // Emit all fields including zero values
 				Indent:          "",    // Compact JSON
 			}
 

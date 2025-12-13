@@ -6,14 +6,14 @@
 // Usage:
 //
 //	# Deduplicate by transaction hash
-//	cat events.jsonl | dedup --key tx_hash
+//	cat events.jsonl | dedup --key meta.txHash
 //
 //	# Deduplicate by multiple fields
-//	cat events.jsonl | dedup --key tx_hash,ledger_sequence
+//	cat events.jsonl | dedup --key meta.txHash,meta.ledgerSequence
 //
 //	# Remove duplicate transfers in pipeline
 //	token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-//	  dedup --key tx_hash | \
+//	  dedup --key meta.txHash | \
 //	  json-file-sink --out unique-transfers.jsonl
 package main
 
@@ -43,7 +43,33 @@ func main() {
 }
 
 func addFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&dedupKeys, "key", "tx_hash", "Comma-separated list of keys to use for deduplication (e.g., tx_hash or tx_hash,ledger_sequence)")
+	cmd.Flags().StringVar(&dedupKeys, "key", "meta.txHash", "Comma-separated list of keys to use for deduplication (supports dot notation, e.g., meta.txHash or meta.txHash,meta.ledgerSequence)")
+}
+
+// getNestedValue retrieves a value from a nested map using dot notation.
+// Example: "meta.txHash" gets event["meta"]["txHash"]
+func getNestedValue(event map[string]interface{}, key string) (interface{}, bool) {
+	parts := strings.Split(key, ".")
+
+	current := event
+	for i, part := range parts {
+		value, ok := current[part]
+		if !ok {
+			return nil, false
+		}
+
+		// If not the last part, value must be a map
+		if i < len(parts)-1 {
+			current, ok = value.(map[string]interface{})
+			if !ok {
+				return nil, false
+			}
+		} else {
+			return value, true
+		}
+	}
+
+	return nil, false
 }
 
 // deduplicate removes duplicate events based on the specified keys.
@@ -56,7 +82,7 @@ func deduplicate(event map[string]interface{}) map[string]interface{} {
 	var keyParts []string
 	for _, key := range keys {
 		key = strings.TrimSpace(key)
-		if value, ok := event[key]; ok {
+		if value, ok := getNestedValue(event, key); ok {
 			keyParts = append(keyParts, fmt.Sprintf("%v", value))
 		} else {
 			// Missing key field, treat as unique (don't filter out)

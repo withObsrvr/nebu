@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/stellar/go-stellar-sdk/processors/token_transfer"
+	ttpb "github.com/withObsrvr/nebu/examples/processors/token-transfer/proto"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 	"github.com/withObsrvr/nebu/pkg/source"
 )
@@ -125,6 +125,7 @@ type Event struct {
 	LedgerSequence  uint32            `json:"ledger_sequence"`
 	TxHash          string            `json:"tx_hash"`
 	ContractAddress string            `json:"contract_address,omitempty"`
+	InSuccessfulTx  bool              `json:"in_successful_tx"`
 	From            string            `json:"from,omitempty"`
 	To              string            `json:"to,omitempty"`
 	Amount          string            `json:"amount"`
@@ -132,57 +133,63 @@ type Event struct {
 }
 
 // simplifyEvent converts a TokenTransferEvent protobuf to a JSON-friendly structure.
-func simplifyEvent(ev *token_transfer.TokenTransferEvent) Event {
-	meta := ev.GetMeta()
+func simplifyEvent(ev *ttpb.TokenTransferEvent) Event {
 	event := Event{
-		LedgerSequence:  meta.LedgerSequence,
-		TxHash:          meta.TxHash,
-		ContractAddress: meta.ContractAddress,
+		LedgerSequence:  ev.Meta.LedgerSequence,
+		TxHash:          ev.Meta.TxHash,
+		ContractAddress: ev.Meta.ContractAddress,
+		InSuccessfulTx:  ev.Meta.InSuccessfulTx,
 	}
 
-	// Handle asset
-	if asset := ev.GetAsset(); asset != nil {
-		event.Asset = make(map[string]string)
-		if asset.GetNative() {
-			event.Asset["code"] = "native"
-		} else if issued := asset.GetIssuedAsset(); issued != nil {
-			event.Asset["code"] = issued.AssetCode
-			event.Asset["issuer"] = issued.Issuer
+	// Helper to build asset map
+	buildAsset := func(assetCode, assetIssuer string) map[string]string {
+		if assetCode == "" && assetIssuer == "" {
+			return nil
 		}
+		asset := make(map[string]string)
+		if assetCode == "XLM" {
+			asset["code"] = "native"
+		} else if assetCode != "" {
+			asset["code"] = assetCode
+			if assetIssuer != "" {
+				asset["issuer"] = assetIssuer
+			}
+		}
+		return asset
 	}
 
 	// Handle different event types
-	switch {
-	case ev.GetTransfer() != nil:
-		transfer := ev.GetTransfer()
+	switch e := ev.Event.(type) {
+	case *ttpb.TokenTransferEvent_Transfer:
 		event.Type = "transfer"
-		event.From = transfer.From
-		event.To = transfer.To
-		event.Amount = transfer.Amount
+		event.From = e.Transfer.From
+		event.To = e.Transfer.To
+		event.Amount = e.Transfer.Amount
+		event.Asset = buildAsset(e.Transfer.AssetCode, e.Transfer.AssetIssuer)
 
-	case ev.GetMint() != nil:
-		mint := ev.GetMint()
+	case *ttpb.TokenTransferEvent_Mint:
 		event.Type = "mint"
-		event.To = mint.To
-		event.Amount = mint.Amount
+		event.To = e.Mint.To
+		event.Amount = e.Mint.Amount
+		event.Asset = buildAsset(e.Mint.AssetCode, e.Mint.AssetIssuer)
 
-	case ev.GetBurn() != nil:
-		burn := ev.GetBurn()
+	case *ttpb.TokenTransferEvent_Burn:
 		event.Type = "burn"
-		event.From = burn.From
-		event.Amount = burn.Amount
+		event.From = e.Burn.From
+		event.Amount = e.Burn.Amount
+		event.Asset = buildAsset(e.Burn.AssetCode, e.Burn.AssetIssuer)
 
-	case ev.GetClawback() != nil:
-		clawback := ev.GetClawback()
+	case *ttpb.TokenTransferEvent_Clawback:
 		event.Type = "clawback"
-		event.From = clawback.From
-		event.Amount = clawback.Amount
+		event.From = e.Clawback.From
+		event.Amount = e.Clawback.Amount
+		event.Asset = buildAsset(e.Clawback.AssetCode, e.Clawback.AssetIssuer)
 
-	case ev.GetFee() != nil:
-		fee := ev.GetFee()
+	case *ttpb.TokenTransferEvent_Fee:
 		event.Type = "fee"
-		event.From = fee.From
-		event.Amount = fee.Amount
+		event.From = e.Fee.From
+		event.Amount = e.Fee.Amount
+		event.Asset = buildAsset(e.Fee.AssetCode, e.Fee.AssetIssuer)
 
 	default:
 		event.Type = "unknown"

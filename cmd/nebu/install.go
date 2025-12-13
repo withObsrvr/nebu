@@ -100,7 +100,8 @@ func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) er
 	return fmt.Errorf("processor location not found (no local path or module package available)")
 }
 
-// installProcessorLocal builds a processor from local source
+// installProcessorLocal builds a processor from local source.
+// All processors must follow the cmd/processor-name/main.go structure.
 func installProcessorLocal(name, processorPath, installPath string) error {
 	// Build the binary from cmd/processor-name subdirectory
 	cmdPath := filepath.Join(processorPath, "cmd", name)

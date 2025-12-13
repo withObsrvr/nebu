@@ -70,7 +70,7 @@ contract-events --start-ledger 60200000 --end-ledger 60200100 | \
 
 # Filter for specific contract
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.contract_id == "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75")'
+  jq 'select(.contract_id == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
 
 # Filter for successful transactions only
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
@@ -88,7 +88,7 @@ Each event is output as a JSON object with the following fields:
   "timestamp": 1765560602,
   "ledger_sequence": 60269740,
   "transaction_hash": "20287f293c7a3cacf2e471bf8495963c52b3dfda695ec51d256abe9e04024b91",
-  "contract_id": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+  "contract_id": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
   "type": "contract",
   "event_type": "transfer",
   "topic_decoded": [
@@ -195,7 +195,7 @@ contract-events --start-ledger 60200000 --end-ledger 60200100 | \
 ```bash
 # Monitor a specific contract
 contract-events --start-ledger 60269740 | \
-  jq 'select(.contract_id == "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75")'
+  jq 'select(.contract_id == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
 ```
 
 ### Save to Database

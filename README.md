@@ -68,7 +68,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token_transfer.v1","_nebu_version":"0.3.0","type":"transfer","ledger_sequence":60200000,"tx_hash":"abc...","from":"GA...","to":"GB...","amount":"1000000","asset":{"code":"USDC","issuer":"GA..."}}
+{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.3.0","meta":{"ledgerSequence":60200000,"closedAt":"2025-12-08T01:45:11Z","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","asset":{"issuedAsset":{"assetCode":"USDC","issuer":"GA..."}},"amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -76,15 +76,15 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 ```bash
 # Pipe to jq for filtering
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.asset.code == "USDC")'
+  jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
 
 # Pipe to DuckDB for SQL analytics
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb -c "SELECT type, COUNT(*) FROM read_json('/dev/stdin') GROUP BY type"
+  duckdb -c "SELECT COUNT(*) as transfers FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"
 
 # Separate fetching from processing (reusable data)
 nebu fetch 60200000 60200100 > ledgers.xdr
-cat ledgers.xdr | token-transfer | jq 'select(.type == "transfer")'
+cat ledgers.xdr | token-transfer | jq 'select(.transfer != null)'
 ```
 
 ### As a Go Library
@@ -254,7 +254,7 @@ nebu ships with example processors in [`examples/processors/`](./examples/proces
 ### Sink Processors
 - **[json-file-sink](./examples/processors/json-file-sink/)** - Write events to JSONL files (simplest sink)
 
-**💡 DuckDB users:** See the [DuckDB Cookbook](#duckdb-cookbook) below for piping events directly to DuckDB without custom sinks
+**💡 DuckDB users:** See the [DuckDB Cookbook](docs/DUCKDB_COOKBOOK.md) for piping events directly to DuckDB without custom sinks
 
 ### Basic Examples
 - [`simple_origin`](./examples/simple_origin/) - Count and print ledger info
@@ -373,19 +373,31 @@ See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the f
 nebu includes schema version information in all JSON output to prevent silent breakage when formats change.
 
 Every JSON event includes:
-- `_schema`: Schema version identifier (e.g., `nebu.token_transfer.v1`)
+- `_schema`: Schema version identifier (e.g., `nebu.token-transfer.v1`)
 - `_nebu_version`: The nebu CLI version that produced the event (e.g., `0.3.0`)
 
 ```json
 {
-  "_schema": "nebu.token_transfer.v1",
+  "_schema": "nebu.token-transfer.v1",
   "_nebu_version": "0.3.0",
-  "type": "transfer",
-  "ledger_sequence": 60200000,
-  "tx_hash": "abc...",
-  "from": "GA...",
-  "to": "GB...",
-  "amount": "1000000"
+  "meta": {
+    "ledgerSequence": 60200000,
+    "closedAt": "2025-12-08T01:45:11Z",
+    "txHash": "abc...",
+    "transactionIndex": 1,
+    "contractAddress": "CA..."
+  },
+  "transfer": {
+    "from": "GA...",
+    "to": "GB...",
+    "asset": {
+      "issuedAsset": {
+        "assetCode": "USDC",
+        "issuer": "GA..."
+      }
+    },
+    "amount": "1000000"
+  }
 }
 ```
 
@@ -411,7 +423,7 @@ Each processor documents its schema in `SCHEMA.md`:
 # Filter events by schema version in DuckDB
 duckdb analytics.db -c "
   SELECT * FROM transfers
-  WHERE _schema = 'nebu.token_transfer.v1'
+  WHERE _schema = 'nebu.token-transfer.v1'
 "
 
 # Check nebu version distribution
@@ -422,7 +434,7 @@ duckdb analytics.db -c "
 "
 
 # Filter with jq
-cat events.jsonl | jq 'select(._schema == "nebu.token_transfer.v1")'
+cat events.jsonl | jq 'select(._schema == "nebu.token-transfer.v1")'
 ```
 
 ## Using the CLI
@@ -565,258 +577,49 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   json-file-sink --out events.jsonl
 
 # Or build manually
-go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/
+go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/json-file-sink
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   ./bin/json-file-sink --out events.jsonl
 
 # Query the events
-cat events.jsonl | jq 'select(.type == "transfer") | {from, to, amount, asset}'
+cat events.jsonl | jq 'select(.transfer != null) | {from: .transfer.from, to: .transfer.to, amount: .transfer.amount}'
 ```
 
-For DuckDB integration, see the [DuckDB Cookbook](#duckdb-cookbook) below.
+For DuckDB integration, see the [DuckDB Cookbook](docs/DUCKDB_COOKBOOK.md).
 
-## DuckDB Cookbook
+## DuckDB Integration
 
-DuckDB can read JSON directly from stdin using `read_json('/dev/stdin')`, making it perfect for analyzing nebu event streams without custom sinks. The JSON extension is auto-loaded in modern DuckDB versions.
+DuckDB excels at analyzing nebu event streams via Unix pipes - often **replacing hundreds of lines of custom processor code with a single SQL query**.
 
-### Basic Ingestion
-
-Pipe events into a persistent DuckDB table:
-
+**Quick example:**
 ```bash
-# Create table from event stream
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
-
-# Query the data
-duckdb events.db -c "SELECT type, COUNT(*) FROM transfers GROUP BY type"
-```
-
-### Ad-Hoc Analytics (No Persistence)
-
-Query event streams directly without saving to disk:
-
-```bash
-# Count transfers by asset
+# Stream events directly into DuckDB for analysis
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
-      json_extract_string(asset, '$.code') as asset_code,
-      COUNT(*) as transfer_count,
-      SUM(CAST(amount AS DOUBLE)) as total_volume
+      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset,
+      COUNT(*) as transfers,
+      SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
     FROM read_json('/dev/stdin')
-    WHERE type = 'transfer'
-    GROUP BY asset_code
-    ORDER BY total_volume DESC
-  "
-
-# Find largest transfers
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb -c "
-    SELECT
-      type,
-      from_address,
-      to_address,
-      CAST(amount AS DOUBLE) / 10000000.0 as amount_decimal,
-      json_extract_string(asset, '$.code') as asset
-    FROM read_json('/dev/stdin')
-    WHERE type = 'transfer'
-    ORDER BY CAST(amount AS DOUBLE) DESC
-    LIMIT 10
+    WHERE transfer IS NOT NULL
+    GROUP BY asset
+    ORDER BY volume DESC
   "
 ```
 
-### Transform on Ingestion
+**Why use DuckDB instead of custom processors?**
+- Iterate in seconds (modify query vs recompile Go)
+- Built-in aggregations, window functions, joins, exports
+- Save reusable queries to `examples/queries/*.sql`
+- Zero maintenance - no code to maintain
 
-Apply SQL transformations while ingesting data:
-
-```bash
-# Filter and transform USDC transfers only
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb analytics.db -c "
-    CREATE TABLE usdc_transfers AS
-    SELECT
-      ledger_sequence,
-      tx_hash,
-      \"from\",
-      \"to\",
-      CAST(amount AS BIGINT) as amount_stroops,
-      CAST(amount AS BIGINT) / 10000000.0 as amount_usd
-    FROM read_json('/dev/stdin')
-    WHERE
-      type = 'transfer'
-      AND json_extract_string(asset, '$.code') = 'USDC'
-  "
-
-# Query transformed data
-duckdb analytics.db -c "
-  SELECT
-    ledger_sequence,
-    COUNT(*) as transfers,
-    SUM(amount_usd) as volume_usd
-  FROM usdc_transfers
-  GROUP BY ledger_sequence
-  ORDER BY ledger_sequence
-"
-```
-
-### Multi-Table Analytics
-
-Create multiple related tables from a single stream:
-
-```bash
-# Process stream once, create multiple views
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb analytics.db -c "
-    CREATE TABLE all_events AS SELECT * FROM read_json('/dev/stdin');
-
-    CREATE VIEW transfers AS
-      SELECT * FROM all_events WHERE type = 'transfer';
-
-    CREATE VIEW mints AS
-      SELECT * FROM all_events WHERE type = 'mint';
-
-    CREATE VIEW burns AS
-      SELECT * FROM all_events WHERE type = 'burn';
-  "
-
-# Cross-table analytics
-duckdb analytics.db -c "
-  SELECT
-    'transfers' as event_type, COUNT(*) FROM transfers
-  UNION ALL
-  SELECT 'mints', COUNT(*) FROM mints
-  UNION ALL
-  SELECT 'burns', COUNT(*) FROM burns
-"
-```
-
-### Time-Series Analysis
-
-Analyze event patterns over time:
-
-```bash
-token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
-  duckdb -c "
-    WITH ledger_stats AS (
-      SELECT
-        ledger_sequence,
-        json_extract_string(asset, '$.code') as asset_code,
-        COUNT(*) as event_count,
-        SUM(CAST(amount AS DOUBLE)) as volume
-      FROM read_json('/dev/stdin')
-      WHERE type = 'transfer'
-      GROUP BY ledger_sequence, asset_code
-    )
-    SELECT
-      ledger_sequence,
-      asset_code,
-      event_count,
-      volume,
-      AVG(volume) OVER (
-        PARTITION BY asset_code
-        ORDER BY ledger_sequence
-        ROWS BETWEEN 99 PRECEDING AND CURRENT ROW
-      ) as moving_avg_100_ledgers
-    FROM ledger_stats
-    ORDER BY ledger_sequence, volume DESC
-  "
-```
-
-### Address Activity Tracking
-
-Track top addresses by activity:
-
-```bash
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb -c "
-    WITH address_activity AS (
-      SELECT \"from\" as address, COUNT(*) as sends, 0 as receives
-      FROM read_json('/dev/stdin')
-      WHERE type = 'transfer' AND \"from\" IS NOT NULL
-      GROUP BY \"from\"
-
-      UNION ALL
-
-      SELECT \"to\" as address, 0 as sends, COUNT(*) as receives
-      FROM read_json('/dev/stdin')
-      WHERE type = 'transfer' AND \"to\" IS NOT NULL
-      GROUP BY \"to\"
-    )
-    SELECT
-      address,
-      SUM(sends) as total_sends,
-      SUM(receives) as total_receives,
-      SUM(sends + receives) as total_activity
-    FROM address_activity
-    GROUP BY address
-    ORDER BY total_activity DESC
-    LIMIT 20
-  "
-```
-
-### Export Results
-
-Export query results to various formats:
-
-```bash
-# Export to CSV
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb -c "
-    COPY (
-      SELECT type, asset, COUNT(*) as count
-      FROM read_json('/dev/stdin')
-      GROUP BY type, asset
-    ) TO 'summary.csv' (HEADER, DELIMITER ',')
-  "
-
-# Export to Parquet (columnar format)
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb -c "
-    COPY (
-      SELECT * FROM read_json('/dev/stdin')
-    ) TO 'transfers.parquet' (FORMAT PARQUET)
-  "
-
-# Export to JSON
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb -c "
-    COPY (
-      SELECT * FROM read_json('/dev/stdin')
-      WHERE type = 'transfer'
-    ) TO 'transfers.json' (FORMAT JSON)
-  "
-```
-
-### Incremental Updates
-
-Append new data to existing tables:
-
-```bash
-# Initial load
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
-
-# Append new data
-token-transfer --start-ledger 60200101 --end-ledger 60200200 | \
-  duckdb events.db -c "INSERT INTO transfers SELECT * FROM read_json('/dev/stdin')"
-
-# Check for duplicates
-duckdb events.db -c "
-  SELECT ledger_sequence, tx_hash, COUNT(*)
-  FROM transfers
-  GROUP BY ledger_sequence, tx_hash
-  HAVING COUNT(*) > 1
-"
-```
-
-### Tips
-
-- **Schema Detection**: DuckDB auto-detects JSON schema, but nested objects are preserved as JSON strings
-- **Extract Nested Fields**: Use `json_extract_string(field, '$.path')` for nested data
-- **Performance**: For large datasets, use Parquet format or create indexes on frequently queried columns
-- **Memory**: DuckDB is in-process and memory-efficient, but very large streams may need batching
-- **Parallel Processing**: Run multiple processors for different ledger ranges, then `UNION ALL` in DuckDB
+**See the [DuckDB Cookbook](docs/DUCKDB_COOKBOOK.md) for:**
+- Extracting nested JSON from contract events
+- Time-series analysis with window functions
+- Multi-table analytics
+- Export to CSV/Parquet/JSON
+- Incremental updates
+- Real-world query examples
 
 ## Processor Registry
 

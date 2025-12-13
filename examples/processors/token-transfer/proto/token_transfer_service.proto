@@ -37,6 +37,7 @@ message EventMeta {
   uint32 transaction_index = 4;
   uint32 operation_index = 5;
   string contract_address = 6;
+  bool in_successful_tx = 7;
 }
 
 message Transfer {

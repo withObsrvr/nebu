@@ -53,23 +53,23 @@ build_binaries() {
     test_header "Building binaries"
 
     if [[ ! -f "$BIN_DIR/token-transfer" ]]; then
-        go build -o "$BIN_DIR/token-transfer" ./examples/processors/token-transfer/cmd || fail "Failed to build token-transfer"
+        go build -o "$BIN_DIR/token-transfer" ./examples/processors/token-transfer/cmd/token-transfer || fail "Failed to build token-transfer"
     fi
 
     if [[ ! -f "$BIN_DIR/usdc-filter" ]]; then
-        go build -o "$BIN_DIR/usdc-filter" ./examples/processors/usdc-filter/cmd || fail "Failed to build usdc-filter"
+        go build -o "$BIN_DIR/usdc-filter" ./examples/processors/usdc-filter/cmd/usdc-filter || fail "Failed to build usdc-filter"
     fi
 
     if [[ ! -f "$BIN_DIR/amount-filter" ]]; then
-        go build -o "$BIN_DIR/amount-filter" ./examples/processors/amount-filter/cmd || fail "Failed to build amount-filter"
+        go build -o "$BIN_DIR/amount-filter" ./examples/processors/amount-filter/cmd/amount-filter || fail "Failed to build amount-filter"
     fi
 
     if [[ ! -f "$BIN_DIR/dedup" ]]; then
-        go build -o "$BIN_DIR/dedup" ./examples/processors/dedup/cmd || fail "Failed to build dedup"
+        go build -o "$BIN_DIR/dedup" ./examples/processors/dedup/cmd/dedup || fail "Failed to build dedup"
     fi
 
     if [[ ! -f "$BIN_DIR/json-file-sink" ]]; then
-        go build -o "$BIN_DIR/json-file-sink" ./examples/processors/json-file-sink/cmd || fail "Failed to build json-file-sink"
+        go build -o "$BIN_DIR/json-file-sink" ./examples/processors/json-file-sink/cmd/json-file-sink || fail "Failed to build json-file-sink"
     fi
 
     pass "All binaries built"

@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package nebu.contract_invocation;
+
+option go_package = "github.com/withObsrvr/nebu/examples/processors/contract-invocation/proto;cipb";
+
+// ContractInvocation represents a contract invocation event
+message ContractInvocation {
+  // Event metadata (ledger, tx, operation info)
+  EventMeta meta = 1;
+
+  // Contract being invoked
+  string contract_id = 2;
+
+  // Account that initiated the invocation
+  string invoking_account = 3;
+
+  // Function being called
+  string function_name = 4;
+
+  // Function arguments (decoded JSON strings)
+  repeated string arguments = 5;
+
+  // Whether the invocation was successful
+  bool successful = 6;
+
+  // Diagnostic events emitted during execution
+  repeated DiagnosticEvent diagnostic_events = 7;
+
+  // Cross-contract calls made during execution
+  repeated ContractCall contract_calls = 8;
+
+  // State changes made during execution
+  repeated StateChange state_changes = 9;
+
+  // TTL extensions made during execution
+  repeated TtlExtension ttl_extensions = 10;
+}
+
+// EventMeta contains metadata about the invocation
+message EventMeta {
+  uint32 ledger_sequence = 1;
+  int64 closed_at_unix = 2;
+  string tx_hash = 3;
+  uint32 transaction_index = 4;
+  uint32 operation_index = 5;
+  bool in_successful_tx = 6;
+}
+
+// DiagnosticEvent represents a diagnostic event emitted during contract execution
+message DiagnosticEvent {
+  // Contract that emitted the event
+  string contract_id = 1;
+
+  // Event topics (decoded as JSON strings)
+  repeated string topics = 2;
+
+  // Event data (decoded as JSON string)
+  string data = 3;
+
+  // Whether event was in successful contract call
+  bool in_successful_call = 4;
+
+  // Event type (0=system, 1=contract, 2=diagnostic)
+  uint32 event_type = 5;
+}
+
+// ContractCall represents a contract-to-contract call
+message ContractCall {
+  // Source contract making the call
+  string from_contract = 1;
+
+  // Target contract being called
+  string to_contract = 2;
+
+  // Function being called
+  string function = 3;
+
+  // Function arguments (decoded as JSON strings)
+  repeated string arguments = 4;
+
+  // Call depth in the execution tree
+  uint32 call_depth = 5;
+
+  // Authorization type: "source_account", "contract", or "inferred"
+  string auth_type = 6;
+
+  // Whether the call was successful
+  bool successful = 7;
+
+  // Execution order within the transaction
+  uint32 execution_order = 8;
+}
+
+// StateChange represents a contract state change
+message StateChange {
+  // Contract whose state changed
+  string contract_id = 1;
+
+  // State key (decoded as JSON string)
+  string key = 2;
+
+  // Old value (decoded as JSON string, empty for creates)
+  string old_value = 3;
+
+  // New value (decoded as JSON string, empty for deletes)
+  string new_value = 4;
+
+  // Operation type: "create", "update", "delete"
+  string operation = 5;
+}
+
+// TtlExtension represents a TTL extension for contract data
+message TtlExtension {
+  // Contract whose TTL was extended
+  string contract_id = 1;
+
+  // Old TTL value
+  uint32 old_ttl = 2;
+
+  // New TTL value
+  uint32 new_ttl = 3;
+}
+
+// ContractInvocationService streams contract invocation events from Stellar ledgers
+service ContractInvocationService {
+  // GetInvocations streams contract invocation events from a bounded ledger range
+  rpc GetInvocations(GetInvocationsRequest) returns (stream ContractInvocation);
+}
+
+// GetInvocationsRequest specifies a bounded range of ledgers to process
+message GetInvocationsRequest {
+  // Start ledger sequence (inclusive)
+  uint32 start_ledger = 1;
+
+  // End ledger sequence (inclusive)
+  uint32 end_ledger = 2;
+}

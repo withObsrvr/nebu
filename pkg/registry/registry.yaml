@@ -45,6 +45,29 @@ processors:
       name: OBSRVR
       url: https://withobsrvr.com
 
+  # Contract Events Origin Processor
+  - name: contract-events
+    type: origin
+    description: Extract all contract events from Stellar ledgers (not limited to token transfers)
+
+    # Local example processor
+    location:
+      type: local
+      path: ./examples/processors/contract-events
+      package: github.com/withObsrvr/nebu/examples/processors/contract-events
+      module_package: github.com/withObsrvr/nebu/examples/processors/contract-events/cmd/contract-events
+
+    # JSON Schema (for CLI output)
+    schema:
+      version: v1
+      identifier: nebu.contract-events.v1
+      documentation: ./examples/processors/contract-events/README.md
+
+    # Metadata
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
   # JSON File Sink
   - name: json-file-sink
     type: sink
@@ -54,6 +77,7 @@ processors:
       type: local
       path: ./examples/processors/json-file-sink
       package: github.com/withObsrvr/nebu/examples/processors/json-file-sink
+      module_package: github.com/withObsrvr/nebu/examples/processors/json-file-sink/cmd/json-file-sink
 
     maintainer:
       name: OBSRVR
@@ -68,6 +92,7 @@ processors:
       type: local
       path: ./examples/processors/amount-filter
       package: github.com/withObsrvr/nebu/examples/processors/amount-filter
+      module_package: github.com/withObsrvr/nebu/examples/processors/amount-filter/cmd/amount-filter
 
     maintainer:
       name: OBSRVR
@@ -82,6 +107,7 @@ processors:
       type: local
       path: ./examples/processors/usdc-filter
       package: github.com/withObsrvr/nebu/examples/processors/usdc-filter
+      module_package: github.com/withObsrvr/nebu/examples/processors/usdc-filter/cmd/usdc-filter
 
     maintainer:
       name: OBSRVR
@@ -96,6 +122,7 @@ processors:
       type: local
       path: ./examples/processors/dedup
       package: github.com/withObsrvr/nebu/examples/processors/dedup
+      module_package: github.com/withObsrvr/nebu/examples/processors/dedup/cmd/dedup
 
     maintainer:
       name: OBSRVR
@@ -110,6 +137,27 @@ processors:
       type: local
       path: ./examples/processors/time-window
       package: github.com/withObsrvr/nebu/examples/processors/time-window
+      module_package: github.com/withObsrvr/nebu/examples/processors/time-window/cmd/time-window
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # Contract Invocation Origin Processor
+  - name: contract-invocation
+    type: origin
+    description: Stream contract invocation events from Stellar ledgers (function calls, cross-contract calls, state changes)
+
+    location:
+      type: local
+      path: ./examples/processors/contract-invocation
+      package: github.com/withObsrvr/nebu/examples/processors/contract-invocation
+      module_package: github.com/withObsrvr/nebu/examples/processors/contract-invocation/cmd/contract-invocation
+
+    schema:
+      version: v1
+      identifier: nebu.contract-invocation.v1
+      documentation: ./examples/processors/contract-invocation/README.md
 
     maintainer:
       name: OBSRVR
