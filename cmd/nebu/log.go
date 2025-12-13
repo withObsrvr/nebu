@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/stellar/go-stellar-sdk/network"
@@ -112,6 +113,27 @@ func getEnvOrFlag(envKey, flagValue, defaultValue string) ConfigSource {
 		return ConfigSource{Value: flagValue, Source: "--" + strings.ToLower(strings.ReplaceAll(envKey, "_", "-"))}
 	}
 	return ConfigSource{Value: defaultValue, Source: "default"}
+}
+
+// getEnvOrFlagInt gets integer configuration from environment or flag, tracking the source.
+func getEnvOrFlagInt(envKey string, flagValue, defaultValue int) struct {
+	Value  int
+	Source string
+} {
+	type IntConfigSource struct {
+		Value  int
+		Source string
+	}
+
+	if val := os.Getenv(envKey); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			return IntConfigSource{Value: intVal, Source: envKey}
+		}
+	}
+	if flagValue != defaultValue {
+		return IntConfigSource{Value: flagValue, Source: "--" + strings.ToLower(strings.ReplaceAll(envKey, "_", "-"))}
+	}
+	return IntConfigSource{Value: defaultValue, Source: "default"}
 }
 
 // maskSecret returns a masked version of a secret, showing only last 4 characters.

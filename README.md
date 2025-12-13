@@ -507,6 +507,60 @@ cat ledgers.xdr | token-transfer | jq 'select(.type == "transfer")'
 cat ledgers.xdr | token-transfer | duckdb-sink --db events.db
 ```
 
+### Archive Mode (GCS/S3)
+
+For historical data and data lakehouse building, use archive mode to fetch ledgers directly from cloud storage:
+
+```bash
+# Fetch from GCS bucket
+nebu fetch --mode archive \
+  --datastore-type GCS \
+  --bucket-path "my-bucket/stellar/ledgers" \
+  60200000 60300000 > ledgers.xdr
+
+# Fetch from S3 bucket
+nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "my-s3-bucket/path/to/ledgers" \
+  --region us-west-2 \
+  60200000 60300000 > ledgers.xdr
+
+# Use environment variables for configuration
+export NEBU_MODE=archive
+export NEBU_DATASTORE_TYPE=GCS
+export NEBU_BUCKET_PATH="obsrvr-stellar-data/ledgers/mainnet"
+export NEBU_BUFFER_SIZE=200
+export NEBU_NUM_WORKERS=20
+
+# Fetch and compress for data lake
+nebu fetch 1000000 2000000 | gzip > historical.xdr.gz
+
+# Pipe to processors (same as RPC mode)
+nebu fetch 60200000 60200100 | token-transfer | jq -c 'select(.transfer)'
+```
+
+**Archive Mode Benefits:**
+- **Full history access**: Read any ledger from Stellar's complete history
+- **High performance**: 100-500 ledgers/sec vs 10-20 for RPC (configurable workers and buffering)
+- **Cost effective**: Direct bucket access without RPC overhead or rate limits
+- **Lakehouse ready**: Perfect for building Bronze layer data lakes
+
+**Archive Configuration Options:**
+- `--mode`: `rpc` (default) or `archive`
+- `--datastore-type`: `GCS` or `S3`
+- `--bucket-path`: Path to bucket containing ledger files
+- `--region`: S3 region (required for S3, ignored for GCS)
+- `--buffer-size`: Number of ledgers to cache (default: 100)
+- `--num-workers`: Parallel fetch workers (default: 10)
+
+**Archive Environment Variables:**
+- `NEBU_MODE`
+- `NEBU_DATASTORE_TYPE`
+- `NEBU_BUCKET_PATH`
+- `NEBU_REGION`
+- `NEBU_BUFFER_SIZE`
+- `NEBU_NUM_WORKERS`
+
 ### Configuration & Environment Variables
 
 Configure processors and `nebu fetch` via flags or environment variables:
