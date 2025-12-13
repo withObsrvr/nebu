@@ -83,6 +83,21 @@ processors:
       name: OBSRVR
       url: https://withobsrvr.com
 
+  # NATS Sink
+  - name: nats-sink
+    type: sink
+    description: Publish events to NATS message bus for real-time distribution
+
+    location:
+      type: local
+      path: ./examples/processors/nats-sink
+      package: github.com/withObsrvr/nebu/examples/processors/nats-sink
+      module_package: github.com/withObsrvr/nebu/examples/processors/nats-sink/cmd/nats-sink
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
   # Amount Filter Transform
   - name: amount-filter
     type: transform

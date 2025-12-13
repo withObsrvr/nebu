@@ -62,6 +62,7 @@ build-processors:
 	go build -ldflags "$(LDFLAGS)" -o bin/time-window ./examples/processors/time-window/cmd/time-window
 	go build -ldflags "$(LDFLAGS)" -o bin/dedup ./examples/processors/dedup/cmd/dedup
 	go build -ldflags "$(LDFLAGS)" -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/json-file-sink
+	go build -ldflags "$(LDFLAGS)" -o bin/nats-sink ./examples/processors/nats-sink/cmd/nats-sink
 	@echo "✓ All processors built in ./bin/"
 
 # Run integration tests

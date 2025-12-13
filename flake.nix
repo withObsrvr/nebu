@@ -37,6 +37,9 @@
           ];
 
           shellHook = ''
+            # Set custom prompt
+            export PS1='\n\[\033[1;35m\][nebu]\[\033[0m\] \[\033[1;32m\]\w\[\033[0m\] \$ '
+
             echo "🚀 nebu development environment"
             echo ""
             echo "Available tools:"
