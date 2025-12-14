@@ -13,42 +13,49 @@ import (
 	stellarToid "github.com/stellar/go-stellar-sdk/toid"
 )
 
-// FromEvent extracts a TOID from a nebu event's meta field.
+// FromEvent extracts a TOID from a nebu event.
 // Uses the official Stellar SDK implementation (SEP-35 compliant).
 //
-// The event must have a "meta" field containing:
-//   - ledgerSequence (number)
-//   - transactionIndex (number)
-//   - operationIndex (number)
+// Supports two formats:
+//   1. Token-transfer format (with "meta" wrapper):
+//      event := map[string]interface{}{
+//          "meta": map[string]interface{}{
+//              "ledgerSequence": 60200000,
+//              "transactionIndex": 5,
+//              "operationIndex": 2,
+//          },
+//      }
+//
+//   2. Contract-events format (top-level fields):
+//      event := map[string]interface{}{
+//          "ledgerSequence": 60200100,
+//          "transactionIndex": 3,
+//          "operationIndex": 0,
+//      }
 //
 // Example:
-//
-//	event := map[string]interface{}{
-//	    "type": "transfer",
-//	    "meta": map[string]interface{}{
-//	        "ledgerSequence": 60200000,
-//	        "transactionIndex": 5,
-//	        "operationIndex": 2,
-//	    },
-//	}
 //	id, err := toid.FromEvent(event)
 func FromEvent(event map[string]interface{}) (int64, error) {
-	meta, ok := event["meta"].(map[string]interface{})
-	if !ok {
-		return 0, fmt.Errorf("missing or invalid 'meta' field")
+	// Try to extract from "meta" wrapper first (token-transfer format)
+	var source map[string]interface{}
+	if meta, ok := event["meta"].(map[string]interface{}); ok {
+		source = meta
+	} else {
+		// Fall back to top-level fields (contract-events format)
+		source = event
 	}
 
-	ledgerSeq, err := getInt32(meta, "ledgerSequence")
+	ledgerSeq, err := getInt32(source, "ledgerSequence")
 	if err != nil {
 		return 0, fmt.Errorf("invalid ledgerSequence: %w", err)
 	}
 
-	txIndex, err := getInt32(meta, "transactionIndex")
+	txIndex, err := getInt32(source, "transactionIndex")
 	if err != nil {
 		return 0, fmt.Errorf("invalid transactionIndex: %w", err)
 	}
 
-	opIndex, err := getInt32(meta, "operationIndex")
+	opIndex, err := getInt32(source, "operationIndex")
 	if err != nil {
 		return 0, fmt.Errorf("invalid operationIndex: %w", err)
 	}

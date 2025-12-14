@@ -86,6 +86,11 @@ func runSink(sinkFunc SinkFunc, quietMode bool) error {
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
+	// Increase buffer size to handle large events (contract invocations with many args/diagnostics)
+	// Default is 64KB, we set to 10MB
+	const maxTokenSize = 10 * 1024 * 1024 // 10MB
+	buf := make([]byte, maxTokenSize)
+	scanner.Buffer(buf, maxTokenSize)
 	eventCount := 0
 
 	for scanner.Scan() {

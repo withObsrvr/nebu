@@ -50,6 +50,9 @@ message ContractEvent {
 
   // Network passphrase
   string network_passphrase = 13;
+
+  // Transaction index within the ledger
+  uint32 transaction_index = 14;
 }
 
 // ContractEventType classifies the contract event.

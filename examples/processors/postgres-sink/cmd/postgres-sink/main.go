@@ -127,17 +127,44 @@ func processEvent(event map[string]interface{}) error {
 		startFlushTicker()
 	}
 
-	// Generate TOID
-	id, err := toid.FromEvent(event)
-	if err != nil {
-		return fmt.Errorf("failed to generate TOID: %w", err)
+	// Generate or extract TOID
+	var id int64
+	var err error
+
+	// Check if event already has a pre-calculated TOID
+	if toidVal, ok := event["toid"]; ok {
+		switch v := toidVal.(type) {
+		case float64:
+			id = int64(v)
+		case int64:
+			id = v
+		case int:
+			id = int64(v)
+		default:
+			return fmt.Errorf("invalid toid type: %T", toidVal)
+		}
+	} else if idVal, ok := event["id"]; ok {
+		// Also support "id" field
+		switch v := idVal.(type) {
+		case float64:
+			id = int64(v)
+		case int64:
+			id = v
+		case int:
+			id = int64(v)
+		default:
+			return fmt.Errorf("invalid id type: %T", idVal)
+		}
+	} else {
+		// Auto-generate TOID from meta fields
+		id, err = toid.FromEvent(event)
+		if err != nil {
+			return fmt.Errorf("failed to generate TOID: %w", err)
+		}
 	}
 
 	// Extract event type if present
-	var eventType *string
-	if t, ok := event["type"].(string); ok {
-		eventType = &t
-	}
+	eventType := extractEventType(event)
 
 	// Marshal event to JSON
 	data, err := json.Marshal(event)
@@ -155,6 +182,57 @@ func processEvent(event map[string]interface{}) error {
 	// Flush if batch is full
 	if len(batch) >= batchSize {
 		return flushBatch()
+	}
+
+	return nil
+}
+
+// extractEventType extracts the event type from an event.
+// Supports multiple formats:
+//   - Custom jq: "event_type" or "function_name" field
+//   - contract-events: "eventType" field (e.g., "transfer", "fee")
+//   - contract-invocation: "functionName" field (e.g., "work", "transfer")
+//   - protobuf oneof: field name indicates type (e.g., has "transfer" field)
+//   - simple: "type" field (e.g., {"type": "transfer"})
+func extractEventType(event map[string]interface{}) *string {
+	// Try custom jq "event_type" field first (snake_case convention)
+	if t, ok := event["event_type"].(string); ok && t != "" && t != "unknown" {
+		result := t
+		return &result
+	}
+
+	// Try contract-events "eventType" field (camelCase)
+	if t, ok := event["eventType"].(string); ok && t != "" && t != "unknown" {
+		result := t
+		return &result
+	}
+
+	// Try contract-invocation "functionName" field
+	if t, ok := event["functionName"].(string); ok && t != "" {
+		result := t
+		return &result
+	}
+
+	// Try custom jq "function_name" field (snake_case)
+	if t, ok := event["function_name"].(string); ok && t != "" {
+		result := t
+		return &result
+	}
+
+	// Try protobuf oneof fields (token-transfer, etc.)
+	// Check for common event type fields
+	oneofFields := []string{"transfer", "mint", "burn", "clawback", "fee", "payment", "invoke"}
+	for _, field := range oneofFields {
+		if _, exists := event[field]; exists {
+			result := field
+			return &result
+		}
+	}
+
+	// Fall back to simple "type" field (but skip enum values like "CONTRACT")
+	if t, ok := event["type"].(string); ok && t != "CONTRACT" && t != "SYSTEM" && t != "DIAGNOSTIC" {
+		result := t
+		return &result
 	}
 
 	return nil

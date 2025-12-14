@@ -39,6 +39,7 @@ func (p *ContractEventsOriginProto) ProcessLedger(ctx context.Context, ledger xd
 	closeTime := int64(ledger.LedgerHeaderHistoryEntry().Header.ScpValue.CloseTime)
 
 	// Process each transaction
+	txIndex := uint32(0)
 	for {
 		tx, err := txReader.Read()
 		if err == io.EOF {
@@ -52,6 +53,7 @@ func (p *ContractEventsOriginProto) ProcessLedger(ctx context.Context, ledger xd
 		txEvents, err := tx.GetTransactionEvents()
 		if err != nil {
 			// Not a Soroban transaction or no events
+			txIndex++
 			continue
 		}
 
@@ -78,6 +80,7 @@ func (p *ContractEventsOriginProto) ProcessLedger(ctx context.Context, ledger xd
 					ledgerSeq,
 					closeTime,
 					txHash,
+					txIndex,
 					int32(opIndex),
 					int32(eventIdx),
 					successful,
@@ -105,6 +108,7 @@ func (p *ContractEventsOriginProto) ProcessLedger(ctx context.Context, ledger xd
 					ledgerSeq,
 					closeTime,
 					txHash,
+					txIndex,
 					-1, // Transaction-level events have no operation index
 					int32(eventIdx),
 					successful,
@@ -122,6 +126,8 @@ func (p *ContractEventsOriginProto) ProcessLedger(ctx context.Context, ledger xd
 				}
 			}
 		}
+
+		txIndex++
 	}
 
 	return nil
@@ -133,6 +139,7 @@ func (p *ContractEventsOriginProto) buildContractEvent(
 	ledgerSeq uint32,
 	closeTime int64,
 	txHash string,
+	txIndex uint32,
 	opIndex int32,
 	eventIndex int32,
 	successful bool,
@@ -181,6 +188,7 @@ func (p *ContractEventsOriginProto) buildContractEvent(
 		Timestamp:         closeTime,
 		LedgerSequence:    ledgerSeq,
 		TransactionHash:   txHash,
+		TransactionIndex:  txIndex,
 		ContractId:        contractID,
 		Type:              eventType,
 		EventType:         detectedEventType,

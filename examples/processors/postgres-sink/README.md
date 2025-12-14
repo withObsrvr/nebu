@@ -91,7 +91,7 @@ postgres-sink automatically creates this table:
 ```sql
 CREATE TABLE events (
     id BIGINT PRIMARY KEY,           -- TOID (deterministic, unique per event)
-    event_type TEXT,                 -- Extracted from "type" field
+    event_type TEXT,                 -- Auto-detected from "type" field or protobuf oneof
     data JSONB NOT NULL,             -- Full event JSON
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -100,6 +100,25 @@ CREATE TABLE events (
 CREATE INDEX idx_events_data ON events USING GIN (data);
 CREATE INDEX idx_events_event_type ON events (event_type) WHERE event_type IS NOT NULL;
 CREATE INDEX idx_events_created_at ON events (created_at);
+```
+
+### Event Type Detection
+
+postgres-sink automatically detects the event type from:
+- Simple `"type"` field (e.g., `{"type": "transfer", ...}`)
+- Protobuf oneof fields (e.g., `{"transfer": {...}, "meta": {...}}`)
+
+Supported types: `transfer`, `mint`, `burn`, `clawback`, `fee`, `payment`, `invoke`
+
+Example queries using event_type:
+```sql
+-- Count events by type
+SELECT event_type, COUNT(*)
+FROM events
+GROUP BY event_type;
+
+-- Filter by type
+SELECT * FROM events WHERE event_type = 'transfer';
 ```
 
 ## Examples
