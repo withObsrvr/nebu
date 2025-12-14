@@ -25,6 +25,7 @@ func newFetchCmd() *cobra.Command {
 		networkPass string
 		outputFile  string
 		rpcHeaders  []string
+		follow      bool
 
 		// Mode selection
 		mode string
@@ -53,7 +54,11 @@ RPC Mode Examples:
   # Fetch bounded range
   nebu fetch 60200000 60200100 > ledgers.xdr
 
-  # Fetch unbounded (stream continuously from ledger 60200000)
+  # Stream continuously (follow mode, like 'tail -f')
+  nebu fetch 60200000 --follow > ledgers.xdr
+  nebu fetch 60200000 -f > ledgers.xdr
+
+  # Alternative: set end-ledger to 0 for unbounded streaming
   nebu fetch 60200000 0 > ledgers.xdr
 
   # Pipe directly to processor
@@ -72,22 +77,35 @@ Archive Mode Examples:
   export NEBU_BUCKET_PATH="stellar-data/mainnet"
   nebu fetch 60200000 60200100 | gzip > historical.xdr.gz
 `,
-		Args: cobra.ExactArgs(2),
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Parse ledger range from positional args
+			// Parse start ledger (always required)
 			var err error
 			_, err = fmt.Sscanf(args[0], "%d", &startLedger)
 			if err != nil {
 				return fmt.Errorf("invalid start ledger: %s", args[0])
 			}
-			_, err = fmt.Sscanf(args[1], "%d", &endLedger)
-			if err != nil {
-				return fmt.Errorf("invalid end ledger: %s", args[1])
-			}
 
 			if startLedger == 0 {
 				return fmt.Errorf("start ledger must be > 0")
 			}
+
+			// Parse end ledger based on args and flags
+			if len(args) == 2 {
+				// Two arguments provided: use end-ledger from args
+				_, err = fmt.Sscanf(args[1], "%d", &endLedger)
+				if err != nil {
+					return fmt.Errorf("invalid end ledger: %s", args[1])
+				}
+			} else if follow {
+				// Only one argument + --follow flag: stream indefinitely
+				endLedger = 0
+			} else {
+				// Only one argument, no --follow: fetch single ledger
+				endLedger = startLedger
+			}
+
+			// Validate ledger range
 			// endLedger == 0 is valid (unbounded streaming)
 			if endLedger > 0 && startLedger > endLedger {
 				return fmt.Errorf("start ledger must be <= end ledger")
@@ -209,6 +227,7 @@ Archive Mode Examples:
 	cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint (or set NEBU_RPC_URL)")
 	cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase: 'mainnet' or 'testnet' (or set NEBU_NETWORK)")
 	cmd.Flags().StringArrayVar(&rpcHeaders, "rpc-header", nil, "Custom HTTP header for RPC (format: 'Key: Value', repeatable)")
+	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream ledgers continuously from start-ledger (same as setting end-ledger to 0)")
 
 	// Archive mode flags
 	cmd.Flags().StringVar(&datastoreType, "datastore-type", "GCS", "Datastore type: 'GCS' or 'S3' (or set NEBU_DATASTORE_TYPE)")
