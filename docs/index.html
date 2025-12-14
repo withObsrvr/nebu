@@ -91,15 +91,15 @@
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-nebu-accent opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-nebu-accent"></span>
                 </span>
-                v0.3.0 is live
+                v0.1.0 is live
             </div>
             
             <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6 leading-tight">
-                The <span class="text-transparent bg-clip-text bg-gradient-to-r from-nebu-primary via-nebu-secondary to-orange-500">Unix Philosophy</span><br> for Stellar Data.
+                Query live <span class="text-transparent bg-clip-text bg-gradient-to-r from-nebu-primary via-nebu-secondary to-orange-500">Stellar data</span><br> with one command.
             </h1>
             
             <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-                A minimal, IDL-first streaming runtime. Pipe raw XDR ledgers into JSON, SQL, or NATS without managing complex infrastructure.
+                Unix pipes for blockchain indexing. Complex infrastructure, not required.
             </p>
 
             <!-- Install Command -->
@@ -138,7 +138,7 @@
                     <!-- Command -->
                     <div class="flex gap-2 text-slate-300">
                         <span class="text-nebu-secondary">❯</span>
-                        <span>nebu fetch 60200000--follow <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> nats-sink</span>
+                        <span>nebu fetch 60200000 --follow <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> nats-sink</span>
                     </div>
 
                     <!-- Output Stream -->
@@ -190,7 +190,7 @@
                     </div>
                     <h3 class="text-xl font-bold text-white mb-3">The Unix Way</h3>
                     <p class="text-slate-400 leading-relaxed">
-                        No heavy databases required. nebu respects <code class="bg-white/10 px-1 rounded text-white">stdin</code> and <code class="bg-white/10 px-1 rounded text-white">stdout</code>. Pipe directly into <span class="text-white font-semibold">DuckDB</span> for instant SQL analytics or <span class="text-white font-semibold">jq</span> for filtering.
+                        No heavy databases required. nebu respects <code class="bg-white/10 px-1 rounded text-white">stdin</code> and <code class="bg-white/10 px-1 rounded text-white">stdout</code>. Pipe directly into <span class="text-white font-semibold">DuckDB</span> for instant SQL analytics, <span class="text-white font-semibold">jq</span> for filtering or any tool that you want.
                     </p>
                 </div>
 
@@ -249,7 +249,7 @@
 
             <div class="mt-12 text-center">
                 <code class="bg-[#1e2330] px-4 py-3 rounded-lg border border-white/10 text-slate-300">
-                    <span class="text-nebu-primary">|</span> Pipe anything. <span class="text-nebu-primary">|</span> Replace any component. <span class="text-nebu-primary">|</span>
+                    <span class="text-nebu-primary">|</span> Pipe anything. <span class="text-nebu-primary">|</span> Replace any component. <span class="text-nebu-primary">|</span> Build what you need. <span class="text-nebu-primary">|</span>
                 </code>
             </div>
         </div>
@@ -475,7 +475,7 @@
         <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
             <div class="flex items-center gap-2">
                 <span class="font-bold text-xl tracking-tight">nebu</span>
-                <span class="text-slate-600 text-sm">© 2025 OBSRVR</span>
+                <span class="text-slate-600 text-sm">© 2025 Built by OBSRVR</span>
             </div>
             <div class="flex gap-6 text-sm text-slate-400">
                 <a href="#" class="hover:text-white transition-colors">Documentation</a>
