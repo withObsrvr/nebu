@@ -126,7 +126,6 @@ Examples:
 
 			// Create processor
 			origin := createProcessor(networkPass)
-			defer origin.Close()
 
 			// Configure protojson marshaler
 			marshaler := protojson.MarshalOptions{
@@ -194,7 +193,10 @@ Examples:
 				return err
 			}
 
-			// Wait for events
+			// Close origin to signal completion to the output goroutine
+			origin.Close()
+
+			// Wait for events to finish outputting
 			if err := <-done; err != nil {
 				return err
 			}

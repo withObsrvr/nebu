@@ -98,6 +98,21 @@ processors:
       name: OBSRVR
       url: https://withobsrvr.com
 
+  # PostgreSQL Sink
+  - name: postgres-sink
+    type: sink
+    description: Store events in PostgreSQL with JSONB schema and TOID-based idempotency
+
+    location:
+      type: local
+      path: ./examples/processors/postgres-sink
+      package: github.com/withObsrvr/nebu/examples/processors/postgres-sink
+      module_package: github.com/withObsrvr/nebu/examples/processors/postgres-sink/cmd/postgres-sink
+
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
   # Amount Filter Transform
   - name: amount-filter
     type: transform

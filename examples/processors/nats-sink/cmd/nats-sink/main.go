@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"

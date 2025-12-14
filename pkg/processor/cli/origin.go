@@ -134,7 +134,6 @@ Examples:
 
 			// Create processor
 			origin := createProcessor(networkPass)
-			defer origin.Close()
 
 			// Start event output goroutine
 			eventCount := 0
@@ -181,7 +180,10 @@ Examples:
 				return err
 			}
 
-			// Wait for events
+			// Close origin to signal completion to the output goroutine
+			origin.Close()
+
+			// Wait for events to finish outputting
 			if err := <-done; err != nil {
 				return err
 			}

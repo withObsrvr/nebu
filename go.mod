@@ -3,6 +3,7 @@ module github.com/withObsrvr/nebu
 go 1.25.4
 
 require (
+	github.com/lib/pq v1.10.9
 	github.com/spf13/cobra v1.10.2
 	github.com/stellar/go-stellar-sdk v0.1.0
 	github.com/stretchr/testify v1.11.1
