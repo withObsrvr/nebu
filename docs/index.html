@@ -75,6 +75,7 @@
             <div class="hidden md:flex gap-8 text-sm font-medium">
                 <a href="#features" class="hover:text-white transition-colors">Features</a>
                 <a href="#architecture" class="hover:text-white transition-colors">Architecture</a>
+                <a href="#installation" class="hover:text-white transition-colors">Installation</a>
                 <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
             </div>
             <a href="https://github.com/withObsrvr/nebu" class="px-4 py-2 rounded-full glass-panel hover:bg-white/10 text-white text-sm font-semibold transition-all">
@@ -102,18 +103,15 @@
                 Unix pipes for blockchain indexing. Complex infrastructure, not required.
             </p>
 
-            <!-- Install Command -->
-            <div class="max-w-md mx-auto mb-12 group relative">
-                <div class="absolute -inset-1 bg-gradient-to-r from-nebu-primary to-nebu-secondary rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                <div class="relative flex items-center justify-between bg-nebu-dark border border-nebu-border rounded-lg p-4 font-mono text-sm">
-                    <span class="text-nebu-accent">$ <span class="text-slate-300">go install github.com/withObsrvr/nebu/cmd/nebu@latest</span></span>
-                    <button onclick="copyInstall()" class="ml-4 text-slate-500 hover:text-white transition-colors" title="Copy">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                    </button>
-                </div>
-                <div id="copy-feedback" class="absolute -top-8 right-0 text-xs text-nebu-primary opacity-0 transition-opacity">Copied!</div>
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="#installation" class="px-8 py-4 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary text-white font-semibold text-lg hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-105">
+                    Get Started
+                </a>
+                <a href="https://github.com/withObsrvr/nebu" class="px-8 py-4 rounded-full glass-panel text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 border border-nebu-border hover:border-nebu-primary/50 flex items-center gap-2 group">
+                    <span>View on GitHub</span>
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
             </div>
         </div>
 
@@ -251,6 +249,44 @@
                 <code class="bg-[#1e2330] px-4 py-3 rounded-lg border border-white/10 text-slate-300">
                     <span class="text-nebu-primary">|</span> Pipe anything. <span class="text-nebu-primary">|</span> Replace any component. <span class="text-nebu-primary">|</span> Build what you need. <span class="text-nebu-primary">|</span>
                 </code>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation -->
+    <section id="installation" class="relative z-10 py-24 px-6 border-t border-white/5">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Installation</h2>
+                <p class="text-slate-400 max-w-2xl mx-auto">Get nebu installed on your system in seconds</p>
+            </div>
+
+            <!-- Install Command -->
+            <div class="max-w-2xl mx-auto mb-8 group relative">
+                <div class="absolute -inset-1 bg-gradient-to-r from-nebu-primary to-nebu-secondary rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                <div class="relative flex items-center justify-between bg-nebu-dark border border-nebu-border rounded-lg p-4 font-mono text-sm">
+                    <span class="text-nebu-accent">$ <span class="text-slate-300">go install github.com/withObsrvr/nebu/cmd/nebu@latest</span></span>
+                    <button onclick="copyInstall()" class="ml-4 text-slate-500 hover:text-white transition-colors" title="Copy">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="copy-feedback" class="absolute -top-8 right-0 text-xs text-nebu-primary opacity-0 transition-opacity">Copied!</div>
+            </div>
+
+            <div class="text-center text-slate-400 text-sm mb-8">
+                <p class="mb-4">Requires Go 1.23 or later. After installation, the <code class="bg-white/10 px-2 py-1 rounded text-slate-300">nebu</code> command will be available in your <code class="bg-white/10 px-2 py-1 rounded text-slate-300">$GOPATH/bin</code>.</p>
+                <p>Install processors on-demand using <code class="bg-white/10 px-2 py-1 rounded text-slate-300">nebu install &lt;processor&gt;</code></p>
+            </div>
+
+            <!-- Documentation CTA -->
+            <div class="text-center">
+                <a href="https://github.com/withObsrvr/nebu#using-the-cli" class="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-panel hover:bg-white/10 text-white font-semibold transition-all duration-300 border border-nebu-border hover:border-nebu-accent/50 group">
+                    <svg class="w-5 h-5 text-nebu-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <span>Read Documentation</span>
+                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
             </div>
         </div>
     </section>
