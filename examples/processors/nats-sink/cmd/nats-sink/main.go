@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"regexp"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"
@@ -32,6 +35,9 @@ var (
 )
 
 func main() {
+	// Setup graceful shutdown to ensure messages are flushed
+	setupCleanup()
+
 	config := cli.SinkConfig{
 		Name:        "nats-sink",
 		Description: "Publish JSON events to NATS message bus",
@@ -39,6 +45,29 @@ func main() {
 	}
 
 	cli.RunSinkCLI(config, publishToNats, addFlags)
+
+	// Ensure cleanup on normal exit
+	cleanup()
+}
+
+// setupCleanup registers signal handlers for graceful shutdown
+func setupCleanup() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		cleanup()
+		os.Exit(0)
+	}()
+}
+
+// cleanup ensures NATS connection is properly closed
+func cleanup() {
+	if nc != nil {
+		// Flush any pending messages before closing
+		nc.Flush()
+		nc.Close()
+	}
 }
 
 // addFlags adds custom flags to the command
@@ -99,6 +128,9 @@ func connect() error {
 	opts := []nats.Option{
 		nats.Name(connName),
 		nats.Timeout(nats.DefaultTimeout),
+		// Production resilience: reconnect forever to handle network blips
+		nats.MaxReconnects(-1),
+		nats.ReconnectWait(2 * nats.DefaultTimeout),
 	}
 
 	// Add credentials if provided
@@ -178,8 +210,15 @@ func resolveValue(event map[string]interface{}, path string) string {
 		current = val
 	}
 
-	// Convert final value to string
-	return fmt.Sprint(current)
+	// Convert final value to string and sanitize for NATS subjects
+	strVal := fmt.Sprint(current)
+
+	// CRITICAL: Sanitize dots and spaces to prevent breaking NATS subject hierarchy
+	// Example: asset "Funny.Token" would create "stellar.Funny.Token" breaking wildcard subscriptions
+	strVal = strings.ReplaceAll(strVal, ".", "_")
+	strVal = strings.ReplaceAll(strVal, " ", "_")
+
+	return strVal
 }
 
 // handleMissingValue handles missing template variables based on strict mode
