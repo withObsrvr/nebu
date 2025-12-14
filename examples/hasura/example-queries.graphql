@@ -1,0 +1,640 @@
+# ============================================================================
+# Example GraphQL Queries for nebu + Hasura
+# ============================================================================
+# Copy these into Hasura GraphiQL console at http://localhost:8080/console
+# ============================================================================
+
+# ============================================================================
+# CARBON OFFSETS
+# ============================================================================
+
+# Get recent carbon offsets
+query GetRecentCarbonOffsets {
+  carbon_offsets(
+    order_by: {timestamp: desc}
+    limit: 10
+  ) {
+    toid
+    funder
+    recipient
+    amount
+    project_id
+    memo
+    timestamp
+    tx_hash
+  }
+}
+
+# Get offsets by funder
+query GetFunderOffsets($funder: String!) {
+  carbon_offsets(
+    where: {funder: {_eq: $funder}}
+    order_by: {timestamp: desc}
+  ) {
+    amount
+    recipient
+    project_id
+    memo
+    timestamp
+    tx_hash
+  }
+}
+
+# Variables:
+# {
+#   "funder": "GAN4SL6DHOQO4POKWOUL4PPCIVJBSDX7SVOLL4GVM4CC27S6WCV7FQZL"
+# }
+
+# Get project statistics
+query GetProjectStats {
+  carbon_project_stats(
+    order_by: {total_amount: desc}
+  ) {
+    project_id
+    offset_count
+    total_amount
+    avg_amount
+    unique_funders
+    unique_recipients
+    first_offset
+    last_offset
+  }
+}
+
+# Get funder leaderboard
+query GetFunderLeaderboard {
+  carbon_funder_stats(
+    order_by: {total_amount: desc}
+    limit: 20
+  ) {
+    funder
+    offset_count
+    total_amount
+    projects_supported
+    first_offset
+    last_offset
+  }
+}
+
+# Search offsets by project
+query SearchByProject($projectId: String!) {
+  carbon_offsets(
+    where: {project_id: {_ilike: $projectId}}
+  ) {
+    funder
+    recipient
+    amount
+    memo
+    timestamp
+  }
+}
+
+# Variables:
+# {
+#   "projectId": "%any%"
+# }
+
+# Real-time subscription for new offsets
+subscription NewCarbonOffsets {
+  carbon_offsets(
+    order_by: {timestamp: desc}
+    limit: 5
+  ) {
+    funder
+    amount
+    project_id
+    timestamp
+  }
+}
+
+# ============================================================================
+# TOKEN TRANSFERS
+# ============================================================================
+
+# Get recent transfers
+query GetRecentTransfers {
+  token_transfers(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    toid
+    from_address
+    to_address
+    amount
+    asset_code
+    contract_address
+    tx_hash
+    successful
+    timestamp
+  }
+}
+
+# Get USDC transfers only
+query GetUSDCTransfers($minAmount: numeric!) {
+  usdc_transfers(
+    where: {
+      amount: {_gte: $minAmount}
+      successful: {_eq: true}
+    }
+    order_by: {timestamp: desc}
+    limit: 50
+  ) {
+    from_address
+    to_address
+    amount
+    tx_hash
+    timestamp
+  }
+}
+
+# Variables:
+# {
+#   "minAmount": 1000000
+# }
+
+# Get transfers for a specific address (sent or received)
+query GetAddressTransfers($address: String!) {
+  transfers_sent: token_transfers(
+    where: {from_address: {_eq: $address}}
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    to_address
+    amount
+    asset_code
+    tx_hash
+    timestamp
+  }
+
+  transfers_received: token_transfers(
+    where: {to_address: {_eq: $address}}
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    from_address
+    amount
+    asset_code
+    tx_hash
+    timestamp
+  }
+}
+
+# Variables:
+# {
+#   "address": "GAN4SL6DHOQO4POKWOUL4PPCIVJBSDX7SVOLL4GVM4CC27S6WCV7FQZL"
+# }
+
+# Get large transfers (whales)
+query GetLargeTransfers {
+  large_transfers(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    from_address
+    to_address
+    amount
+    asset_code
+    contract_address
+    tx_hash
+    timestamp
+  }
+}
+
+# Get all transfer types for a transaction
+query GetTransactionEvents($txHash: String!) {
+  token_transfer_events(
+    where: {tx_hash: {_eq: $txHash}}
+  ) {
+    event_type
+    from_address
+    to_address
+    mint_to
+    burn_from
+    fee_from
+    amount
+    asset_code
+    successful
+  }
+}
+
+# Variables:
+# {
+#   "txHash": "76408f4eeb77bd283ac5b87764ca06c67fe72433f651754f26515e50b24678a4"
+# }
+
+# Top movers (24h volume)
+query GetTopMovers {
+  top_movers {
+    asset_code
+    transfer_count
+    total_volume
+    unique_senders
+    unique_receivers
+    avg_transfer
+  }
+}
+
+# ============================================================================
+# CONTRACT EVENTS
+# ============================================================================
+
+# Get recent contract events
+query GetContractEvents {
+  contract_events_decoded(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    toid
+    event_type
+    contract_id
+    ledger
+    tx_hash
+    successful
+    timestamp
+    topics
+    event_data
+  }
+}
+
+# Get events for specific contract
+query GetContractActivity($contractId: String!) {
+  contract_events_decoded(
+    where: {contract_id: {_eq: $contractId}}
+    order_by: {timestamp: desc}
+    limit: 50
+  ) {
+    event_type
+    ledger
+    tx_hash
+    successful
+    timestamp
+    topics
+    event_data
+  }
+}
+
+# Variables:
+# {
+#   "contractId": "CAVS7HEUNFCMOW6DC7EBY7J6HNFJ5JJ7LV4H7RPUC6V5QO5OMS7AQLD5"
+# }
+
+# Get contract transfers
+query GetContractTransfers {
+  contract_transfers(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    contract_id
+    tx_hash
+    timestamp
+    topics
+    event_data
+  }
+}
+
+# Get contract swaps
+query GetContractSwaps {
+  contract_swaps(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    contract_id
+    tx_hash
+    timestamp
+    topics
+    event_data
+  }
+}
+
+# ============================================================================
+# CONTRACT INVOCATIONS
+# ============================================================================
+
+# Get recent contract calls
+query GetRecentInvocations {
+  contract_invocations_summary(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    toid
+    function_name
+    contract_id
+    successful
+    ledger
+    tx_hash
+    timestamp
+    arg_count
+    state_change_count
+    diagnostic_event_count
+  }
+}
+
+# Get calls for specific contract
+query GetContractCalls($contractId: String!) {
+  contract_invocations_summary(
+    where: {contract_id: {_eq: $contractId}}
+    order_by: {timestamp: desc}
+  ) {
+    function_name
+    successful
+    tx_hash
+    timestamp
+    arg_count
+    state_change_count
+  }
+}
+
+# Variables:
+# {
+#   "contractId": "CAVS7HEUNFCMOW6DC7EBY7J6HNFJ5JJ7LV4H7RPUC6V5QO5OMS7AQLD5"
+# }
+
+# Get failed invocations
+query GetFailedInvocations {
+  failed_invocations(
+    order_by: {timestamp: desc}
+    limit: 20
+  ) {
+    function_name
+    contract_id
+    tx_hash
+    timestamp
+    arg_count
+  }
+}
+
+# Get successful invocations by function
+query GetFunctionCalls($functionName: String!) {
+  successful_invocations(
+    where: {function_name: {_eq: $functionName}}
+    order_by: {timestamp: desc}
+    limit: 50
+  ) {
+    contract_id
+    tx_hash
+    timestamp
+    arg_count
+    state_change_count
+  }
+}
+
+# Variables:
+# {
+#   "functionName": "sink_carbon"
+# }
+
+# ============================================================================
+# ANALYTICS & AGGREGATIONS
+# ============================================================================
+
+# Get hourly activity
+query GetHourlyActivity {
+  hourly_activity(
+    order_by: {hour: desc}
+    limit: 24
+  ) {
+    hour
+    event_count
+    unique_senders
+    unique_receivers
+    total_volume
+  }
+}
+
+# Get daily USDC volume
+query GetDailyUSDCVolume {
+  daily_usdc_volume(
+    order_by: {day: desc}
+    limit: 30
+  ) {
+    day
+    transfer_count
+    total_volume
+    avg_amount
+    unique_senders
+    unique_receivers
+  }
+}
+
+# Get contract activity leaderboard
+query GetContractLeaderboard {
+  contract_activity(
+    order_by: {total_events: desc}
+    limit: 20
+  ) {
+    contract_address
+    total_events
+    unique_assets
+    total_volume
+    first_seen
+    last_seen
+  }
+}
+
+# Get recent activity feed
+query GetRecentActivity {
+  recent_activity(
+    limit: 50
+  ) {
+    toid
+    activity_type
+    actor
+    target
+    amount
+    asset_code
+    tx_hash
+    timestamp
+  }
+}
+
+# Get daily stats (materialized view)
+query GetDailyStats {
+  daily_stats(
+    order_by: {day: desc}
+    limit: 30
+  ) {
+    day
+    total_transfers
+    total_volume
+    unique_senders
+    unique_receivers
+    unique_assets
+  }
+}
+
+# ============================================================================
+# AGGREGATIONS
+# ============================================================================
+
+# Count total USDC transfers
+query CountUSDCTransfers {
+  usdc_transfers_aggregate {
+    aggregate {
+      count
+      sum {
+        amount
+      }
+      avg {
+        amount
+      }
+      max {
+        amount
+      }
+    }
+  }
+}
+
+# Group transfers by asset
+query GroupByAsset {
+  token_transfers_aggregate(
+    where: {successful: {_eq: true}}
+  ) {
+    nodes {
+      asset_code
+    }
+    aggregate {
+      count
+      sum {
+        amount
+      }
+    }
+  }
+}
+
+# Count offsets by project
+query CountByProject {
+  carbon_offsets_aggregate {
+    nodes {
+      project_id
+    }
+    aggregate {
+      count
+      sum {
+        amount
+      }
+    }
+  }
+}
+
+# ============================================================================
+# COMBINED QUERIES
+# ============================================================================
+
+# Dashboard query (get everything)
+query GetDashboard {
+  # Recent transfers
+  recent_transfers: token_transfers(
+    order_by: {timestamp: desc}
+    limit: 10
+  ) {
+    from_address
+    to_address
+    amount
+    asset_code
+    timestamp
+  }
+
+  # Recent carbon offsets
+  recent_offsets: carbon_offsets(
+    order_by: {timestamp: desc}
+    limit: 10
+  ) {
+    funder
+    amount
+    project_id
+    timestamp
+  }
+
+  # Stats
+  transfer_stats: token_transfers_aggregate {
+    aggregate {
+      count
+      sum {
+        amount
+      }
+    }
+  }
+
+  carbon_stats: carbon_offsets_aggregate {
+    aggregate {
+      count
+      sum {
+        amount
+      }
+    }
+  }
+
+  # Top movers
+  top_assets: top_movers(limit: 5) {
+    asset_code
+    total_volume
+    transfer_count
+  }
+}
+
+# ============================================================================
+# REAL-TIME SUBSCRIPTIONS
+# ============================================================================
+
+# Subscribe to new transfers
+subscription NewTransfers {
+  token_transfers(
+    order_by: {timestamp: desc}
+    limit: 10
+  ) {
+    from_address
+    to_address
+    amount
+    asset_code
+    tx_hash
+    timestamp
+  }
+}
+
+# Subscribe to large transfers
+subscription LargeTransferAlert($minAmount: numeric!) {
+  token_transfers(
+    where: {amount: {_gte: $minAmount}}
+    order_by: {timestamp: desc}
+    limit: 5
+  ) {
+    from_address
+    to_address
+    amount
+    asset_code
+    tx_hash
+    timestamp
+  }
+}
+
+# Variables:
+# {
+#   "minAmount": 10000000000
+# }
+
+# Subscribe to new carbon offsets
+subscription NewCarbonOffsetsLive {
+  carbon_offsets(
+    order_by: {timestamp: desc}
+    limit: 5
+  ) {
+    funder
+    recipient
+    amount
+    project_id
+    timestamp
+  }
+}
+
+# Subscribe to failed contract calls
+subscription FailedCallsAlert {
+  failed_invocations(
+    order_by: {timestamp: desc}
+    limit: 5
+  ) {
+    function_name
+    contract_id
+    tx_hash
+    timestamp
+  }
+}
