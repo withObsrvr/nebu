@@ -255,6 +255,221 @@
         </div>
     </section>
 
+    <!-- Getting Started -->
+    <section id="getting-started" class="relative z-10 py-24 px-6 border-t border-white/5">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Getting Started</h2>
+                <p class="text-slate-400 max-w-2xl mx-auto">Common commands to get you up and running with nebu</p>
+            </div>
+
+            <div class="space-y-8">
+
+                <!-- Command 6: Fetch XDR -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Fetch raw ledgers</h3>
+                            <p class="text-sm text-slate-400">Separate fetch from processing</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> nebu fetch 60200000 60200100 > ledgers.xdr<br>
+                                    <span class="text-nebu-accent">$</span> cat ledgers.xdr <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> jq
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 7: Archive Mode -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Historical archives</h3>
+                            <p class="text-sm text-slate-400">GCS/S3 for data lakehouse</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> nebu fetch --mode archive \<br>
+                                    <span class="ml-4">--bucket-path <span class="text-green-400">"my-bucket/stellar/ledgers"</span> \</span><br>
+                                    <span class="ml-4">60200000 60300000 <span class="text-slate-500">|</span> gzip > historical.xdr.gz</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 8: Auth -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Premium RPC</h3>
+                            <p class="text-sm text-slate-400">Use authenticated endpoints</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> <span class="text-orange-400">export</span> NEBU_RPC_AUTH=<span class="text-green-400">"Api-Key YOUR_API_KEY"</span><br>
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 \<br>
+                                    <span class="ml-4">--rpc-url https://rpc-pubnet.nodeswithobsrvr.co</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 9: Pipeline -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-secondary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Complete pipeline</h3>
+                            <p class="text-sm text-slate-400">Extract → filter → dedupe → store</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --follow <span class="text-slate-500">|</span> \<br>
+                                    <span class="ml-4">jq -c <span class="text-green-400">'select(.transfer.asset.issuedAsset.assetCode == "USDC")'</span> <span class="text-slate-500">|</span> \</span><br>
+                                    <span class="ml-4">dedup --key meta.txHash <span class="text-slate-500">|</span> \</span><br>
+                                    <span class="ml-4">json-file-sink --out usdc-transfers.jsonl</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 10: Install -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-accent/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Manage processors</h3>
+                            <p class="text-sm text-slate-400">List and install components</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> nebu list<br>
+                                    <span class="text-nebu-accent">$</span> nebu install token-transfer<br>
+                                    <span class="text-nebu-accent">$</span> nebu install json-file-sink
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Command 1: Extract -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Extract token transfers</h3>
+                            <p class="text-sm text-slate-400">Stream events from Stellar ledgers</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300">
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 2: Filter -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Filter with jq</h3>
+                            <p class="text-sm text-slate-400">USDC transfers only</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \<br>
+                                    <span class="ml-4">jq <span class="text-green-400">'select(.transfer.asset.issuedAsset.assetCode == "USDC")'</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 3: Stream -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Stream continuously</h3>
+                            <p class="text-sm text-slate-400">Like <code class="bg-white/10 px-1 rounded">tail -f</code></p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300">
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --follow
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 4: Multiple Outputs -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-secondary/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">Multiple destinations</h3>
+                            <p class="text-sm text-slate-400">Fan-out with <code class="bg-white/10 px-1 rounded">tee</code></p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \<br>
+                                    <span class="ml-4">tee >(nats-sink --subject <span class="text-green-400">"stellar.transfers"</span> --jetstream) <span class="text-slate-500">|</span> \</span><br>
+                                    <span class="ml-4">tee >(json-file-sink --out transfers.jsonl) <span class="text-slate-500">|</span> \</span><br>
+                                    <span class="ml-4">jq -r <span class="text-green-400">'"Ledger \(.meta.ledgerSequence): \(.transfer.amount)"'</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command 5: SQL Analytics -->
+                <div class="glass-panel p-6 rounded-xl hover:border-nebu-accent/30 transition-all group">
+                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                        <div class="flex-shrink-0 w-full md:w-48">
+                            <h3 class="text-white font-semibold mb-2">SQL analytics</h3>
+                            <p class="text-sm text-slate-400">Aggregate with DuckDB</p>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
+                                <div class="text-slate-300 whitespace-nowrap">
+                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \<br>
+                                    <span class="ml-4">duckdb -c <span class="text-green-400">"</span></span><br>
+                                    <span class="ml-8 text-orange-400">SELECT</span><br>
+                                    <span class="ml-10">json_extract_string(transfer, <span class="text-green-400">'$.asset.issuedAsset.assetCode'</span>) <span class="text-orange-400">as</span> asset,</span><br>
+                                    <span class="ml-10"><span class="text-orange-400">COUNT</span>(*) <span class="text-orange-400">as</span> count,</span><br>
+                                    <span class="ml-10"><span class="text-orange-400">SUM</span>(<span class="text-orange-400">CAST</span>(json_extract_string(transfer, <span class="text-green-400">'$.amount'</span>) <span class="text-orange-400">AS DOUBLE</span>)) <span class="text-orange-400">as</span> volume</span><br>
+                                    <span class="ml-8"><span class="text-orange-400">FROM</span> read_json(<span class="text-green-400">'/dev/stdin'</span>)</span><br>
+                                    <span class="ml-8"><span class="text-orange-400">WHERE</span> transfer <span class="text-orange-400">IS NOT NULL</span></span><br>
+                                    <span class="ml-8"><span class="text-orange-400">GROUP BY</span> asset</span><br>
+                                    <span class="ml-8"><span class="text-orange-400">ORDER BY</span> volume <span class="text-orange-400">DESC</span></span><br>
+                                    <span class="ml-4"><span class="text-green-400">"</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CTA -->
+            <div class="mt-12 text-center">
+                <a href="https://github.com/withObsrvr/nebu#getting-started" class="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-panel hover:bg-white/10 text-white font-semibold transition-all group">
+                    <span>View Full Documentation</span>
+                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+            </div>
+        </div>
+    </section>
+
     <!-- Footer -->
     <footer class="border-t border-white/5 py-12 bg-black/20">
         <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -264,7 +479,7 @@
             </div>
             <div class="flex gap-6 text-sm text-slate-400">
                 <a href="#" class="hover:text-white transition-colors">Documentation</a>
-                <a href="#" class="hover:text-white transition-colors">SDF Laboratory</a>
+                <a href="https://lab.stellar.org/" class="hover:text-white transition-colors">Stellar Lab</a>
                 <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
             </div>
         </div>

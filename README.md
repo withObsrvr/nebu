@@ -129,6 +129,94 @@ func main() {
 }
 ```
 
+## Getting Started
+
+Common commands to get you started with nebu:
+
+**Extract token transfers from Stellar:**
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100
+```
+
+**Filter events with jq (USDC transfers only):**
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+```
+
+**Stream continuously from a ledger (like `tail -f`):**
+
+```bash
+token-transfer --start-ledger 60200000 --follow
+```
+
+**Send events to multiple destinations (NATS, file, and terminal):**
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  tee >(nats-sink --subject "stellar.transfers" --jetstream) | \
+  tee >(json-file-sink --out transfers.jsonl) | \
+  jq -r '"Ledger \(.meta.ledgerSequence): \(.transfer.amount)"'
+```
+
+**Analyze with SQL using DuckDB:**
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "
+    SELECT
+      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset,
+      COUNT(*) as count,
+      SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
+    FROM read_json('/dev/stdin')
+    WHERE transfer IS NOT NULL
+    GROUP BY asset
+    ORDER BY volume DESC
+  "
+```
+
+**Fetch raw ledger XDR (separating fetch from processing):**
+
+```bash
+nebu fetch 60200000 60200100 > ledgers.xdr
+cat ledgers.xdr | token-transfer | jq
+```
+
+**Fetch from historical archives (GCS/S3) for data lakehouse:**
+
+```bash
+nebu fetch --mode archive \
+  --bucket-path "my-bucket/stellar/ledgers" \
+  60200000 60300000 | gzip > historical.xdr.gz
+```
+
+**Use premium RPC endpoints with authentication:**
+
+```bash
+export NEBU_RPC_AUTH="Api-Key YOUR_API_KEY"
+token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
+```
+
+**Build a complete pipeline (extract → filter → dedupe → store):**
+
+```bash
+token-transfer --start-ledger 60200000 --follow | \
+  jq -c 'select(.transfer.asset.issuedAsset.assetCode == "USDC")' | \
+  dedup --key meta.txHash | \
+  json-file-sink --out usdc-transfers.jsonl
+```
+
+**List and install processors:**
+
+```bash
+nebu list
+nebu install token-transfer
+nebu install json-file-sink
+```
+
 ## Installation
 
 ### For Users: `go install` (Recommended)
