@@ -1,6 +1,6 @@
 # Hasura GraphQL for nebu
 
-Complete Hasura setup for querying nebu postgres-sink data via GraphQL.
+Query live Stellar data with GraphQL. Hasura sits on top of postgres-sink to give you a powerful, real-time GraphQL API over your pipeline data—no custom backend required.
 
 ## Quick Start
 
@@ -130,14 +130,24 @@ subscription NewTransfers {
 
 ## Architecture
 
+Hasura completes the Unix pipeline by adding a GraphQL query layer:
+
 ```
-nebu processors → postgres-sink → PostgreSQL (JSONB) → SQL Views → Hasura → GraphQL API
+SOURCE              PROCESSOR         SINK              QUERY LAYER
+nebu fetch    →     token-transfer →  postgres-sink  →  Hasura GraphQL
+(XDR stream)        (JSON events)     (JSONB tables)    (Real-time API)
+                                            ↓
+                                       SQL Views
+                                    (Clean schema)
 ```
 
-- **postgres-sink** stores raw JSONB events in tables
-- **SQL views** decode JSONB into clean, typed columns
-- **Hasura** auto-generates GraphQL API from views
-- **You** query everything via GraphQL!
+**How it works**:
+- **nebu fetch** streams raw XDR from Stellar RPC/GCS
+- **Processors** (token-transfer, contract-events, etc.) parse XDR → JSON events
+- **postgres-sink** stores events as JSONB in PostgreSQL
+- **SQL views** transform JSONB into clean, typed columns
+- **Hasura** auto-generates a GraphQL API from the views
+- **You** query live Stellar data with GraphQL subscriptions!
 
 ## Configuration
 
@@ -165,6 +175,8 @@ By default (dev mode), all queries are allowed. For production:
 Example permission: "anonymous users can only see successful transfers from last 24 hours"
 
 ## Feeding Data to Hasura
+
+Build your pipeline with Unix pipes. Route processor output to postgres-sink, and Hasura makes it queryable via GraphQL.
 
 ### From Processor Output
 ```bash
@@ -297,10 +309,11 @@ environment:
 
 ## Resources
 
-- [Hasura Docs](https://hasura.io/docs/latest/graphql/core/index.html)
-- [GraphQL Introduction](https://graphql.org/learn/)
-- [nebu Documentation](../../README.md)
-- [postgres-sink Documentation](../processors/postgres-sink/README.md)
+- [nebu Documentation](https://withobsrvr.github.io/nebu/) - Official docs
+- [Hasura Docs](https://hasura.io/docs/latest/graphql/core/index.html) - Hasura reference
+- [GraphQL Introduction](https://graphql.org/learn/) - Learn GraphQL
+- [postgres-sink Documentation](../processors/postgres-sink/README.md) - Sink details
+- [nebu GitHub](https://github.com/withObsrvr/nebu) - Source code
 
 ---
 
