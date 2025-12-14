@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nebu | The Stellar Unix Pipeline</title>
+    <meta name="description" content="A minimal, IDL-first streaming runtime for Stellar blockchain data.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nebu: {
+                            dark: '#0B0E14',
+                            card: '#151923',
+                            border: '#2A2F3E',
+                            primary: '#A855F7', // Purple
+                            secondary: '#EC4899', // Pink
+                            accent: '#22D3EE', // Cyan
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'cursor': 'cursor .75s step-end infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        cursor: {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'Fira Code', monospace; }
+        .glass-panel {
+            background: rgba(21, 25, 35, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-nebu-dark text-slate-300 antialiased selection:bg-nebu-primary selection:text-white overflow-x-hidden">
+
+    <!-- Background Glow Effects -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-nebu-primary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50 animate-blob"></div>
+        <div class="absolute top-0 right-1/4 w-96 h-96 bg-nebu-secondary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50 animate-blob animation-delay-2000"></div>
+        <div class="absolute -bottom-32 left-1/2 w-96 h-96 bg-nebu-accent/10 rounded-full mix-blend-screen filter blur-[128px] opacity-50 animate-blob animation-delay-4000"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold tracking-tighter text-white flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary"></span>
+                nebu
+            </a>
+            <div class="hidden md:flex gap-8 text-sm font-medium">
+                <a href="#features" class="hover:text-white transition-colors">Features</a>
+                <a href="#architecture" class="hover:text-white transition-colors">Architecture</a>
+                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+            <a href="https://github.com/withObsrvr/nebu" class="px-4 py-2 rounded-full glass-panel hover:bg-white/10 text-white text-sm font-semibold transition-all">
+                Star on GitHub
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative z-10 pt-32 pb-20 md:pt-48 md:pb-32 px-6">
+        <div class="max-w-5xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-nebu-card border border-nebu-border mb-8 text-xs font-mono text-nebu-accent/80">
+                <span class="flex h-2 w-2 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-nebu-accent opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-nebu-accent"></span>
+                </span>
+                v0.3.0 is live
+            </div>
+            
+            <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6 leading-tight">
+                The <span class="text-transparent bg-clip-text bg-gradient-to-r from-nebu-primary via-nebu-secondary to-orange-500">Unix Philosophy</span><br> for Stellar Data.
+            </h1>
+            
+            <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+                A minimal, IDL-first streaming runtime. Pipe raw XDR ledgers into JSON, SQL, or NATS without managing complex infrastructure.
+            </p>
+
+            <!-- Install Command -->
+            <div class="max-w-md mx-auto mb-12 group relative">
+                <div class="absolute -inset-1 bg-gradient-to-r from-nebu-primary to-nebu-secondary rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+                <div class="relative flex items-center justify-between bg-nebu-dark border border-nebu-border rounded-lg p-4 font-mono text-sm">
+                    <span class="text-nebu-accent">$ <span class="text-slate-300">go install github.com/withObsrvr/nebu/cmd/nebu@latest</span></span>
+                    <button onclick="copyInstall()" class="ml-4 text-slate-500 hover:text-white transition-colors" title="Copy">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="copy-feedback" class="absolute -top-8 right-0 text-xs text-nebu-primary opacity-0 transition-opacity">Copied!</div>
+            </div>
+        </div>
+
+        <!-- Terminal Demo -->
+        <div class="max-w-4xl mx-auto mt-8 relative">
+            <!-- Terminal Header -->
+            <div class="bg-[#1e2330] rounded-t-xl p-3 flex items-center gap-2 border-b border-white/5">
+                <div class="flex gap-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="ml-4 text-xs text-slate-500 font-mono">user@obsrvr:~</div>
+            </div>
+            
+            <!-- Terminal Body -->
+            <div class="bg-[#0D1117] rounded-b-xl p-6 font-mono text-sm md:text-base border border-t-0 border-white/5 shadow-2xl overflow-hidden relative">
+                <!-- Glowing line on left -->
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-nebu-primary to-transparent opacity-50"></div>
+
+                <div class="flex flex-col gap-2">
+                    <!-- Command -->
+                    <div class="flex gap-2 text-slate-300">
+                        <span class="text-nebu-secondary">❯</span>
+                        <span>nebu fetch --follow <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> nats-sink</span>
+                    </div>
+
+                    <!-- Output Stream -->
+                    <div class="mt-2 text-xs md:text-sm space-y-1 opacity-90">
+                        <div class="text-slate-400"># Streaming live events to NATS...</div>
+                        <div>
+                            <span class="text-slate-500">{</span>
+                            <span class="text-nebu-accent">"type"</span>: <span class="text-green-400">"transfer"</span>,
+                            <span class="text-nebu-accent">"asset"</span>: <span class="text-green-400">"USDC"</span>,
+                            <span class="text-nebu-accent">"amount"</span>: <span class="text-orange-400">100.00</span>
+                            <span class="text-slate-500">}</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500">{</span>
+                            <span class="text-nebu-accent">"type"</span>: <span class="text-green-400">"swap"</span>,
+                            <span class="text-nebu-accent">"pair"</span>: <span class="text-green-400">"XLM/USDC"</span>,
+                            <span class="text-nebu-accent">"price"</span>: <span class="text-orange-400">0.114</span>
+                            <span class="text-slate-500">}</span>
+                        </div>
+                        <div class="animate-pulse flex items-center gap-1 text-slate-500">
+                            <span class="w-2 h-4 bg-nebu-primary animate-cursor"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Value Prop / Features -->
+    <section id="features" class="relative z-10 py-24 bg-nebu-dark/50">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-3 gap-8">
+                
+                <!-- Card 1 -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-nebu-primary/30 transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-nebu-primary/10 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-nebu-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">Blazing Fast</h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Written in Go. Decouples fetching from processing. Backfill 5 years of history in hours, not months, by parallelizing <code class="bg-white/10 px-1 rounded text-white">fetch</code> workers.
+                    </p>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-nebu-secondary/30 transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-nebu-secondary/10 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-nebu-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">The Unix Way</h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        No heavy databases required. nebu respects <code class="bg-white/10 px-1 rounded text-white">stdin</code> and <code class="bg-white/10 px-1 rounded text-white">stdout</code>. Pipe directly into <span class="text-white font-semibold">DuckDB</span> for instant SQL analytics or <span class="text-white font-semibold">jq</span> for filtering.
+                    </p>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="glass-panel p-8 rounded-2xl hover:border-nebu-accent/30 transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-nebu-accent/10 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6 text-nebu-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">SaaS Ready (NATS)</h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Bridge the gap between CLI and Cloud. Use <code class="bg-white/10 px-1 rounded text-white">nats-sink</code> to turn your local pipeline into a distributed, real-time firehose for your API.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Visual -->
+    <section id="architecture" class="py-24 px-6 border-t border-white/5">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16">The Pipeline Architecture</h2>
+            
+            <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0 font-mono text-sm">
+                
+                <!-- Source -->
+                <div class="glass-panel p-6 rounded-xl w-full md:w-64 text-center relative group">
+                    <div class="text-nebu-accent mb-2 font-bold">SOURCE</div>
+                    <div class="bg-black/50 p-2 rounded border border-white/10 mb-2">nebu fetch</div>
+                    <div class="text-slate-500 text-xs">Pulls XDR from RPC/GCS</div>
+                    <!-- Connector Line -->
+                    <div class="hidden md:block absolute -right-8 top-1/2 w-8 h-0.5 bg-gradient-to-r from-nebu-border to-white/20"></div>
+                </div>
+
+                <div class="hidden md:block text-slate-500 px-4">|</div>
+
+                <!-- Processor -->
+                <div class="glass-panel p-6 rounded-xl w-full md:w-64 text-center relative group shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)] border-nebu-primary/50">
+                    <div class="text-nebu-primary mb-2 font-bold">PROCESSOR</div>
+                    <div class="bg-black/50 p-2 rounded border border-white/10 mb-2">token-transfer</div>
+                    <div class="text-slate-500 text-xs">Parses XDR -> JSON</div>
+                    <!-- Connector Line -->
+                    <div class="hidden md:block absolute -right-8 top-1/2 w-8 h-0.5 bg-gradient-to-r from-nebu-border to-white/20"></div>
+                </div>
+
+                <div class="hidden md:block text-slate-500 px-4">|</div>
+
+                <!-- Sink -->
+                <div class="glass-panel p-6 rounded-xl w-full md:w-64 text-center relative group">
+                    <div class="text-nebu-secondary mb-2 font-bold">SINK</div>
+                    <div class="bg-black/50 p-2 rounded border border-white/10 mb-2">nats-sink</div>
+                    <div class="text-slate-500 text-xs">Publishes to Subject</div>
+                </div>
+
+            </div>
+
+            <div class="mt-12 text-center">
+                <code class="bg-[#1e2330] px-4 py-3 rounded-lg border border-white/10 text-slate-300">
+                    <span class="text-nebu-primary">|</span> Pipe anything. <span class="text-nebu-primary">|</span> Replace any component. <span class="text-nebu-primary">|</span>
+                </code>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-xl tracking-tight">nebu</span>
+                <span class="text-slate-600 text-sm">© 2025 OBSRVR</span>
+            </div>
+            <div class="flex gap-6 text-sm text-slate-400">
+                <a href="#" class="hover:text-white transition-colors">Documentation</a>
+                <a href="#" class="hover:text-white transition-colors">SDF Laboratory</a>
+                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function copyInstall() {
+            const command = "go install github.com/withObsrvr/nebu/cmd/nebu@latest";
+            navigator.clipboard.writeText(command).then(() => {
+                const feedback = document.getElementById('copy-feedback');
+                feedback.classList.remove('opacity-0');
+                feedback.classList.add('opacity-100', 'translate-y-2');
+                setTimeout(() => {
+                    feedback.classList.remove('opacity-100', 'translate-y-2');
+                    feedback.classList.add('opacity-0');
+                }, 2000);
+            });
+        }
+
+        // Simple scroll effect for navbar
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
+            } else {
+                nav.classList.remove('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
+            }
+        });
+    </script>
+</body>
+</html>
