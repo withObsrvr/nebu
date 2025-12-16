@@ -1,33 +1,32 @@
 # nebu
 
-**A minimal, IDL-first streaming runtime for Stellar**
+**Query live Stellar data with one command.**
 
-nebu (pronounced "neh-boo") is a lightweight framework for building modular data pipelines on Stellar. It provides the plumbing that connects Stellar RPC to your custom processors, enabling you to build indexers, analytics pipelines, and real-time automation.
+Unix pipes for blockchain indexing. No complex infrastructure required.
+
+nebu (pronounced "neh-buh") streams Stellar ledger data through composable processors. Pipe to `jq` for filtering, `duckdb` for SQL analytics, or build custom pipelines with tools you already know.
 
 Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries data from the on-chain truth to your applications.
 
 ## Status
 
-🚧 **Alpha (v0.3.0)** - Lightweight runtime with registry-based processor discovery
+🚀 **v0.3.0** - Production-ready for analytics and indexing pipelines
 
-Currently shipping:
-- ✅ RPC ledger source
-- ✅ Processor interfaces (Origin, Transform, Sink)
-- ✅ Runtime for wiring source → processor
-- ✅ Registry-based processor discovery
-- ✅ CLI for processor installation and ledger fetching
-- ✅ Example processors (token-transfer, json-file-sink, filters)
-- ✅ Standalone processor binaries (not embedded in nebu)
-- ✅ DuckDB integration via Unix pipes
-- ✅ Community processor registry
-- ✅ Schema versioning for all JSON output
-- ✅ RPC authentication support (premium endpoints)
-- ✅ Network validation (testnet/mainnet detection)
+**What's included:**
+- **CLI & Fetch**: `nebu fetch` for streaming XDR from RPC or historical archives (GCS/S3)
+- **Origin Processors**: `token-transfer`, `contract-events`, `contract-invocation` - extract typed events from ledgers
+- **Transform Processors**: `usdc-filter`, `amount-filter`, `dedup`, `time-window` - filter and transform event streams
+- **Sink Processors**: `json-file-sink`, `nats-sink`, `postgres-sink` - route events to storage or message queues
+- **Registry System**: `nebu list` and `nebu install` for processor discovery and installation
+- **Archive Mode**: Fetch historical data from Google Cloud Storage for backfilling
+- **Authentication**: Premium RPC endpoint support with `NEBU_RPC_AUTH`
+- **Follow Mode**: Live-streaming with `--follow` (like `tail -f`)
 
-Coming soon:
-- Additional origin processors (Soroban events, AMM, DEX)
-- External processor support (install from git repos)
-- More transform processor examples
+**Coming in v0.4:**
+- Hasura GraphQL integration (examples available now in `examples/hasura`)
+- Additional origin processors (AMM pools, liquidity events)
+- External processor support (install from any git repo)
+- Performance improvements for archive fetching
 
 ## Quick Start
 
@@ -422,6 +421,51 @@ nebu/
 │   └── nebu-ttpd/  # Token transfer HTTP service
 ├── registry.yaml   # Processor registry
 └── Makefile
+```
+
+## Features
+
+### ⚡ Blazing Fast
+
+Written in Go. Decouples fetching from processing. **Backfill 5 years of history in hours, not months**, by parallelizing `fetch` workers.
+
+```bash
+# Separate fetch from processing - reuse XDR across multiple processors
+nebu fetch 60200000 60300000 > ledgers.xdr
+
+# Process the same data multiple ways (no repeated RPC calls)
+cat ledgers.xdr | token-transfer | jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+cat ledgers.xdr | contract-events | grep -i "swap"
+```
+
+### 🔧 The Unix Way
+
+No heavy databases required. nebu respects `stdin` and `stdout`. Pipe directly into **DuckDB** for instant SQL analytics, **jq** for filtering, or any tool you want.
+
+```bash
+# Instant SQL analytics - no database setup
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"
+
+# Filter with jq
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+```
+
+### 🌐 SaaS Ready (NATS)
+
+Bridge the gap between CLI and Cloud. Use `nats-sink` to turn your local pipeline into a distributed, real-time firehose for your API.
+
+```bash
+# Stream live events to NATS for your application
+token-transfer --start-ledger 60200000 --follow | \
+  nats-sink --subject "stellar.transfers" --jetstream
+
+# Multiple destinations with tee
+token-transfer --start-ledger 60200000 --follow | \
+  tee >(nats-sink --subject "stellar.live") | \
+  tee >(json-file-sink --out archive.jsonl) | \
+  jq 'select(.transfer.amount > 1000000)'
 ```
 
 ## Design Principles

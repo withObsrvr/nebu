@@ -33,6 +33,10 @@ bin/
 dist/
 .direnv/
 
+# Environment variables and secrets
+.env
+.env.local
+
 # Documentation
 shapes/
 nebu

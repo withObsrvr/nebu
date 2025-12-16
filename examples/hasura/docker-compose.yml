@@ -1,0 +1,45 @@
+services:
+  hasura:
+    image: hasura/graphql-engine:v2.36.0
+    # Using host networking because PostgreSQL is listening on localhost only.
+    # This is appropriate for local development. For production, either:
+    # 1. Configure PostgreSQL to listen on Docker bridge network, or
+    # 2. Use a separate PostgreSQL container in the same Docker network
+    network_mode: "host"
+    environment:
+      ## PostgreSQL connection (localhost since using host network)
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}
+
+      ## Server port (8091 since 8080 is in use)
+      HASURA_GRAPHQL_SERVER_PORT: "8091"
+
+      ## Enable the console
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+
+      #########################################################################
+      # WARNING: DEV MODE DISABLES ALL AUTHENTICATION AND AUTHORIZATION!
+      # ALL METADATA AND API ENDPOINTS ARE PUBLICLY ACCESSIBLE WITHOUT SECURITY.
+      # ONLY USE THIS FOR LOCAL DEVELOPMENT ON LOCALHOST.
+      # FOR PRODUCTION: Set HASURA_GRAPHQL_DEV_MODE="false" and add admin secret.
+      #########################################################################
+      HASURA_GRAPHQL_DEV_MODE: "true"
+
+      ## Logging
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+
+      ## Admin secret (uncomment for production)
+      # HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET}
+
+      ## Unauthorized role (requires admin secret - disabled for dev mode)
+      # HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
+
+      ## CORS (uncomment if needed)
+      # HASURA_GRAPHQL_CORS_DOMAIN: "*"
+
+      ## Performance tuning
+      HASURA_GRAPHQL_CONNECTIONS_PER_READ_REPLICA: 50
+
+      ## Auth with JWT (example - uncomment if using JWT)
+      # HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"your-secret-key-min-32-chars-long"}'
+
+    restart: always
