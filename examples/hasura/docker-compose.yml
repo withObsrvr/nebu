@@ -1,8 +1,10 @@
-version: '3.8'
-
 services:
   hasura:
     image: hasura/graphql-engine:v2.36.0
+    # Using host networking because PostgreSQL is listening on localhost only.
+    # This is appropriate for local development. For production, either:
+    # 1. Configure PostgreSQL to listen on Docker bridge network, or
+    # 2. Use a separate PostgreSQL container in the same Docker network
     network_mode: "host"
     environment:
       ## PostgreSQL connection (localhost since using host network)
@@ -14,7 +16,12 @@ services:
       ## Enable the console
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
 
-      ## Enable dev mode (disable in production)
+      #########################################################################
+      # WARNING: DEV MODE DISABLES ALL AUTHENTICATION AND AUTHORIZATION!
+      # ALL METADATA AND API ENDPOINTS ARE PUBLICLY ACCESSIBLE WITHOUT SECURITY.
+      # ONLY USE THIS FOR LOCAL DEVELOPMENT ON LOCALHOST.
+      # FOR PRODUCTION: Set HASURA_GRAPHQL_DEV_MODE="false" and add admin secret.
+      #########################################################################
       HASURA_GRAPHQL_DEV_MODE: "true"
 
       ## Logging

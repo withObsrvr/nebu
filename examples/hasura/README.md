@@ -31,7 +31,7 @@ Query live Stellar data with GraphQL. Hasura sits on top of postgres-sink to giv
    - Click "Track" next to each view you want to query via GraphQL
    - Or click "Track All" to enable them all at once
 
-4. **Start Querying**:
+5. **Start Querying**:
    - Go to the "API" tab (GraphiQL interface)
    - Copy queries from `example-queries.graphql`
    - Run them and see your data!
@@ -220,7 +220,7 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY daily_stats;
 Set up a cron job:
 ```bash
 # Refresh every hour
-0 * * * * psql -U tillman -d postgres -c "REFRESH MATERIALIZED VIEW CONCURRENTLY daily_stats;"
+0 * * * * psql -U <your_username> -d postgres -c "REFRESH MATERIALIZED VIEW CONCURRENTLY daily_stats;"
 ```
 
 ### Real-time Subscriptions

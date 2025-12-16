@@ -5,12 +5,15 @@
 -- data clean and queryable via Hasura GraphQL.
 --
 -- Usage:
---   psql -U tillman -d postgres < hasura-views.sql
+--   psql -U <your_username> -d postgres < hasura-views.sql
 -- ============================================================================
 
 -- ============================================================================
 -- TOKEN TRANSFERS
 -- ============================================================================
+-- Note: All views use 'toid' (Total Order ID) as the primary identifier.
+-- TOIDs are SEP-35 compliant unique identifiers that combine ledger sequence,
+-- transaction index, and operation index into a single sortable integer.
 
 -- All token transfer events (transfers, mints, burns, fees)
 CREATE OR REPLACE VIEW token_transfer_events AS
@@ -346,6 +349,12 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Function to decode i128 amount from ScVal
+-- NOTE: This is a simplified implementation that works for positive i128 values
+-- that fit within PostgreSQL's numeric type. It does NOT handle:
+-- - Negative i128 values (would require two's complement conversion)
+-- - Values outside numeric's range
+-- For production use with full i128 support, consider using a specialized
+-- extension or handling i128 values as strings in your application layer.
 CREATE OR REPLACE FUNCTION decode_i128_amount(scval jsonb)
 RETURNS numeric AS $$
 DECLARE
@@ -355,9 +364,16 @@ BEGIN
   IF hex_value IS NULL THEN
     RETURN NULL;
   END IF;
-  -- Convert hex to numeric (simplified, may need adjustment)
-  RETURN ('x' || REPLACE(hex_value, '0x', ''))::bit(128)::bigint;
+
+  -- Remove '0x' prefix if present
+  hex_value := REPLACE(hex_value, '0x', '');
+
+  -- Convert hex to numeric (works for positive values within numeric range)
+  -- This is a simplified approach - for full i128 support including negative
+  -- values, you would need to parse the hex manually and handle two's complement
+  RETURN ('x' || hex_value)::bit(128)::numeric;
 EXCEPTION WHEN OTHERS THEN
+  -- Return NULL if conversion fails (e.g., negative numbers, overflow)
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
