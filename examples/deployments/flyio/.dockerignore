@@ -1,0 +1,32 @@
+# flyctl launch added from .gitignore
+# Environment files
+**/.env
+**/.env.local
+
+# Data directory (created at runtime)
+**/data
+
+# Docker volumes
+**/postgres_data
+**/indexer_data
+
+# Backfill checkpoints
+**/*.checkpoint.txt
+**/backfill_complete
+
+# Logs
+**/*.log
+
+# Temporary files
+**/*.tmp
+**/*.swp
+**/*~
+
+# macOS
+**/.DS_Store
+
+# IDE
+**/.vscode
+**/.idea
+**/*.iml
+fly.toml
