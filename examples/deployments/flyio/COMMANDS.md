@@ -53,7 +53,7 @@ fly secrets list
 fly secrets unset KEY
 
 # Set RPC URL
-fly secrets set RPC_URL="https://mainnet.sorobanrpc.com"
+fly secrets set RPC_URL="https://archive-rpc.lightsail.network"
 
 # Set starting ledger
 fly secrets set START_LEDGER="60000000"

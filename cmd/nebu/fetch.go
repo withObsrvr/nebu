@@ -224,7 +224,7 @@ Archive Mode Examples:
 	cmd.Flags().StringVar(&mode, "mode", "rpc", "Data source mode: 'rpc' or 'archive' (or set NEBU_MODE)")
 
 	// RPC mode flags
-	cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint (or set NEBU_RPC_URL)")
+	cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://archive-rpc.lightsail.network", "Stellar RPC endpoint (or set NEBU_RPC_URL)")
 	cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase: 'mainnet' or 'testnet' (or set NEBU_NETWORK)")
 	cmd.Flags().StringArrayVar(&rpcHeaders, "rpc-header", nil, "Custom HTTP header for RPC (format: 'Key: Value', repeatable)")
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream ledgers continuously from start-ledger (same as setting end-ledger to 0)")

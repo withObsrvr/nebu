@@ -123,7 +123,7 @@ You should see:
 ```
 [info] Starting nebu Indexer
 [info] Configuration:
-[info]   RPC URL: https://mainnet.sorobanrpc.com
+[info]   RPC URL: https://archive-rpc.lightsail.network
 [info]   Start Ledger: latest
 [info] Starting indexer pipeline...
 [info] Processing ledger 62500000...
@@ -338,7 +338,7 @@ fly logs -f
 [info] Starting nebu Indexer
 [info] ========================================
 [info] Configuration:
-[info]   RPC URL: https://mainnet.sorobanrpc.com
+[info]   RPC URL: https://archive-rpc.lightsail.network
 [info]   Start Ledger: latest
 [info]   Batch Size: 1000
 [info] Running pre-flight checks...
@@ -757,7 +757,7 @@ fly logs
    ```
    **Fix:** Check RPC_URL in fly.toml or try different endpoint:
    ```bash
-   fly secrets set RPC_URL="https://mainnet.sorobanrpc.com"
+   fly secrets set RPC_URL="https://archive-rpc.lightsail.network"
    ```
 
 3. **Out of memory**

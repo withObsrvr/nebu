@@ -37,14 +37,15 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // NewRPCLedgerSource creates a new ledger source that connects to Stellar RPC.
-// The rpcURL should be a fully qualified URL (e.g., "https://mainnet.sorobanrpc.com").
+// The rpcURL should be a fully qualified URL (e.g., "https://archive-rpc.lightsail.network").
 func NewRPCLedgerSource(rpcURL string) (*RPCLedgerSource, error) {
 	return NewRPCLedgerSourceWithHeaders(rpcURL, nil)
 }
 
 // NewRPCLedgerSourceWithHeaders creates a new ledger source with custom HTTP headers.
 // The headers map allows adding authentication headers like:
-//   headers := map[string]string{"Authorization": "Api-Key YOUR_KEY"}
+//
+//	headers := map[string]string{"Authorization": "Api-Key YOUR_KEY"}
 func NewRPCLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*RPCLedgerSource, error) {
 	if rpcURL == "" {
 		return nil, fmt.Errorf("rpcURL cannot be empty")

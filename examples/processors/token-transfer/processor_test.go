@@ -14,7 +14,7 @@ import (
 
 func TestOrigin_ProcessLedger(t *testing.T) {
 	// Integration test - processes real ledgers from RPC
-	src, err := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 

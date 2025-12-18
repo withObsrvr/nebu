@@ -47,7 +47,7 @@ func (m *mockOrigin) Count() int {
 
 func TestRuntime_RunOrigin(t *testing.T) {
 	rt := NewRuntime()
-	src, err := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
@@ -66,7 +66,7 @@ func TestRuntime_RunOrigin(t *testing.T) {
 
 func TestRuntime_RunOrigin_Cancellation(t *testing.T) {
 	rt := NewRuntime()
-	src, err := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
@@ -93,7 +93,7 @@ func TestRuntime_RunOrigin_Cancellation(t *testing.T) {
 
 func TestRuntime_RunOrigin_InvalidRange(t *testing.T) {
 	rt := NewRuntime()
-	src, err := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 

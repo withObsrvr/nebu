@@ -61,7 +61,7 @@ nebu run origin token-transfer --input -
 **Location**: `cmd/nebu/run.go:157`, `cmd/nebu/fetch.go:83`
 
 ```go
-cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint")
+cmd.Flags().StringVar(&rpcURL, "rpc-url", "https://archive-rpc.lightsail.network", "Stellar RPC endpoint")
 cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 ```
 

@@ -8,7 +8,7 @@
 //	nebu-ttpd
 //
 // Environment variables:
-//   - NEBU_RPC_URL: Stellar RPC endpoint (default: https://mainnet.sorobanrpc.com)
+//   - NEBU_RPC_URL: Stellar RPC endpoint (default: https://archive-rpc.lightsail.network)
 //   - NEBU_LISTEN_ADDR: HTTP listen address (default: :8080)
 //   - NEBU_NETWORK: Network passphrase (default: Public Global Stellar Network ; September 2015)
 //
@@ -27,13 +27,13 @@ import (
 	"time"
 
 	"github.com/stellar/go-stellar-sdk/network"
+	token_transfer "github.com/withObsrvr/nebu/examples/processors/token-transfer"
 	"github.com/withObsrvr/nebu/pkg/source"
-	"github.com/withObsrvr/nebu/examples/processors/token-transfer"
 )
 
 func main() {
 	// Configuration from environment
-	rpcURL := getEnv("NEBU_RPC_URL", "https://mainnet.sorobanrpc.com")
+	rpcURL := getEnv("NEBU_RPC_URL", "https://archive-rpc.lightsail.network")
 	listenAddr := getEnv("NEBU_LISTEN_ADDR", ":8080")
 	networkPassphrase := getEnv("NEBU_NETWORK", network.PublicNetworkPassphrase)
 

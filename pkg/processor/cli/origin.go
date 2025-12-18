@@ -195,7 +195,7 @@ Examples:
 		},
 	}
 
-	rootCmd.Flags().StringVar(&rpcURL, "rpc-url", "https://mainnet.sorobanrpc.com", "Stellar RPC endpoint")
+	rootCmd.Flags().StringVar(&rpcURL, "rpc-url", "https://archive-rpc.lightsail.network", "Stellar RPC endpoint")
 	rootCmd.Flags().Uint32Var(&startLedger, "start-ledger", 0, "Start ledger sequence")
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
@@ -281,8 +281,8 @@ func processFromFile(ctx context.Context, origin processor.Origin, filePath stri
 func simplifyEvent(ev *token_transfer.TokenTransferEvent) map[string]interface{} {
 	meta := ev.GetMeta()
 	event := map[string]interface{}{
-		"_schema":        version.GetSchemaVersion("token_transfer"),
-		"_nebu_version":  version.Version,
+		"_schema":         version.GetSchemaVersion("token_transfer"),
+		"_nebu_version":   version.Version,
 		"ledger_sequence": meta.LedgerSequence,
 		"tx_hash":         meta.TxHash,
 	}

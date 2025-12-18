@@ -44,7 +44,7 @@ make run-example
 
 2. **Create the source** - Connect to Stellar RPC:
    ```go
-   src, err := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+   src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
    defer src.Close()
    ```
 
@@ -112,7 +112,7 @@ func (p *MyProcessor) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseM
 }
 
 func main() {
-    src, _ := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
     defer src.Close()
 
     processor := &MyProcessor{}

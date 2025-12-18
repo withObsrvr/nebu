@@ -17,7 +17,7 @@ kill_timeout = '30s'
 [env]
   BATCH_SIZE = '1000'
   LOG_LEVEL = 'info'
-  RPC_URL = 'https://mainnet.sorobanrpc.com'
+  RPC_URL = 'https://archive-rpc.lightsail.network'
   START_LEDGER = 'latest'
 
   # Pipeline filters (optional) - uncomment to enable

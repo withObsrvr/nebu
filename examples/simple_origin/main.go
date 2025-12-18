@@ -60,7 +60,7 @@ func (o *CountingOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerClo
 
 func main() {
 	// Configuration
-	rpcURL := getEnv("NEBU_RPC_URL", "https://mainnet.sorobanrpc.com")
+	rpcURL := getEnv("NEBU_RPC_URL", "https://archive-rpc.lightsail.network")
 	startLedger := uint32(60200000)
 	endLedger := uint32(60200009) // Process 10 ledgers
 

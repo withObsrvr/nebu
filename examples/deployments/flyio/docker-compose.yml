@@ -37,7 +37,7 @@ services:
       DATABASE_URL: postgresql://nebu:nebu_local_password@postgres:5432/nebu_indexer
 
       # Stellar RPC endpoint
-      RPC_URL: https://mainnet.sorobanrpc.com
+      RPC_URL: https://archive-rpc.lightsail.network
 
       # Configuration
       START_LEDGER: latest

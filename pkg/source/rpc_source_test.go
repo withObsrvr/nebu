@@ -13,7 +13,7 @@ import (
 func TestRPCLedgerSource_Stream(t *testing.T) {
 	// This is an integration test that hits real Stellar RPC
 	// Use a small range of recent ledgers (within RPC's retention window)
-	src, err := NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
@@ -52,7 +52,7 @@ func TestRPCLedgerSource_Stream(t *testing.T) {
 }
 
 func TestRPCLedgerSource_InvalidRange(t *testing.T) {
-	src, err := NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
@@ -80,7 +80,7 @@ func TestRPCLedgerSource_InvalidRange(t *testing.T) {
 }
 
 func TestRPCLedgerSource_Cancellation(t *testing.T) {
-	src, err := NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+	src, err := NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
