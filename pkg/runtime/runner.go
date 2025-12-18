@@ -32,7 +32,7 @@ func NewRuntime() *Runtime {
 // Example usage:
 //
 //	rt := runtime.NewRuntime()
-//	src, _ := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+//	src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 //	origin := &MyOriginProcessor{}
 //
 //	err := rt.RunOrigin(ctx, src, origin, 100, 200)

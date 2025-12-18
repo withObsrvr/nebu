@@ -1,0 +1,44 @@
+# fly.toml app configuration file generated for nebu-indexer on 2025-12-17T18:32:37-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'nebu-indexer'
+primary_region = 'sjc'
+kill_signal = 'SIGTERM'
+kill_timeout = '30s'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  strategy = 'immediate'
+
+[env]
+  BATCH_SIZE = '1000'
+  LOG_LEVEL = 'info'
+  RPC_URL = 'https://archive-rpc.lightsail.network'
+  START_LEDGER = 'latest'
+
+  # Pipeline filters (optional) - uncomment to enable
+  # Examples:
+  # PIPELINE_FILTERS = 'dedup'                      # Remove duplicates
+  # PIPELINE_FILTERS = 'contract-filter'            # Filter by contract IDs
+  # PIPELINE_FILTERS = 'dedup|amount-filter'        # Chain multiple filters
+  # PIPELINE_FILTERS = 'jq:.data.amount>1000000'    # Custom jq filter
+
+  # Filter configuration (required for specific filters)
+  # CONTRACT_IDS = 'CA123...,CB456...'  # Required if using contract-filter
+  # MIN_AMOUNT = '1000000'              # Required if using amount-filter
+
+[processes]
+  indexer = '/scripts/start-indexer.sh'
+
+[[mounts]]
+  source = 'indexer_data'
+  destination = '/data'
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024

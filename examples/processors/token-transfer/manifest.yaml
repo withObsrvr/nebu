@@ -32,7 +32,7 @@ usage:
         "github.com/withObsrvr/nebu/pkg/source"
     )
 
-    src, _ := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
     origin := token_transfer.NewOrigin(network.PublicNetworkPassphrase)
     rt := runtime.NewRuntime()
     rt.RunOrigin(ctx, src, origin, 60200000, 60200100)

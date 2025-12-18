@@ -114,7 +114,7 @@ func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)
 
 func main() {
     // Connect to Stellar RPC
-    src, _ := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
     defer src.Close()
 
     // Create your processor
@@ -314,7 +314,7 @@ type Sink interface {
 Sources stream ledger data:
 
 ```go
-src, err := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
 defer src.Close()
 
 // Stream ledgers to a channel
@@ -710,7 +710,7 @@ nebu fetch 60200000 60200100 | token-transfer
 ```
 
 **Available environment variables:**
-- `NEBU_RPC_URL` - Stellar RPC endpoint (default: `https://mainnet.sorobanrpc.com`)
+- `NEBU_RPC_URL` - Stellar RPC endpoint (default: `https://archive-rpc.lightsail.network`)
 - `NEBU_NETWORK` - Network: `mainnet`, `testnet`, or full passphrase (default: mainnet)
 - `NEBU_RPC_AUTH` - RPC authorization header value (e.g., `Api-Key YOUR_KEY`)
 

@@ -96,7 +96,7 @@ If we're still on the left side by Day 3, we cut scope immediately.
 - [ ] Test: Stream 5 ledgers from public RPC
   ```go
   func TestRPCLedgerSource_Stream(t *testing.T) {
-      src, err := NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+      src, err := NewRPCLedgerSource("https://archive-rpc.lightsail.network")
       require.NoError(t, err)
       defer src.Close()
 
@@ -416,7 +416,7 @@ At the end of this cycle, you should be able to:
 
 1. Show someone this code:
    ```go
-   src, _ := source.NewRPCLedgerSource("https://mainnet.sorobanrpc.com")
+   src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
    origin := &MyOrigin{}
    runtime.NewRuntime().RunOrigin(ctx, src, origin, 100, 200)
    ```

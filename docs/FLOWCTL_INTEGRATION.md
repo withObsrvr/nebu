@@ -112,7 +112,7 @@ spec:
     - id: token-transfer
       command: ["token-transfer", "--start-ledger", "60200000", "--end-ledger", "60200100"]
       env:
-        NEBU_RPC_URL: "https://mainnet.sorobanrpc.com"
+        NEBU_RPC_URL: "https://archive-rpc.lightsail.network"
       # flowctl captures stdout as source data
 ```
 
