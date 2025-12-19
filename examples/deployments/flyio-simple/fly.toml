@@ -1,0 +1,35 @@
+# fly.toml app configuration file for nebu indexer (simplified)
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = 'nebu-indexer-simple'
+primary_region = 'sjc'
+kill_signal = 'SIGTERM'
+kill_timeout = '30s'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  strategy = 'immediate'
+
+[env]
+  # Stellar RPC configuration
+  RPC_URL = 'https://archive-rpc.lightsail.network'
+
+  # Indexing configuration
+  START_LEDGER = 'latest'  # Or set to specific ledger number for historical data
+  BATCH_SIZE = '1000'
+  LOG_LEVEL = 'info'
+
+[processes]
+  indexer = '/start.sh'
+
+[[mounts]]
+  source = 'indexer_data'
+  destination = '/data'
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
