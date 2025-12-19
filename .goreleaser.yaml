@@ -186,13 +186,32 @@ builds:
       - -s -w
 
 archives:
-  - id: nebu
+  - id: nebu-cli
     format: tar.gz
     name_template: "nebu_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - nebu
     files:
       - README.md
       - LICENSE
-      - docs/**/*
+
+  - id: processors
+    format: tar.gz
+    name_template: "nebu-processors_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - token-transfer
+      - contract-events
+      - contract-invocation
+      - postgres-sink
+      - nats-sink
+      - json-file-sink
+      - dedup
+      - amount-filter
+      - time-window
+      - usdc-filter
+    files:
+      - README.md
+      - LICENSE
 
 checksum:
   name_template: 'checksums.txt'
