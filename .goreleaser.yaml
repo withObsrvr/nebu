@@ -27,7 +27,7 @@ builds:
 
   # Origin processor: token-transfer
   - id: token-transfer
-    main: ./examples/processors/token-transfer/cmd/token-transfer
+    main: ./cmd/token-transfer
     binary: token-transfer
     dir: ./examples/processors/token-transfer
     goos:
@@ -43,7 +43,7 @@ builds:
 
   # Origin processor: contract-events
   - id: contract-events
-    main: ./examples/processors/contract-events/cmd/contract-events
+    main: ./cmd/contract-events
     binary: contract-events
     dir: ./examples/processors/contract-events
     goos:
@@ -59,7 +59,7 @@ builds:
 
   # Origin processor: contract-invocation
   - id: contract-invocation
-    main: ./examples/processors/contract-invocation/cmd/contract-invocation
+    main: ./cmd/contract-invocation
     binary: contract-invocation
     dir: ./examples/processors/contract-invocation
     goos:
@@ -75,7 +75,7 @@ builds:
 
   # Sink processor: postgres-sink
   - id: postgres-sink
-    main: ./examples/processors/postgres-sink/cmd/postgres-sink
+    main: ./cmd/postgres-sink
     binary: postgres-sink
     dir: ./examples/processors/postgres-sink
     goos:
@@ -91,7 +91,7 @@ builds:
 
   # Sink processor: nats-sink
   - id: nats-sink
-    main: ./examples/processors/nats-sink/cmd/nats-sink
+    main: ./cmd/nats-sink
     binary: nats-sink
     dir: ./examples/processors/nats-sink
     goos:
@@ -107,7 +107,7 @@ builds:
 
   # Sink processor: json-file-sink
   - id: json-file-sink
-    main: ./examples/processors/json-file-sink/cmd/json-file-sink
+    main: ./cmd/json-file-sink
     binary: json-file-sink
     dir: ./examples/processors/json-file-sink
     goos:
@@ -123,7 +123,7 @@ builds:
 
   # Transform processor: dedup
   - id: dedup
-    main: ./examples/processors/dedup/cmd/dedup
+    main: ./cmd/dedup
     binary: dedup
     dir: ./examples/processors/dedup
     goos:
@@ -139,7 +139,7 @@ builds:
 
   # Transform processor: amount-filter
   - id: amount-filter
-    main: ./examples/processors/amount-filter/cmd/amount-filter
+    main: ./cmd/amount-filter
     binary: amount-filter
     dir: ./examples/processors/amount-filter
     goos:
@@ -155,7 +155,7 @@ builds:
 
   # Transform processor: time-window
   - id: time-window
-    main: ./examples/processors/time-window/cmd/time-window
+    main: ./cmd/time-window
     binary: time-window
     dir: ./examples/processors/time-window
     goos:
@@ -171,7 +171,7 @@ builds:
 
   # Transform processor: usdc-filter
   - id: usdc-filter
-    main: ./examples/processors/usdc-filter/cmd/usdc-filter
+    main: ./cmd/usdc-filter
     binary: usdc-filter
     dir: ./examples/processors/usdc-filter
     goos:
