@@ -193,7 +193,6 @@ archives:
       - nebu
     files:
       - README.md
-      - LICENSE
 
   - id: processors
     format: tar.gz
@@ -211,7 +210,6 @@ archives:
       - usdc-filter
     files:
       - README.md
-      - LICENSE
 
 checksum:
   name_template: 'checksums.txt'
