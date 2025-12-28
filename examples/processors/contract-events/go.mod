@@ -4,7 +4,8 @@ go 1.25.4
 
 require (
 	github.com/stellar/go-stellar-sdk v0.1.0
-	github.com/withObsrvr/nebu v0.0.0
+	github.com/withObsrvr/nebu v0.0.0-20251220140929-61e9fa85d21a
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -94,10 +95,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
 	google.golang.org/grpc v1.77.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/djherbis/atime.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/stream.v1 v1.3.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/withObsrvr/nebu => ../../..
