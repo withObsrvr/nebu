@@ -44,3 +44,6 @@ etl.cast
 etl.gif
 demo/
 analysis/
+examples/processors/contract-events/contract-events
+examples/processors/token-transfer/token-transfer
+examples/processors/token-transfer/go.mod.backup
