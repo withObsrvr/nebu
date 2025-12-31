@@ -17,6 +17,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/processors/token_transfer"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 	"github.com/withObsrvr/nebu/pkg/source"
@@ -33,6 +34,9 @@ type OriginConfig struct {
 	Name        string
 	Description string
 	Version     string
+
+	// Optional rich help configuration
+	Help *HelpConfig
 }
 
 // TokenTransferOriginProcessor wraps the token transfer origin for CLI use.
@@ -53,36 +57,14 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 		quietMode   bool
 	)
 
+	// Build help text
+	longHelp := buildOriginLongHelp(config)
+
 	rootCmd := &cobra.Command{
 		Use:     config.Name,
 		Short:   config.Description,
 		Version: config.Version,
-		Long: fmt.Sprintf(`%s
-
-This processor can run in three modes:
-  1. RPC mode: Fetch ledgers from Stellar RPC (bounded or unbounded)
-  2. stdin mode: Read XDR ledgers from stdin
-  3. File mode: Read XDR ledgers from a file
-
-Examples:
-  # Fetch bounded range (specific ledgers)
-  %s --start-ledger 60200000 --end-ledger 60200100
-
-  # Fetch unbounded (stream continuously from ledger 60200000)
-  %s --start-ledger 60200000
-
-  # Or explicitly set unbounded
-  %s --start-ledger 60200000 --end-ledger 0
-
-  # Read from stdin
-  cat ledgers.xdr | %s
-
-  # Read from file
-  %s ledgers.xdr
-
-  # Pipe to other tools
-  nebu fetch 60200000 60200100 | %s | jq 'select(.type == "transfer")'
-`, config.Description, config.Name, config.Name, config.Name, config.Name, config.Name, config.Name),
+		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check input mode
 			var inputFile string
@@ -105,7 +87,7 @@ Examples:
 			// Validate flags
 			if !useStdin && inputFile == "" {
 				if startLedger == 0 {
-					return fmt.Errorf("--start-ledger is required for RPC mode (or provide input file/stdin)")
+					return nebuErrors.MissingRequiredFlags("--start-ledger")
 				}
 				// endLedger == 0 is valid (unbounded streaming)
 			}
@@ -220,7 +202,7 @@ func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string,
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create RPC source: %w", err)
+		return nebuErrors.FailedToCreateSource("RPC", err)
 	}
 	defer src.Close()
 
@@ -246,11 +228,11 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 			if err == io.EOF || (ledgerCount > 0 && isEOFError(err)) {
 				return nil
 			}
-			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
+			return nebuErrors.XDRDecodeFailed(ledgerCount+1, err)
 		}
 
 		if err := origin.ProcessLedger(ctx, ledger); err != nil {
-			return fmt.Errorf("processor error at ledger %d: %w", ledger.LedgerSequence(), err)
+			return nebuErrors.ProcessorError(ledger.LedgerSequence(), err)
 		}
 
 		ledgerCount++
@@ -271,7 +253,7 @@ func isEOFError(err error) bool {
 func processFromFile(ctx context.Context, origin processor.Origin, filePath string) error {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to open input file: %w", err)
+		return nebuErrors.FailedToOpenFile(filePath, err)
 	}
 	defer f.Close()
 

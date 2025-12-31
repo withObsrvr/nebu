@@ -16,6 +16,9 @@ type SinkConfig struct {
 	Name        string
 	Description string
 	Version     string
+
+	// Optional rich help configuration
+	Help *HelpConfig
 }
 
 // SinkFunc is a function that processes an event and produces a side effect.
@@ -27,30 +30,14 @@ type SinkFunc func(event map[string]interface{}) error
 func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)) {
 	var quietMode bool
 
+	// Build help text
+	longHelp := buildSinkLongHelp(config)
+
 	rootCmd := &cobra.Command{
 		Use:     config.Name,
 		Short:   config.Description,
 		Version: config.Version,
-		Long: fmt.Sprintf(`%s
-
-This sink processor reads JSON events from stdin and processes them.
-Sink processors produce side effects like writing to databases, files, or external services.
-
-Examples:
-  # Process events from a file
-  cat events.jsonl | %s
-
-  # Chain with origin processor
-  nebu fetch 60200000 60200100 | token-transfer | %s
-
-  # Full pipeline
-  token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-    usdc-filter | \
-    %s
-
-  # Quiet mode suppresses progress messages
-  cat events.jsonl | %s -q
-`, config.Description, config.Name, config.Name, config.Name, config.Name),
+		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSink(sinkFunc, quietMode)
 		},

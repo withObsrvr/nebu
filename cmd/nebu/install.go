@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/registry"
 )
 
@@ -43,12 +44,17 @@ Examples:
 			// Load registry
 			reg, err := registry.LoadDefault()
 			if err != nil {
-				return fmt.Errorf("failed to load registry: %w", err)
+				return nebuErrors.RegistryLoadFailed(err)
 			}
 
 			proc, err := reg.FindProcessor(processorName)
 			if err != nil {
-				return fmt.Errorf("processor '%s' not found in registry", processorName)
+				available := reg.ListProcessors("")
+				var names []string
+				for _, p := range available {
+					names = append(names, p.Name)
+				}
+				return nebuErrors.ProcessorNotFound(processorName, names)
 			}
 
 			// Determine install path
@@ -97,7 +103,10 @@ func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) er
 		return installProcessorModule(proc.Name, proc.Location.ModulePackage, installPath)
 	}
 
-	return fmt.Errorf("processor location not found (no local path or module package available)")
+	return nebuErrors.WithSuggestion(
+		fmt.Sprintf("Processor '%s' has no installable location", proc.Name),
+		"The processor needs either a local path or a Go module package to install.",
+	)
 }
 
 // installProcessorLocal builds a processor from local source.
@@ -114,7 +123,7 @@ func installProcessorLocal(name, processorPath, installPath string) error {
 	buildCmd.Stderr = os.Stderr
 
 	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("failed to build %s: %w", name, err)
+		return nebuErrors.BuildFailed(name, err)
 	}
 
 	installedPath := filepath.Join(installPath, binaryName)
@@ -136,7 +145,7 @@ func installProcessorModule(name, modulePackage, installPath string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("go install failed: %w", err)
+		return nebuErrors.InstallFailed(name, err)
 	}
 
 	installedPath := filepath.Join(installPath, name)
