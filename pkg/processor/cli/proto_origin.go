@@ -102,6 +102,9 @@ func RunProtoOriginCLI[T proto.Message](
 				os.Exit(1)
 			}()
 
+			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
+			networkPass = normalizeNetworkPassphrase(networkPass)
+
 			// Create processor
 			origin := createProcessor(networkPass)
 

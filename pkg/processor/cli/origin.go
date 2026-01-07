@@ -29,6 +29,19 @@ func getAuthHeader() string {
 	return os.Getenv("NEBU_RPC_AUTH")
 }
 
+// normalizeNetworkPassphrase converts common network aliases to full passphrases.
+// Accepts: "mainnet", "testnet", "pubnet", or full passphrases.
+func normalizeNetworkPassphrase(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "mainnet", "main", "public", "pubnet":
+		return network.PublicNetworkPassphrase
+	case "testnet", "test":
+		return network.TestNetworkPassphrase
+	default:
+		return input
+	}
+}
+
 // OriginConfig holds configuration for running an origin processor as a CLI tool.
 type OriginConfig struct {
 	Name        string
@@ -113,6 +126,9 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				}
 				os.Exit(1)
 			}()
+
+			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
+			networkPass = normalizeNetworkPassphrase(networkPass)
 
 			// Create processor
 			origin := createProcessor(networkPass)
