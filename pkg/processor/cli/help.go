@@ -37,6 +37,9 @@ type HelpConfig struct {
 
 	// SeeAlso are related commands/processors
 	SeeAlso []string
+
+	// IsOrigin indicates this is an origin processor (shows INPUT MODES section)
+	IsOrigin bool
 }
 
 // HelpExample is a usage example.
@@ -63,13 +66,15 @@ func BuildLongHelp(config HelpConfig) string {
 	}
 	b.WriteString("\n")
 
-	// Input modes
-	b.WriteString(`
+	// Input modes (only for origin processors)
+	if config.IsOrigin {
+		b.WriteString(`
 INPUT MODES:
   RPC mode:   Fetch ledgers directly from Stellar RPC (default)
   stdin mode: Read XDR ledgers from stdin (piped from nebu fetch)
   File mode:  Read XDR ledgers from a file
 `)
+	}
 
 	// Output description
 	if config.OutputDescription != "" {
@@ -203,9 +208,10 @@ func buildOriginLongHelp(config OriginConfig) string {
 
 	// Otherwise, build default help
 	helpConfig := HelpConfig{
-		Name:    config.Name,
-		Short:   config.Description,
-		Version: config.Version,
+		Name:     config.Name,
+		Short:    config.Description,
+		Version:  config.Version,
+		IsOrigin: true,
 		OutputDescription: "Newline-delimited JSON (JSONL) to stdout. Each line is one event.",
 		Examples: DefaultOriginExamples(config.Name),
 		EnvVars:  CommonEnvVars(),

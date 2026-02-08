@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/registry"
 )
 
@@ -67,7 +68,7 @@ TYPICAL WORKFLOW:
 			// Load registry
 			reg, err := registry.LoadDefault()
 			if err != nil {
-				return fmt.Errorf("failed to load registry: %w", err)
+				return nebuErrors.RegistryLoadFailed(err)
 			}
 
 			// Get processors
