@@ -1,0 +1,15 @@
+go 1.25.4
+
+use (
+	.
+	./examples/processors/contract-events
+	./examples/processors/contract-invocation
+	./examples/processors/token-transfer
+	./examples/processors/amount-filter
+	./examples/processors/usdc-filter
+	./examples/processors/dedup
+	./examples/processors/time-window
+	./examples/processors/json-file-sink
+	./examples/processors/nats-sink
+	./examples/processors/postgres-sink
+)
