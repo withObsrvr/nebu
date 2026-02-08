@@ -39,7 +39,7 @@ dist/
 
 # Documentation
 shapes/
-nebu
+/nebu
 etl.cast
 etl.gif
 demo/
