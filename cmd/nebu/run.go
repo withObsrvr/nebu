@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/registry"
 )
 
@@ -60,7 +61,7 @@ Examples:
 			// Load registry and validate processor exists
 			reg, err := registry.LoadDefault()
 			if err != nil {
-				return fmt.Errorf("failed to load registry: %w\nHint: Make sure you're in the nebu project directory", err)
+				return nebuErrors.RegistryLoadFailed(err)
 			}
 
 			proc, err := reg.FindProcessor(processorName)
@@ -71,12 +72,12 @@ Examples:
 				for _, p := range available {
 					names = append(names, p.Name)
 				}
-				return fmt.Errorf("processor '%s' not found in registry\nAvailable origin processors: %v\n\nRun 'nebu list' to see all processors", processorName, names)
+				return nebuErrors.ProcessorNotFound(processorName, names)
 			}
 
 			// Validate it's an origin processor
 			if proc.Type != "origin" {
-				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run origin' requires type 'origin'", processorName, proc.Type)
+				return nebuErrors.ProcessorTypeMismatch(processorName, proc.Type, "origin")
 			}
 
 			// Origin processors must be installed and run as standalone binaries
@@ -153,7 +154,7 @@ Examples:
 			// Load registry and validate processor exists
 			reg, err := registry.LoadDefault()
 			if err != nil {
-				return fmt.Errorf("failed to load registry: %w\nHint: Make sure you're in the nebu project directory", err)
+				return nebuErrors.RegistryLoadFailed(err)
 			}
 
 			proc, err := reg.FindProcessor(processorName)
@@ -164,12 +165,12 @@ Examples:
 				for _, p := range available {
 					names = append(names, p.Name)
 				}
-				return fmt.Errorf("processor '%s' not found in registry\nAvailable sink processors: %v\n\nRun 'nebu list' to see all processors", processorName, names)
+				return nebuErrors.ProcessorNotFound(processorName, names)
 			}
 
 			// Validate it's a sink processor
 			if proc.Type != "sink" {
-				return fmt.Errorf("processor '%s' is type '%s', but 'nebu run sink' requires type 'sink'", processorName, proc.Type)
+				return nebuErrors.ProcessorTypeMismatch(processorName, proc.Type, "sink")
 			}
 
 			// Sink processors must be installed and run as standalone binaries

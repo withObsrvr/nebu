@@ -45,36 +45,14 @@ func RunProtoOriginCLI[T proto.Message](
 		quietMode   bool
 	)
 
+	// Build help text
+	longHelp := buildOriginLongHelp(config)
+
 	rootCmd := &cobra.Command{
 		Use:     config.Name,
 		Short:   config.Description,
 		Version: config.Version,
-		Long: fmt.Sprintf(`%s
-
-This processor can run in three modes:
-  1. RPC mode: Fetch ledgers from Stellar RPC (bounded or unbounded)
-  2. stdin mode: Read XDR ledgers from stdin
-  3. File mode: Read XDR ledgers from a file
-
-Examples:
-  # Fetch bounded range (specific ledgers)
-  %s --start-ledger 60200000 --end-ledger 60200100
-
-  # Fetch unbounded (stream continuously from ledger 60200000)
-  %s --start-ledger 60200000
-
-  # Or explicitly set unbounded
-  %s --start-ledger 60200000 --end-ledger 0
-
-  # Read from stdin
-  cat ledgers.xdr | %s
-
-  # Read from file
-  %s ledgers.xdr
-
-  # Pipe to other tools
-  nebu fetch 60200000 60200100 | %s | jq .
-`, config.Description, config.Name, config.Name, config.Name, config.Name, config.Name, config.Name),
+		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check input mode
 			var inputFile string
@@ -123,6 +101,9 @@ Examples:
 				}
 				os.Exit(1)
 			}()
+
+			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
+			networkPass = normalizeNetworkPassphrase(networkPass)
 
 			// Create processor
 			origin := createProcessor(networkPass)

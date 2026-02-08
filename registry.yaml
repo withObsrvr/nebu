@@ -10,6 +10,10 @@ processors:
   - name: token-transfer
     type: origin
     description: Stream token transfer events from Stellar ledgers (transfers, mints, burns, clawbacks, fees)
+    long_description: |
+      Extracts Stellar Asset Contract (SAC) token events from ledger data.
+      Produces events for transfers, mints, burns, clawbacks, and network fees.
+      Supports both native XLM and wrapped assets (USDC, etc).
 
     # Local example processor
     location:
@@ -38,6 +42,63 @@ processors:
       version: v1
       identifier: nebu.token_transfer.v1
       documentation: ./examples/processors/token-transfer/SCHEMA.md
+
+    # Event types produced
+    events:
+      - name: transfer
+        description: Token sent between accounts
+      - name: mint
+        description: New tokens created
+      - name: burn
+        description: Tokens destroyed
+      - name: clawback
+        description: Tokens clawed back by issuer
+      - name: fee
+        description: Network fee payment
+
+    # Output field descriptions
+    output_fields:
+      - path: _schema
+        description: Schema identifier (nebu.token_transfer.v1)
+      - path: meta.ledgerSequence
+        description: Ledger number
+      - path: meta.txHash
+        description: Transaction hash
+      - path: meta.closedAt
+        description: Ledger close time (ISO 8601)
+      - path: transfer.from
+        description: Source account (G...)
+      - path: transfer.to
+        description: Destination account (G...)
+      - path: transfer.amount
+        description: Amount in stroops (string)
+      - path: transfer.assetCode
+        description: Asset code (e.g., "USDC", "XLM")
+
+    # Usage examples
+    examples:
+      - comment: Basic usage
+        command: token-transfer --start-ledger 60200000 --end-ledger 60200100
+      - comment: Filter for specific asset
+        command: token-transfer ... | jq 'select(.transfer.assetCode == "USDC")'
+      - comment: Chain with transform processors
+        command: token-transfer ... | usdc-filter | amount-filter --min 1000000
+      - comment: Store results
+        command: token-transfer ... | json-file-sink --out transfers.jsonl
+
+    # Compatibility info
+    works_with:
+      input:
+        - nebu fetch
+      transforms:
+        - usdc-filter
+        - amount-filter
+        - dedup
+        - time-window
+      sinks:
+        - json-file-sink
+        - nats-sink
+        - postgres-sink
 
     # Metadata
     manifest: ./examples/processors/token-transfer/manifest.yaml

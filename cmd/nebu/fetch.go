@@ -13,6 +13,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/source"
 )
 
@@ -83,11 +84,11 @@ Archive Mode Examples:
 			var err error
 			_, err = fmt.Sscanf(args[0], "%d", &startLedger)
 			if err != nil {
-				return fmt.Errorf("invalid start ledger: %s", args[0])
+				return nebuErrors.InvalidLedgerFormat(args[0], "start")
 			}
 
 			if startLedger == 0 {
-				return fmt.Errorf("start ledger must be > 0")
+				return nebuErrors.LedgerMustBePositive("Start")
 			}
 
 			// Parse end ledger based on args and flags
@@ -95,7 +96,7 @@ Archive Mode Examples:
 				// Two arguments provided: use end-ledger from args
 				_, err = fmt.Sscanf(args[1], "%d", &endLedger)
 				if err != nil {
-					return fmt.Errorf("invalid end ledger: %s", args[1])
+					return nebuErrors.InvalidLedgerFormat(args[1], "end")
 				}
 			} else if follow {
 				// Only one argument + --follow flag: stream indefinitely
@@ -108,7 +109,7 @@ Archive Mode Examples:
 			// Validate ledger range
 			// endLedger == 0 is valid (unbounded streaming)
 			if endLedger > 0 && startLedger > endLedger {
-				return fmt.Errorf("start ledger must be <= end ledger")
+				return nebuErrors.InvalidLedgerRange(startLedger, endLedger)
 			}
 
 			// Get mode configuration
@@ -129,7 +130,7 @@ Archive Mode Examples:
 			// Validate configuration based on mode
 			if modeConfig.Value == "archive" {
 				if bucketPathConfig.Value == "" {
-					return fmt.Errorf("--bucket-path is required when using --mode archive")
+					return nebuErrors.MissingBucketPath()
 				}
 			} else if modeConfig.Value == "rpc" {
 				// Validate network configuration for RPC mode
@@ -137,7 +138,7 @@ Archive Mode Examples:
 					return err
 				}
 			} else {
-				return fmt.Errorf("invalid mode: %s (must be 'rpc' or 'archive')", modeConfig.Value)
+				return nebuErrors.InvalidMode(modeConfig.Value, []string{"rpc", "archive"})
 			}
 
 			// Display startup banner
@@ -255,7 +256,7 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, networkPass string, start, end
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create RPC source: %w", err)
+		return nebuErrors.FailedToCreateSource("RPC", err)
 	}
 	defer src.Close()
 
@@ -264,7 +265,7 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, networkPass string, start, end
 	if outputFile != "" {
 		f, err := os.Create(outputFile)
 		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
+			return nebuErrors.FailedToCreateFile(outputFile, err)
 		}
 		defer f.Close()
 		output = f
@@ -315,7 +316,7 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, networkPass string, start, end
 
 	// Check for stream errors
 	if err := <-errCh; err != nil {
-		return fmt.Errorf("stream error: %w", err)
+		return nebuErrors.StreamError(err)
 	}
 
 	if end == 0 {
@@ -358,7 +359,7 @@ func fetchLedgersArchive(
 	// Create storage source
 	src, err := source.NewStorageLedgerSource(datastoreConfig, bufferConfig)
 	if err != nil {
-		return fmt.Errorf("failed to create storage source: %w", err)
+		return nebuErrors.FailedToCreateSource("storage", err)
 	}
 	defer src.Close()
 
@@ -367,7 +368,7 @@ func fetchLedgersArchive(
 	if outputFile != "" {
 		f, err := os.Create(outputFile)
 		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
+			return nebuErrors.FailedToCreateFile(outputFile, err)
 		}
 		defer f.Close()
 		output = f
@@ -418,7 +419,7 @@ func fetchLedgersArchive(
 
 	// Check for stream errors
 	if err := <-errCh; err != nil {
-		return fmt.Errorf("stream error: %w", err)
+		return nebuErrors.StreamError(err)
 	}
 
 	if end == 0 {

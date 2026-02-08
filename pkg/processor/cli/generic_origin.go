@@ -122,6 +122,9 @@ Examples:
 				os.Exit(1)
 			}()
 
+			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
+			networkPass = normalizeNetworkPassphrase(networkPass)
+
 			// Create processor
 			origin := createProcessor(networkPass)
 			defer origin.Close()

@@ -21,14 +21,52 @@ type Registry struct {
 
 // ProcessorEntry describes a processor in the registry.
 type ProcessorEntry struct {
-	Name        string             `yaml:"name"`
-	Type        string             `yaml:"type"` // origin, transform, sink
-	Description string             `yaml:"description"`
-	Location    ProcessorLocation  `yaml:"location"`
-	Service     *ServiceConfig     `yaml:"service,omitempty"`
-	Proto       *ProtoConfig       `yaml:"proto,omitempty"`
-	Manifest    string             `yaml:"manifest,omitempty"`
-	Maintainer  *MaintainerInfo    `yaml:"maintainer,omitempty"`
+	Name            string             `yaml:"name"`
+	Type            string             `yaml:"type"` // origin, transform, sink
+	Description     string             `yaml:"description"`
+	LongDescription string             `yaml:"long_description,omitempty"`
+	Location        ProcessorLocation  `yaml:"location"`
+	Service         *ServiceConfig     `yaml:"service,omitempty"`
+	Proto           *ProtoConfig       `yaml:"proto,omitempty"`
+	Schema          *SchemaConfig      `yaml:"schema,omitempty"`
+	Manifest        string             `yaml:"manifest,omitempty"`
+	Maintainer      *MaintainerInfo    `yaml:"maintainer,omitempty"`
+	Events          []EventInfo        `yaml:"events,omitempty"`
+	OutputFields    []FieldInfo        `yaml:"output_fields,omitempty"`
+	Examples        []ExampleInfo      `yaml:"examples,omitempty"`
+	WorksWith       *WorksWithInfo     `yaml:"works_with,omitempty"`
+}
+
+// SchemaConfig describes the output schema.
+type SchemaConfig struct {
+	Version       string `yaml:"version"`
+	Identifier    string `yaml:"identifier"`
+	Documentation string `yaml:"documentation,omitempty"`
+}
+
+// EventInfo describes an event type produced by the processor.
+type EventInfo struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+}
+
+// FieldInfo describes an output field.
+type FieldInfo struct {
+	Path        string `yaml:"path"`
+	Description string `yaml:"description"`
+}
+
+// ExampleInfo describes a usage example.
+type ExampleInfo struct {
+	Comment string `yaml:"comment"`
+	Command string `yaml:"command"`
+}
+
+// WorksWithInfo describes processor compatibility.
+type WorksWithInfo struct {
+	Input      []string `yaml:"input,omitempty"`
+	Transforms []string `yaml:"transforms,omitempty"`
+	Sinks      []string `yaml:"sinks,omitempty"`
 }
 
 // ProcessorLocation describes where the processor code lives.
@@ -124,6 +162,24 @@ func (r *Registry) ListProcessors(procType string) []ProcessorEntry {
 		}
 	}
 	return result
+}
+
+// ListProcessorsByType returns processors grouped by type.
+func (r *Registry) ListProcessorsByType() map[string][]ProcessorEntry {
+	result := make(map[string][]ProcessorEntry)
+	for _, proc := range r.Processors {
+		result[proc.Type] = append(result[proc.Type], proc)
+	}
+	return result
+}
+
+// ListProcessorNames returns all processor names.
+func (r *Registry) ListProcessorNames() []string {
+	names := make([]string, len(r.Processors))
+	for i, proc := range r.Processors {
+		names[i] = proc.Name
+	}
+	return names
 }
 
 // ResolvePath resolves a relative path in the processor location to an absolute path.

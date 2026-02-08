@@ -16,6 +16,9 @@ type TransformConfig struct {
 	Name        string
 	Description string
 	Version     string
+
+	// Optional rich help configuration
+	Help *HelpConfig
 }
 
 // TransformFunc is a function that transforms an event.
@@ -27,31 +30,14 @@ type TransformFunc func(event map[string]interface{}) map[string]interface{}
 func RunTransformCLI(config TransformConfig, transformFunc TransformFunc, flags func(*cobra.Command)) {
 	var quietMode bool
 
+	// Build help text
+	longHelp := buildTransformLongHelp(config)
+
 	rootCmd := &cobra.Command{
 		Use:     config.Name,
 		Short:   config.Description,
 		Version: config.Version,
-		Long: fmt.Sprintf(`%s
-
-This transform processor reads JSON events from stdin, transforms them,
-and writes the results to stdout. Events can be filtered out by returning nil.
-
-Examples:
-  # Process events from a file
-  cat events.jsonl | %s > filtered.jsonl
-
-  # Chain with origin processor
-  nebu fetch 60200000 60200100 | token-transfer | %s
-
-  # Chain multiple transforms
-  token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-    %s | \
-    other-transform | \
-    sink-processor
-
-  # Quiet mode suppresses progress messages
-  cat events.jsonl | %s -q > output.jsonl
-`, config.Description, config.Name, config.Name, config.Name, config.Name),
+		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTransform(transformFunc, quietMode)
 		},

@@ -1,10 +1,12 @@
 # nebu Shape Up Documents
 
-This directory contains Shape Up documents for improving nebu's Unix philosophy adherence.
+This directory contains Shape Up documents for nebu improvements.
 
 ## Overview
 
-These shapes make nebu more composable, following the Unix philosophy of "do one thing well" and "work together through text streams."
+These shapes cover two themes:
+1. **Unix philosophy** (Cycles 1-5) - Making nebu more composable with stdin/stdout, pipes, and standalone tools
+2. **Agent-friendly interface** (Cycle 6) - Better discoverability, error messages, and MCP wrapper for AI agents
 
 ## Shapes (Recommended Order)
 
@@ -37,6 +39,23 @@ These shapes make nebu more composable, following the Unix philosophy of "do one
    - Appetite: 5 days
    - Impact: Complete Unix-style processing chains
 
+### Agent-Friendly Interface (Cycle 6)
+7. **[Better Error Messages](./07-better-error-messages.md)** - Actionable errors with suggestions
+   - Appetite: 2 days
+   - Impact: Faster iteration for humans and agents
+
+8. **[Richer Help Text](./08-richer-help-text.md)** - Examples and patterns in --help
+   - Appetite: 2 days
+   - Impact: Self-documenting tools
+
+9. **[Richer nebu list](./09-richer-nebu-list.md)** - Grouped output + describe command
+   - Appetite: 2 days
+   - Impact: Better processor discovery
+
+10. **[MCP Wrapper](./10-mcp-wrapper.md)** - MCP server for AI agents
+    - Appetite: 1 week
+    - Impact: Safe, discoverable interface for agents
+
 ## Implementation Strategy
 
 ### Cycle 1: Quick Wins (3 days)
@@ -57,7 +76,17 @@ These shapes make nebu more composable, following the Unix philosophy of "do one
 - Shape 04: Transform/Sink CLI tools
 - Ship: End-to-end pipelines
 
-Total: ~16 days across 4 cycles (or cherry-pick based on needs)
+### Cycle 5: Already Complete
+- See CYCLE_5_COMPLETE.md for details
+
+### Cycle 6: Agent-Friendly Interface (2 weeks)
+- Shape 07: Better Error Messages (2 days)
+- Shape 08: Richer Help Text (2 days)
+- Shape 09: Richer nebu list (2 days)
+- Shape 10: MCP Wrapper (1 week)
+- Ship: nebu that's great for humans AND AI agents
+
+Total: ~30 days across 6 cycles (or cherry-pick based on needs)
 
 ## gRPC Compatibility
 
@@ -92,6 +121,19 @@ cat ledgers.xdr | token-transfer | usdc-filter | postgres-sink
 nebu fetch 60200000 60200100 | token-transfer | duckdb events.db
 ```
 
+## Agent-Friendly Design Philosophy
+
+Cycle 6 makes nebu work well for AI agents **without changing** the human experience:
+
+| Aspect | Humans | Agents |
+|--------|--------|--------|
+| **Interface** | CLI with Unix pipes | MCP server (wraps CLI) |
+| **Output control** | `| head`, `| wc -l` | Built-in limits, format options |
+| **Discovery** | `--help`, trial-and-error | `nebu_describe_processor` tool |
+| **Errors** | Read and fix | Actionable suggestions |
+
+The key insight: Unix composability **is** agent-friendly. Agents can pipe through `head`, filter with `jq`, and count with `wc -l` just like humans. The MCP wrapper just adds guardrails (default limits) and better discovery (tool schemas).
+
 ## Questions?
 
 Each shape document includes:
@@ -100,6 +142,5 @@ Each shape document includes:
 - Solution sketch
 - Rabbit holes to avoid
 - Definition of "done"
-- gRPC compatibility notes
 
-Start with the quick wins, then build up to full composability.
+Start with the quick wins, then build up to full composability. Cycle 6 can be done in parallel since it's orthogonal to the Unix philosophy shapes.
