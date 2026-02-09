@@ -79,7 +79,10 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Check input mode
+			// Determine input mode:
+			//   1. Explicit file argument or "-" for stdin
+			//   2. --start-ledger flag → RPC mode (takes priority over stdin detection)
+			//   3. Auto-detect piped stdin as fallback
 			var inputFile string
 			useStdin := false
 
@@ -89,8 +92,10 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				} else {
 					inputFile = args[0]
 				}
+			} else if startLedger > 0 {
+				// Explicit --start-ledger flag: use RPC mode
 			} else {
-				// Auto-detect stdin
+				// No flags, no args: check if stdin is a pipe
 				stat, _ := os.Stdin.Stat()
 				if (stat.Mode() & os.ModeCharDevice) == 0 {
 					useStdin = true
@@ -102,7 +107,6 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				if startLedger == 0 {
 					return nebuErrors.MissingRequiredFlags("--start-ledger")
 				}
-				// endLedger == 0 is valid (unbounded streaming)
 			}
 
 			// Create context with cancellation

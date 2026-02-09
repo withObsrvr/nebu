@@ -80,6 +80,15 @@ Archive Mode Examples:
 `,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Auto-quiet when stdout is a pipe and outputting binary XDR.
+			// Prevents status messages from corrupting the stream if stderr
+			// is merged with stdout (common in some SSH/shell configurations).
+			if outputFile == "" {
+				if stat, _ := os.Stdout.Stat(); stat != nil && (stat.Mode()&os.ModeCharDevice) == 0 {
+					quietMode = true
+				}
+			}
+
 			// Parse start ledger (always required)
 			var err error
 			_, err = fmt.Sscanf(args[0], "%d", &startLedger)
