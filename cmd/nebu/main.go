@@ -68,6 +68,7 @@ ENVIRONMENT:
 	rootCmd.AddCommand(newNewCmd())
 	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newDescribeCmd())
+	rootCmd.AddCommand(newResumeCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

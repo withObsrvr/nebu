@@ -10,7 +10,14 @@ Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries 
 
 ## Status
 
-🚀 **v0.3.0** - Production-ready for analytics and indexing pipelines
+🚀 **v0.4.0** - Production-hardened with retry, auto-resume, conditional upserts, and metrics
+
+**What's new in v0.4.0:**
+- **Retry with backoff**: `postgres-sink --max-retries 5 --retry-backoff 5s` survives transient DB failures
+- **Auto-resume**: `nebu resume --dsn $DSN --table events -- "pipeline..."` picks up where you left off
+- **Conditional upserts**: `--conflict update-if-newer` prevents data regression during backfills
+- **Prometheus metrics**: `--metrics-port 9090` exposes `/metrics` for operational visibility
+- **ledger_sequence column**: Explicit column with index for efficient resume queries
 
 **What's included:**
 - **CLI & Fetch**: `nebu fetch` for streaming XDR from RPC or historical archives (GCS/S3)
@@ -67,7 +74,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.3.0","meta":{"ledgerSequence":60200000,"closedAt":"2025-12-08T01:45:11Z","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","asset":{"issuedAsset":{"assetCode":"USDC","issuer":"GA..."}},"amount":"1000000"}}
+{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.4.0","meta":{"ledgerSequence":60200000,"closedAt":"2025-12-08T01:45:11Z","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","asset":{"issuedAsset":{"assetCode":"USDC","issuer":"GA..."}},"amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -506,12 +513,12 @@ nebu includes schema version information in all JSON output to prevent silent br
 
 Every JSON event includes:
 - `_schema`: Schema version identifier (e.g., `nebu.token-transfer.v1`)
-- `_nebu_version`: The nebu CLI version that produced the event (e.g., `0.3.0`)
+- `_nebu_version`: The nebu CLI version that produced the event (e.g., `0.4.0`)
 
 ```json
 {
   "_schema": "nebu.token-transfer.v1",
-  "_nebu_version": "0.3.0",
+  "_nebu_version": "0.4.0",
   "meta": {
     "ledgerSequence": 60200000,
     "closedAt": "2025-12-08T01:45:11Z",
