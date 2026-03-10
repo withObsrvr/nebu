@@ -4,6 +4,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -12,6 +13,7 @@ import (
 // Recorder collects Prometheus metrics for processor operations.
 type Recorder struct {
 	registry *prometheus.Registry
+	server   *http.Server
 
 	eventsProcessed prometheus.Counter
 	batchFlushes    prometheus.Counter
@@ -81,6 +83,21 @@ func (r *Recorder) Serve(port int) error {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(r.registry, promhttp.HandlerOpts{}))
 
-	addr := fmt.Sprintf(":%d", port)
-	return http.ListenAndServe(addr, mux)
+	r.server = &http.Server{
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	return r.server.ListenAndServe()
+}
+
+// Shutdown gracefully stops the metrics HTTP server.
+func (r *Recorder) Shutdown() error {
+	if r.server == nil {
+		return nil
+	}
+	return r.server.Close()
 }
