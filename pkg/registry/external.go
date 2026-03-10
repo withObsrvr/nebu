@@ -27,7 +27,6 @@ type ExternalProcessorDesc struct {
 	} `yaml:"processor"`
 	Repo struct {
 		GitHub string `yaml:"github"`
-		Ref    string `yaml:"ref"`
 	} `yaml:"repo"`
 	Docs struct {
 		QuickStart          string `yaml:"quick_start"`
@@ -52,7 +51,7 @@ func (d *ExternalProcessorDesc) ToProcessorEntry() ProcessorEntry {
 		entry.LongDescription = d.Docs.ExtendedDescription
 	}
 
-	if d.Processor.Version != "" || d.Processor.License != "" {
+	if len(d.Processor.Maintainers) > 0 || d.Repo.GitHub != "" {
 		entry.Maintainer = &MaintainerInfo{}
 		if len(d.Processor.Maintainers) > 0 {
 			entry.Maintainer.Name = strings.Join(d.Processor.Maintainers, ", ")
@@ -146,7 +145,6 @@ func (r *ExternalRegistry) FetchAll() ([]ProcessorEntry, error) {
 
 	// Fetch each description.yml
 	var entries []ProcessorEntry
-	var fetchedNames []string
 	for _, name := range names {
 		desc, err := r.fetchDescription(owner, repo, name)
 		if err != nil {
@@ -155,11 +153,10 @@ func (r *ExternalRegistry) FetchAll() ([]ProcessorEntry, error) {
 		}
 		entry := desc.ToProcessorEntry()
 		entries = append(entries, entry)
-		fetchedNames = append(fetchedNames, name)
 	}
 
-	// Write cache
-	if err := r.writeCache(entries, fetchedNames); err != nil {
+	// Write cache (uses entry.Name for filenames and meta consistency)
+	if err := r.writeCache(entries); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not write cache: %v\n", err)
 	}
 
@@ -304,15 +301,13 @@ func (r *ExternalRegistry) readCachedEntries(names []string) ([]ProcessorEntry, 
 	return entries, nil
 }
 
-func (r *ExternalRegistry) writeCache(entries []ProcessorEntry, names []string) error {
+func (r *ExternalRegistry) writeCache(entries []ProcessorEntry) error {
 	procDir := filepath.Join(r.CacheDir, "processors")
 	if err := os.MkdirAll(procDir, 0o755); err != nil {
 		return err
 	}
 
-	// We need to re-fetch and cache the raw YAML for each processor.
-	// Since we already have the entries, we'll cache them as YAML descriptions.
-	// For simplicity, write a synthetic description.yml for each entry.
+	var names []string
 	for _, entry := range entries {
 		desc := ExternalProcessorDesc{}
 		desc.Processor.Name = entry.Name
@@ -334,9 +329,9 @@ func (r *ExternalRegistry) writeCache(entries []ProcessorEntry, names []string) 
 		if err := os.WriteFile(filepath.Join(procDir, entry.Name+".yml"), data, 0o644); err != nil {
 			continue
 		}
+		names = append(names, entry.Name)
 	}
 
-	// Write meta
 	meta := cacheMeta{
 		FetchedAt:  time.Now(),
 		Processors: names,
