@@ -49,8 +49,8 @@ SEE ALSO:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 
-			// Load registry
-			reg, err := registry.LoadDefault()
+			// Load registry (embedded + external)
+			reg, err := registry.LoadAll()
 			if err != nil {
 				return errors.RegistryLoadFailed(err)
 			}
@@ -81,6 +81,9 @@ func printDescribe(proc *registry.ProcessorEntry) error {
 	fmt.Println(proc.Name)
 	fmt.Println(strings.Repeat("=", len(proc.Name)))
 	fmt.Printf("Type: %s\n", proc.Type)
+	if proc.Source == "community" {
+		fmt.Printf("Source: community (external registry)\n")
+	}
 	if proc.Schema != nil && proc.Schema.Identifier != "" {
 		fmt.Printf("Schema: %s\n", proc.Schema.Identifier)
 	}

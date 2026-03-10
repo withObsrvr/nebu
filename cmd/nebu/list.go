@@ -65,8 +65,8 @@ TYPICAL WORKFLOW:
   4. Run processor:        token-transfer --start-ledger 60200000 --end-ledger 60200100
   5. Or pipe from fetch:   nebu fetch 60200000 60200100 | token-transfer`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Load registry
-			reg, err := registry.LoadDefault()
+			// Load registry (embedded + external)
+			reg, err := registry.LoadAll()
 			if err != nil {
 				return nebuErrors.RegistryLoadFailed(err)
 			}
@@ -139,7 +139,11 @@ func printGroupedList(processors []registry.ProcessorEntry, filterType string) e
 		}
 
 		for _, proc := range procs {
-			fmt.Printf("  %-*s  %s\n", maxNameLen, proc.Name, truncate(proc.Description, 60))
+			tag := ""
+			if proc.Source == "community" {
+				tag = " [community]"
+			}
+			fmt.Printf("  %-*s  %s%s\n", maxNameLen, proc.Name, truncate(proc.Description, 60), tag)
 		}
 		fmt.Println()
 	}
@@ -217,6 +221,7 @@ func printJSONList(processors []registry.ProcessorEntry) error {
 		Name        string   `json:"name"`
 		Type        string   `json:"type"`
 		Description string   `json:"description"`
+		Source      string   `json:"source,omitempty"`
 		Schema      string   `json:"schema,omitempty"`
 		Events      []string `json:"events,omitempty"`
 		Example     string   `json:"example,omitempty"`
@@ -228,6 +233,7 @@ func printJSONList(processors []registry.ProcessorEntry) error {
 			Name:        proc.Name,
 			Type:        proc.Type,
 			Description: proc.Description,
+			Source:      proc.Source,
 		}
 
 		if proc.Schema != nil {
