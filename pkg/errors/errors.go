@@ -286,6 +286,14 @@ func BuildFailed(name string, err error) *NebuError {
 	}
 }
 
+// ExternalRegistryFetchFailed returns an error for external registry fetch failures.
+func ExternalRegistryFetchFailed(url string, err error) *NebuError {
+	return &NebuError{
+		Message:    fmt.Sprintf("Failed to fetch external registry (%s): %v", url, err),
+		Suggestion: "Check your internet connection. The external registry will be skipped and only embedded processors will be available.",
+	}
+}
+
 // InstallFailed returns an error for processor installation failures.
 func InstallFailed(name string, err error) *NebuError {
 	return &NebuError{

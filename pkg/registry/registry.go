@@ -35,6 +35,7 @@ type ProcessorEntry struct {
 	OutputFields    []FieldInfo        `yaml:"output_fields,omitempty"`
 	Examples        []ExampleInfo      `yaml:"examples,omitempty"`
 	WorksWith       *WorksWithInfo     `yaml:"works_with,omitempty"`
+	Source          string             `yaml:"-"` // "embedded" or "community", not serialized
 }
 
 // SchemaConfig describes the output schema.
@@ -188,4 +189,56 @@ func (p *ProcessorEntry) ResolvePath(basePath string) string {
 		return filepath.Join(basePath, p.Location.Path)
 	}
 	return p.Location.Path
+}
+
+const defaultExternalRegistry = "github.com/withObsrvr/nebu-processor-registry"
+
+// LoadAll loads the embedded registry and merges in external registry processors.
+// External processors that conflict with embedded names are skipped.
+func LoadAll() (*Registry, error) {
+	// Load embedded registry
+	reg, err := LoadDefault()
+	if err != nil {
+		return nil, err
+	}
+
+	// Mark all embedded entries
+	for i := range reg.Processors {
+		reg.Processors[i].Source = "embedded"
+	}
+
+	// Determine external registry URL
+	registryURL := os.Getenv("NEBU_REGISTRY")
+	if registryURL == "" {
+		registryURL = defaultExternalRegistry
+	}
+
+	// Fetch external processors
+	extReg, err := NewExternalRegistry(registryURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not initialize external registry: %v\n", err)
+		return reg, nil
+	}
+
+	extEntries, err := extReg.FetchAll()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not fetch external registry: %v\n", err)
+		return reg, nil
+	}
+
+	// Build set of embedded names for dedup
+	embeddedNames := make(map[string]bool, len(reg.Processors))
+	for _, p := range reg.Processors {
+		embeddedNames[p.Name] = true
+	}
+
+	// Merge, skipping conflicts
+	for _, ext := range extEntries {
+		if embeddedNames[ext.Name] {
+			continue
+		}
+		reg.Processors = append(reg.Processors, ext)
+	}
+
+	return reg, nil
 }

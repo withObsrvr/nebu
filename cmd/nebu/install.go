@@ -41,8 +41,8 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			processorName := args[0]
 
-			// Load registry
-			reg, err := registry.LoadDefault()
+			// Load registry (embedded + external)
+			reg, err := registry.LoadAll()
 			if err != nil {
 				return nebuErrors.RegistryLoadFailed(err)
 			}
