@@ -24,6 +24,7 @@ func main() {
 		Name:        "contract-invocation",
 		Description: "Stream contract invocation events from Stellar ledgers (function calls, cross-contract calls, state changes)",
 		Version:     version,
+		SchemaID:    "nebu.contract_invocation.v1",
 	}
 
 	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*cipb.ContractInvocation] {

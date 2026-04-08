@@ -2,7 +2,9 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"reflect"
 
 	"github.com/spf13/cobra"
@@ -18,6 +20,38 @@ import (
 // to request the describe envelope. Exported as a constant so that
 // nebu can use the same name when shelling out.
 const describeFlagName = "describe-json"
+
+// isDescribeJSONRequested reports whether --describe-json appears in
+// os.Args. This is deliberately implemented without cobra so it can
+// be checked BEFORE cobra.Execute() runs — otherwise cobra's
+// required-flag validation would reject describe invocations on
+// processors that mark any flag required (e.g., postgres-sink
+// requires --dsn). The describe protocol must work without any
+// other flags set.
+func isDescribeJSONRequested() bool {
+	flag := "--" + describeFlagName
+	for _, arg := range os.Args[1:] {
+		if arg == flag {
+			return true
+		}
+	}
+	return false
+}
+
+// emitDescribeIfRequested checks if --describe-json was passed and,
+// if so, writes the envelope to stdout and exits 0. Called at the
+// top of every Run*CLI helper before cobra.Execute() so the describe
+// path bypasses cobra's flag validation entirely.
+func emitDescribeIfRequested(env processor.DescribeEnvelope) {
+	if !isDescribeJSONRequested() {
+		return
+	}
+	if err := writeDescribeJSON(os.Stdout, env); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
 
 // reservedFlagNames is the set of flags that are filtered out of the
 // describe envelope. These are either nebu infrastructure
@@ -117,15 +151,15 @@ func descriptorOf[T proto.Message]() protoreflect.MessageDescriptor {
 	return fresh.ProtoReflect().Descriptor()
 }
 
-// buildOriginEnvelopeFromDescriptor constructs the describe envelope
-// for an origin processor, given the cobra command (for flags) and
-// the output message descriptor.
-func buildOriginEnvelopeFromDescriptor(
+// buildOriginEnvelope constructs the describe envelope for an origin
+// processor, given the cobra command (for flags) and the proto
+// descriptor of the emitted event type.
+func buildOriginEnvelope(
 	cmd *cobra.Command,
 	config OriginConfig,
 	outputDesc protoreflect.MessageDescriptor,
 ) processor.DescribeEnvelope {
-	env := processor.DescribeEnvelope{
+	return processor.DescribeEnvelope{
 		Name:        config.Name,
 		Type:        processor.TypeOrigin.String(),
 		Version:     config.Version,
@@ -137,5 +171,53 @@ func buildOriginEnvelopeFromDescriptor(
 		Flags:    collectFlagInfo(cmd),
 		Examples: examplesFromHelp(config.Help),
 	}
-	return env
+}
+
+// buildTransformEnvelope constructs the describe envelope for a
+// transform processor. Input and Output schemas are generated from
+// the optional InputType/OutputType fields on the config; a transform
+// that operates on arbitrary JSON can leave both nil and consumers
+// will see an envelope with only the schema.id field populated.
+func buildTransformEnvelope(
+	cmd *cobra.Command,
+	config TransformConfig,
+) processor.DescribeEnvelope {
+	schema := processor.DescribeSchema{ID: config.SchemaID}
+	if config.InputType != nil {
+		schema.Input = jsonschema.FromMessage(config.InputType)
+	}
+	if config.OutputType != nil {
+		schema.Output = jsonschema.FromMessage(config.OutputType)
+	}
+	return processor.DescribeEnvelope{
+		Name:        config.Name,
+		Type:        processor.TypeTransform.String(),
+		Version:     config.Version,
+		Description: config.Description,
+		Schema:      schema,
+		Flags:       collectFlagInfo(cmd),
+		Examples:    examplesFromHelp(config.Help),
+	}
+}
+
+// buildSinkEnvelope constructs the describe envelope for a sink
+// processor. Only the Input schema is generated (sinks have no
+// output).
+func buildSinkEnvelope(
+	cmd *cobra.Command,
+	config SinkConfig,
+) processor.DescribeEnvelope {
+	schema := processor.DescribeSchema{ID: config.SchemaID}
+	if config.InputType != nil {
+		schema.Input = jsonschema.FromMessage(config.InputType)
+	}
+	return processor.DescribeEnvelope{
+		Name:        config.Name,
+		Type:        processor.TypeSink.String(),
+		Version:     config.Version,
+		Description: config.Description,
+		Schema:      schema,
+		Flags:       collectFlagInfo(cmd),
+		Examples:    examplesFromHelp(config.Help),
+	}
 }

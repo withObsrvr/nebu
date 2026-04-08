@@ -38,12 +38,11 @@ func RunProtoOriginCLI[T proto.Message](
 	createProcessor func(networkPass string) ProtoOriginProcessor[T],
 ) {
 	var (
-		rpcURL       string
-		startLedger  uint32
-		endLedger    uint32
-		networkPass  string
-		quietMode    bool
-		describeJSON bool
+		rpcURL      string
+		startLedger uint32
+		endLedger   uint32
+		networkPass string
+		quietMode   bool
 	)
 
 	// Build help text
@@ -55,14 +54,6 @@ func RunProtoOriginCLI[T proto.Message](
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Short-circuit into the describe-json protocol before any
-			// processor setup runs. See pkg/processor/describe.go and
-			// pkg/processor/cli/describe.go for the envelope shape.
-			if describeJSON {
-				env := buildOriginEnvelopeFromDescriptor(cmd, config, descriptorOf[T]())
-				return writeDescribeJSON(os.Stdout, env)
-			}
-
 			// Check input mode
 			var inputFile string
 			useStdin := false
@@ -203,7 +194,12 @@ func RunProtoOriginCLI[T proto.Message](
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence (0 for unbounded)")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
-	rootCmd.Flags().BoolVar(&describeJSON, describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
+	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
+
+	// Short-circuit into the describe-json protocol before cobra
+	// validates required flags. --describe-json must work even when
+	// mandatory processor flags are missing.
+	emitDescribeIfRequested(buildOriginEnvelope(rootCmd, config, descriptorOf[T]()))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

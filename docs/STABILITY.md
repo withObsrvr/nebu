@@ -8,9 +8,10 @@ This document says what is and is not covered by that commitment. If you're writ
 
 | Surface | Commitment |
 |---|---|
-| **`pkg/processor`** | The types `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, and the `Type` enum (`TypeOrigin`, `TypeTransform`, `TypeSink`) are permanent. They exist at this path with these names. |
+| **`pkg/processor`** | The types `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, the `Type` enum (`TypeOrigin`, `TypeTransform`, `TypeSink`), and the describe-protocol types (`DescribeEnvelope`, `DescribeSchema`, `DescribeFlag`, `DescribeExample`) are permanent. They exist at this path with these names. |
 | **`pkg/source`** | The `LedgerSource` interface is permanent. It exists at this path with this name. |
 | **`registry.yaml` v1** | The field set and types defined by the v1 schema are permanent. External registries may author YAML against this schema. |
+| **`--describe-json` protocol** | Every processor binary must implement a `--describe-json` flag that prints a [`DescribeEnvelope`](../pkg/processor/describe.go) to stdout and exits 0. The envelope shape is permanent; nebu may add new optional fields in minor releases but will not rename or remove existing ones without a major version bump. |
 
 **"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver. As of the streams-never-throw landing (see below), **no further breaking changes to the stable surface are planned before 1.0**.
 
@@ -26,6 +27,49 @@ Instead, processors report errors through a `Reporter` attached to the context. 
 Inside a runtime, the attached reporter logs warnings to stderr, counts them for metrics, and halts on the first fatal. Outside a runtime (standalone CLI, or no reporter attached), a default reporter logs to stderr and exits the process on fatal reports. Tests attach a capturing reporter via `processor.WithReporter(ctx, ...)`.
 
 The `Reporter` interface, `ErrorReport` struct, `Severity` enum, and the two convenience helpers are part of the stable surface.
+
+## Introspection: the `--describe-json` protocol
+
+Every processor binary nebu ships implements a `--describe-json` flag. When invoked, the processor prints a JSON envelope describing itself (name, type, version, schema, flags, examples) to stdout and exits 0 — without running any of its actual processing logic.
+
+```bash
+$ token-transfer --describe-json | jq .name
+"token-transfer"
+```
+
+This is the introspection protocol: `nebu describe <name>` shells out to `<name> --describe-json` to fetch the binary's self-description, and tools outside nebu can do the same. Because the envelope is the stable artifact, external processors written in any language can participate in the protocol by emitting a conforming JSON document.
+
+The envelope shape is defined by [`processor.DescribeEnvelope`](../pkg/processor/describe.go):
+
+```json
+{
+  "name":        "token-transfer",
+  "type":        "origin",
+  "version":     "0.3.0",
+  "description": "Stream token transfer events from Stellar ledgers",
+  "schema": {
+    "id":     "nebu.token_transfer.v1",
+    "output": { /* JSON Schema Draft 2020-12 */ }
+  },
+  "flags": [
+    {"name": "start-ledger", "type": "uint32", "required": true, "description": "..."}
+  ],
+  "examples": [
+    {"comment": "...", "command": "..."}
+  ]
+}
+```
+
+**Required invariants of the protocol:**
+
+- `--describe-json` must succeed without any other flags set, even if the processor normally requires flags for real runs. (Describe is introspection, not execution.)
+- The output must be valid JSON — a complete envelope on stdout, nothing else.
+- The process must exit 0 after printing.
+- Unknown fields added by nebu in later releases must be ignored by parsers — the envelope is forward-compatible.
+
+**Processor authors using `pkg/processor/cli`** get the protocol for free: the helper registers the flag and emits the envelope automatically from the processor's proto type and cobra flag set. Set `SchemaID` on your config (and optionally `InputType`/`OutputType` for transforms and sinks) to populate the schema section.
+
+**Authoring in another language:** implement the flag yourself. Parse `os.Args` for `--describe-json` before any flag validation, build a JSON object matching the envelope shape above, print it, and exit 0.
 
 ## Unstable surfaces
 
