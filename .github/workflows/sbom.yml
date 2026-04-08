@@ -13,4 +13,4 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: SCF-Public-Goods-Maintenance/pg-atlas-sbom-action@0981ee36e88e3f973b01aa7f0ab9231116e4ab28
+      - uses: SCF-Public-Goods-Maintenance/pg-atlas-sbom-action
