@@ -1,7 +1,7 @@
 .PHONY: all test build lint clean fmt vet build-cli install gen-protos build-processors test-integration
 
 # Version information
-VERSION ?= 0.3.0
+VERSION ?= 0.5.0
 LDFLAGS = -X github.com/withObsrvr/nebu/pkg/version.Version=$(VERSION)
 
 all: test build

@@ -3,7 +3,7 @@ package version
 
 // Version is the current version of nebu.
 // This will be overridden at build time via ldflags:
-//   go build -ldflags "-X github.com/withObsrvr/nebu/pkg/version.Version=0.4.1"
+//   go build -ldflags "-X github.com/withObsrvr/nebu/pkg/version.Version=0.5.0"
 var Version = "dev"
 
 // SchemaVersions defines the current schema versions for each processor type.
