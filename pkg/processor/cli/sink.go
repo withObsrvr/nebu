@@ -95,9 +95,15 @@ func runSink(sinkFunc SinkFunc, quietMode bool) error {
 			continue
 		}
 
-		// Process the event
+		// Process the event. Per-event failures are logged as warnings
+		// and the loop continues (streams-never-throw); genuinely fatal
+		// conditions should be handled by the sinkFunc itself, which
+		// can call os.Exit or signal via its own context.
 		if err := sinkFunc(event); err != nil {
-			return fmt.Errorf("failed to process event: %w", err)
+			if !quietMode {
+				fmt.Fprintf(os.Stderr, "[sink] warning: failed to process event: %v\n", err)
+			}
+			continue
 		}
 
 		eventCount++

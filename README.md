@@ -105,7 +105,7 @@ import (
     "github.com/stellar/go-stellar-sdk/xdr"
     "github.com/withObsrvr/nebu/pkg/processor"
     "github.com/withObsrvr/nebu/pkg/runtime"
-    "github.com/withObsrvr/nebu/pkg/source"
+    "github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
 // Simple processor that counts ledgers
@@ -121,7 +121,7 @@ func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)
 
 func main() {
     // Connect to Stellar RPC
-    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+    src, _ := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
     defer src.Close()
 
     // Create your processor
@@ -504,7 +504,7 @@ nebu is optimized for **simplicity and speed** - get from idea to results in min
 - Full observability (metrics, health checks, tracing)
 - Complex DAG topologies
 
-See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale.
+See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale and [docs/STABILITY.md](./docs/STABILITY.md) for which package surfaces are committed stable for external processors.
 
 ## Schema Versioning
 

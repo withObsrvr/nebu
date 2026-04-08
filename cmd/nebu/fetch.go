@@ -14,7 +14,8 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
-	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
+	"github.com/withObsrvr/nebu/pkg/source/storage"
 )
 
 func newFetchCmd() *cobra.Command {
@@ -254,14 +255,14 @@ Archive Mode Examples:
 
 func fetchLedgersRPC(ctx context.Context, rpcURL, networkPass string, start, end uint32, outputFile, authHeader string) error {
 	// Create RPC source with optional auth headers
-	var src *source.RPCLedgerSource
+	var src *rpc.LedgerSource
 	var err error
 
 	if authHeader != "" {
 		headers := map[string]string{"Authorization": authHeader}
-		src, err = source.NewRPCLedgerSourceWithHeaders(rpcURL, headers)
+		src, err = rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
 	} else {
-		src, err = source.NewRPCLedgerSource(rpcURL)
+		src, err = rpc.NewLedgerSource(rpcURL)
 	}
 
 	if err != nil {
@@ -349,7 +350,7 @@ func fetchLedgersArchive(
 		Params: map[string]string{
 			"destination_bucket_path": bucketPath,
 		},
-		Schema: source.DefaultDataStoreSchema(),
+		Schema: storage.DefaultDataStoreSchema(),
 	}
 
 	// Add region for S3
@@ -366,7 +367,7 @@ func fetchLedgersArchive(
 	}
 
 	// Create storage source
-	src, err := source.NewStorageLedgerSource(datastoreConfig, bufferConfig)
+	src, err := storage.NewLedgerSource(datastoreConfig, bufferConfig)
 	if err != nil {
 		return nebuErrors.FailedToCreateSource("storage", err)
 	}

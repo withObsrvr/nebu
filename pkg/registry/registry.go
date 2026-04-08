@@ -26,7 +26,6 @@ type ProcessorEntry struct {
 	Description     string             `yaml:"description"`
 	LongDescription string             `yaml:"long_description,omitempty"`
 	Location        ProcessorLocation  `yaml:"location"`
-	Service         *ServiceConfig     `yaml:"service,omitempty"`
 	Proto           *ProtoConfig       `yaml:"proto,omitempty"`
 	Schema          *SchemaConfig      `yaml:"schema,omitempty"`
 	Manifest        string             `yaml:"manifest,omitempty"`
@@ -77,13 +76,6 @@ type ProcessorLocation struct {
 	ModulePackage string `yaml:"module_package,omitempty"` // Go module path for go install
 	URL           string `yaml:"url,omitempty"`
 	Package       string `yaml:"package,omitempty"`
-}
-
-// ServiceConfig describes how to run the processor as a standalone service.
-type ServiceConfig struct {
-	Binary      string   `yaml:"binary"`
-	DefaultPort int      `yaml:"default_port,omitempty"`
-	Env         []string `yaml:"env,omitempty"`
 }
 
 // ProtoConfig describes the protobuf definitions.

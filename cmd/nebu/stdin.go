@@ -35,11 +35,10 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
 		}
 
-		// Process the ledger
-		if err := origin.ProcessLedger(ctx, ledger); err != nil {
-			return fmt.Errorf("processor error at ledger %d: %w", ledger.LedgerSequence(), err)
-		}
-
+		// Process the ledger. Per-ledger errors are reported via the
+		// processor's Reporter (stderr by default); this function only
+		// returns on source/decode failures and context cancellation.
+		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 		if ledgerCount%100 == 0 {
 			logInfo("Processed %d ledgers...", ledgerCount)

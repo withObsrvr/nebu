@@ -1,0 +1,90 @@
+# nebu Stability Policy
+
+**Status:** Pre-1.0. Most of nebu changes freely. A small, deliberately minimal _contract surface_ is committed to long-term stability so that external processors and registries can depend on it without churning.
+
+This document says what is and is not covered by that commitment. If you're writing an external processor, external registry, or depending on nebu as a library, read this before you start.
+
+## The stable surface
+
+| Surface | Commitment |
+|---|---|
+| **`pkg/processor`** | The types `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, and the `Type` enum (`TypeOrigin`, `TypeTransform`, `TypeSink`) are permanent. They exist at this path with these names. |
+| **`pkg/source`** | The `LedgerSource` interface is permanent. It exists at this path with this name. |
+| **`registry.yaml` v1** | The field set and types defined by the v1 schema are permanent. External registries may author YAML against this schema. |
+
+**"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver. As of the streams-never-throw landing (see below), **no further breaking changes to the stable surface are planned before 1.0**.
+
+## Error handling: streams-never-throw
+
+`Origin.ProcessLedger`, `Transform.ProcessEvent`, and `Sink.WriteEvent` do not return `error`. The previous behavior — halt the pipeline on the first error — was the wrong default for indexing jobs that run for hours over millions of ledgers: one malformed event shouldn't kill the whole run.
+
+Instead, processors report errors through a `Reporter` attached to the context. Two convenience helpers are provided:
+
+- [`processor.ReportWarning(ctx, name, err)`](../pkg/processor/reporter.go) — per-event error. The pipeline continues.
+- [`processor.ReportFatal(ctx, name, err)`](../pkg/processor/reporter.go) — unrecoverable error. The runtime halts the pipeline.
+
+Inside a runtime, the attached reporter logs warnings to stderr, counts them for metrics, and halts on the first fatal. Outside a runtime (standalone CLI, or no reporter attached), a default reporter logs to stderr and exits the process on fatal reports. Tests attach a capturing reporter via `processor.WithReporter(ctx, ...)`.
+
+The `Reporter` interface, `ErrorReport` struct, `Severity` enum, and the two convenience helpers are part of the stable surface.
+
+## Unstable surfaces
+
+Explicit non-commitments. These can and will change without notice in the 0.x line:
+
+- **`pkg/source/rpc`, `pkg/source/storage`** — concrete `LedgerSource` implementations. Constructor signatures, option types, and defaults can change.
+- **`pkg/runtime`** — the execution engine is a stub. Expect `Runtime` to grow methods, fields, hooks, and configuration.
+- **`pkg/registry` (Go API)** — the `registry.yaml` protocol is stable; the Go parser that reads it isn't. Import `pkg/registry` at your own risk.
+- **`cmd/nebu` CLI flags and subcommands** — the CLI is a product UI, not a contract. Flags can be renamed, subcommands can be reshaped, output formats can change.
+- **`examples/processors/*`** — reference implementations, not API. They exist to show contributors what good processors look like.
+- **`pkg/errors`, `pkg/logging`, `pkg/metrics`, `pkg/toid`, `pkg/version`** — internal utilities. Not intended for external use.
+
+## Deprecation process
+
+When we need to remove something from the stable surface (rare, and only at major version boundaries):
+
+1. Add a `// Deprecated:` godoc comment pointing to the replacement, in the same release the replacement ships.
+2. The deprecated symbol keeps working for **at least two minor releases**, or until the next major version, whichever comes later.
+3. Removal only happens in a major version.
+
+```go
+// Deprecated: Use NewLedgerSource instead. This constructor will be removed in v2.
+func NewRPCLedgerSource(url string) (*LedgerSource, error) { ... }
+```
+
+## How to depend on nebu
+
+### Implementing an external processor
+
+Import only `pkg/processor` and `pkg/source`. Do not import `pkg/runtime`, `pkg/registry`, `pkg/source/rpc`, or `pkg/source/storage` — none of those are part of the committed surface.
+
+```go
+import (
+    "github.com/withObsrvr/nebu/pkg/processor"
+    "github.com/withObsrvr/nebu/pkg/source"
+)
+```
+
+Binary size stays tight: `pkg/processor` + `pkg/source` pull in only `context`, `google.golang.org/protobuf`, and `github.com/stellar/go-stellar-sdk/xdr`. Your processor picks its own concrete `LedgerSource` (RPC, storage, or a custom implementation) and only pays the dependency cost of what it uses.
+
+### Authoring an external registry
+
+Emit valid `registry.yaml` v1. Do not depend on nebu's Go types — the YAML _is_ the contract. nebu's `pkg/registry` parser is the consumer, not the protocol. You should be able to author a registry in any language that can write YAML.
+
+### Consuming nebu as a Go library
+
+If you only use the stable surface, you're covered by this policy. If you import anything else (`pkg/runtime`, `pkg/registry`, CLI internals), pin to an exact version — those can change without notice.
+
+## The path to 1.0
+
+1.0 is the point at which the committed surface locks under full semver. It ships when all of the following are true:
+
+- The contract interfaces have been exercised by at least one external processor written by someone who didn't write nebu.
+- `registry.yaml` v1 has been exercised by at least one external registry.
+- The streams-never-throw migration is complete.
+- A CI check exists that fails the build on breaking changes to any stable surface.
+
+Until then, the 0.x line is the laboratory. The stable surface is the part of the laboratory we've promised not to rearrange.
+
+## Reporting stability violations
+
+If you find a stable-surface symbol that was renamed, removed, or had its signature changed outside the streams-never-throw exception, file an issue. It's a bug and we'll revert it.

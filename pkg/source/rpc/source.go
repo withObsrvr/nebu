@@ -1,4 +1,10 @@
-package source
+// Package rpc provides a LedgerSource implementation backed by Stellar RPC.
+//
+// This package implements the source.LedgerSource interface from the parent
+// pkg/source package. Importers pay the full cost of the Stellar RPC
+// ledgerbackend dependencies; code that only needs the interface should
+// import pkg/source directly.
+package rpc
 
 import (
 	"context"
@@ -10,8 +16,8 @@ import (
 	"github.com/stellar/go-stellar-sdk/xdr"
 )
 
-// RPCLedgerSource streams ledgers from Stellar RPC using the RPCLedgerBackend.
-type RPCLedgerSource struct {
+// LedgerSource streams ledgers from Stellar RPC using the RPCLedgerBackend.
+type LedgerSource struct {
 	backend ledgerbackend.LedgerBackend
 	rpcURL  string
 }
@@ -36,17 +42,17 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.base.RoundTrip(reqCopy)
 }
 
-// NewRPCLedgerSource creates a new ledger source that connects to Stellar RPC.
+// NewLedgerSource creates a new ledger source that connects to Stellar RPC.
 // The rpcURL should be a fully qualified URL (e.g., "https://archive-rpc.lightsail.network").
-func NewRPCLedgerSource(rpcURL string) (*RPCLedgerSource, error) {
-	return NewRPCLedgerSourceWithHeaders(rpcURL, nil)
+func NewLedgerSource(rpcURL string) (*LedgerSource, error) {
+	return NewLedgerSourceWithHeaders(rpcURL, nil)
 }
 
-// NewRPCLedgerSourceWithHeaders creates a new ledger source with custom HTTP headers.
+// NewLedgerSourceWithHeaders creates a new ledger source with custom HTTP headers.
 // The headers map allows adding authentication headers like:
 //
 //	headers := map[string]string{"Authorization": "Api-Key YOUR_KEY"}
-func NewRPCLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*RPCLedgerSource, error) {
+func NewLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*LedgerSource, error) {
 	if rpcURL == "" {
 		return nil, fmt.Errorf("rpcURL cannot be empty")
 	}
@@ -68,17 +74,17 @@ func NewRPCLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*R
 
 	backend := ledgerbackend.NewRPCLedgerBackend(opts)
 
-	return &RPCLedgerSource{
+	return &LedgerSource{
 		backend: backend,
 		rpcURL:  rpcURL,
 	}, nil
 }
 
-// Stream implements LedgerSource.Stream.
+// Stream implements source.LedgerSource.Stream.
 // Supports both bounded and unbounded ranges:
 //   - Bounded: start > 0, end > 0 (streams ledgers from start to end)
 //   - Unbounded: start > 0, end == 0 (streams ledgers from start continuously)
-func (s *RPCLedgerSource) Stream(
+func (s *LedgerSource) Stream(
 	ctx context.Context,
 	start, end uint32,
 	out chan<- xdr.LedgerCloseMeta,
@@ -142,7 +148,7 @@ func (s *RPCLedgerSource) Stream(
 	}
 }
 
-// Close implements LedgerSource.Close.
-func (s *RPCLedgerSource) Close() error {
+// Close implements source.LedgerSource.Close.
+func (s *LedgerSource) Close() error {
 	return s.backend.Close()
 }
