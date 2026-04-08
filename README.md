@@ -504,7 +504,7 @@ nebu is optimized for **simplicity and speed** - get from idea to results in min
 - Full observability (metrics, health checks, tracing)
 - Complex DAG topologies
 
-See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale and [docs/STABILITY.md](./docs/STABILITY.md) for which package surfaces are committed stable for external processors.
+See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale, [docs/STABILITY.md](./docs/STABILITY.md) for which package surfaces are committed stable for external processors, and [docs/REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) for the formal `registry.yaml` v1 and `description.yml` v1 schemas.
 
 ## Schema Versioning
 
