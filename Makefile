@@ -1,4 +1,4 @@
-.PHONY: all test build lint clean fmt vet build-ttpd run-ttpd build-cli install gen-protos build-processors test-integration
+.PHONY: all test build lint clean fmt vet build-cli install gen-protos build-processors test-integration
 
 # Version information
 VERSION ?= 0.3.0
@@ -16,16 +16,9 @@ build-cli:
 	mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/nebu ./cmd/nebu
 
-build-ttpd:
-	mkdir -p bin
-	go build -ldflags "$(LDFLAGS)" -o bin/nebu-ttpd ./cmd/nebu-ttpd
-
 install: build-cli
 	@echo "Installing nebu to $(GOPATH)/bin (or ~/go/bin)"
 	go install ./cmd/nebu
-
-run-ttpd: build-ttpd
-	./bin/nebu-ttpd
 
 lint:
 	@which golangci-lint > /dev/null || (echo "golangci-lint not installed, skipping"; exit 0)

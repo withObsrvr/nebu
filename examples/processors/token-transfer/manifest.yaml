@@ -37,13 +37,6 @@ usage:
     rt := runtime.NewRuntime()
     rt.RunOrigin(ctx, src, origin, 60200000, 60200100)
 
-  http: |
-    # Start the daemon
-    nebu-ttpd
-
-    # Stream events
-    curl "http://localhost:8080/events?start=60200000&end=60200100"
-
 maintainer:
   name: OBSRVR
   url: https://withobsrvr.com

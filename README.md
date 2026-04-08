@@ -424,8 +424,7 @@ nebu/
 │   │   └── json-file-sink/  # Sink: JSONL file storage
 │   └── simple_origin/ # Basic usage example
 ├── cmd/
-│   ├── nebu/       # CLI tool
-│   └── nebu-ttpd/  # Token transfer HTTP service
+│   └── nebu/       # CLI tool
 ├── registry.yaml   # Processor registry
 └── Makefile
 ```
@@ -893,28 +892,6 @@ The registry will support installing directly from git repos:
 # Future: install community processors with one command
 nebu install awesome-processor  # Clones from git, builds, installs
 ```
-
-## Using the Token Transfer Service
-
-You can also run `nebu-ttpd` as a standalone HTTP service:
-
-```bash
-# Build and run
-make build-ttpd
-./bin/nebu-ttpd
-
-# Stream events from ledgers 60200000-60200100
-curl "http://localhost:8080/events?start=60200000&end=60200100"
-
-# Each line is a JSON event:
-# {"type":"transfer","ledger_sequence":60200000,"tx_hash":"...","from":"...","to":"...","amount":"100.0","asset":{"code":"USDC","issuer":"..."}}
-# {"type":"mint","ledger_sequence":60200001,"tx_hash":"...","to":"...","amount":"50.0","asset":{"code":"native"}}
-```
-
-Environment variables:
-- `NEBU_RPC_URL` - Stellar RPC endpoint (default: mainnet)
-- `NEBU_LISTEN_ADDR` - HTTP listen address (default: :8080)
-- `NEBU_NETWORK` - Network passphrase (default: mainnet)
 
 ## Roadmap
 
