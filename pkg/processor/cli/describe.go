@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -21,18 +23,30 @@ import (
 // nebu can use the same name when shelling out.
 const describeFlagName = "describe-json"
 
-// isDescribeJSONRequested reports whether --describe-json appears in
-// os.Args. This is deliberately implemented without cobra so it can
-// be checked BEFORE cobra.Execute() runs — otherwise cobra's
-// required-flag validation would reject describe invocations on
-// processors that mark any flag required (e.g., postgres-sink
-// requires --dsn). The describe protocol must work without any
-// other flags set.
+// isDescribeJSONRequested reports whether --describe-json (or any
+// truthy --describe-json=<value> form) appears in os.Args. This is
+// deliberately implemented without cobra so it can be checked
+// BEFORE cobra.Execute() runs — otherwise cobra's required-flag
+// validation would reject describe invocations on processors that
+// mark any flag required (e.g., postgres-sink requires --dsn). The
+// describe protocol must work without any other flags set.
+//
+// Both bare (`--describe-json`) and value-bearing
+// (`--describe-json=true`, `--describe-json=1`) forms are accepted,
+// matching how cobra/pflag would parse the flag. `--describe-json=false`
+// (and other false values) is honored as "not requested".
 func isDescribeJSONRequested() bool {
 	flag := "--" + describeFlagName
+	flagEq := flag + "="
 	for _, arg := range os.Args[1:] {
 		if arg == flag {
 			return true
+		}
+		if val, ok := strings.CutPrefix(arg, flagEq); ok {
+			// Use strconv.ParseBool so we match pflag's bool parsing
+			// (1/t/T/TRUE/true/True, and their negative counterparts).
+			b, err := strconv.ParseBool(val)
+			return err == nil && b
 		}
 	}
 	return false

@@ -74,7 +74,18 @@ func (r *Runtime) RunOrigin(
 	}()
 
 	// Process ledgers as they arrive.
+	//
+	// Once ledgerCh closes, we nil it out so its "always selectable"
+	// closed state doesn't starve the other cases. Same for sourceErrCh.
+	// The loop terminates cleanly when both channels have been nil'd —
+	// meaning we've drained all events and observed the source finishing.
+	// Errors, fatals, and context cancellation short-circuit out of the
+	// loop as usual.
 	for {
+		if ledgerCh == nil && sourceErrCh == nil {
+			return nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -87,23 +98,18 @@ func (r *Runtime) RunOrigin(
 			if ok && err != nil {
 				return err
 			}
-			// sourceErrCh closed with no error — source finished cleanly;
-			// keep draining the ledger channel until it closes.
+			// sourceErrCh closed. Nil it so subsequent iterations stop
+			// firing this case — closed channels are always ready in a
+			// select and would otherwise monopolize scheduling.
+			sourceErrCh = nil
 
 		case ledger, ok := <-ledgerCh:
 			if !ok {
-				// Ledger channel closed — stream complete. Check for
-				// any residual fatal that raced the channel close, then
-				// any residual source error, then return cleanly.
-				select {
-				case err := <-reporter.fatal:
-					return err
-				default:
-				}
-				if err := <-sourceErrCh; err != nil {
-					return err
-				}
-				return nil
+				// Ledger channel closed — stream complete. Nil it and
+				// keep looping to drain any remaining fatal / source
+				// error until sourceErrCh also closes.
+				ledgerCh = nil
+				continue
 			}
 
 			// Process the ledger. The processor may emit events, report

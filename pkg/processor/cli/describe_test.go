@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -138,6 +139,40 @@ func TestDescriptorOf_ReturnsRealDescriptor(t *testing.T) {
 	require.NotNil(t, desc)
 	assert.Equal(t, "StringValue", string(desc.Name()))
 	assert.Equal(t, "google.protobuf.StringValue", string(desc.FullName()))
+}
+
+func TestIsDescribeJSONRequested(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"absent", []string{"processor"}, false},
+		{"bare flag", []string{"processor", "--describe-json"}, true},
+		{"bare flag with other args", []string{"processor", "--foo", "--describe-json", "--bar"}, true},
+		{"=true", []string{"processor", "--describe-json=true"}, true},
+		{"=True", []string{"processor", "--describe-json=True"}, true},
+		{"=1", []string{"processor", "--describe-json=1"}, true},
+		{"=t", []string{"processor", "--describe-json=t"}, true},
+		{"=false", []string{"processor", "--describe-json=false"}, false},
+		{"=False", []string{"processor", "--describe-json=False"}, false},
+		{"=0", []string{"processor", "--describe-json=0"}, false},
+		{"=invalid", []string{"processor", "--describe-json=maybe"}, false},
+		{"different flag", []string{"processor", "--describe-yaml"}, false},
+		// Prefix-collision check — a flag that contains "describe-json"
+		// as a substring should not match.
+		{"prefix collision", []string{"processor", "--describe-jsonx"}, false},
+	}
+
+	origArgs := os.Args
+	t.Cleanup(func() { os.Args = origArgs })
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Args = tc.args
+			assert.Equal(t, tc.want, isDescribeJSONRequested())
+		})
+	}
 }
 
 func TestExamplesFromHelp_NilHelp(t *testing.T) {

@@ -23,18 +23,23 @@ const describeEnvelopeTimeout = 5 * time.Second
 //  1. ./bin/<name> (repo-local dev build, from "make build-processors")
 //  2. $PATH lookup (where "nebu install" puts binaries)
 //
-// ./bin/ wins when it exists because a developer running describe
-// inside the nebu source tree almost always wants the freshly-built
-// binary rather than whatever stale copy is in $GOPATH/bin. Users
-// outside the source tree won't have a ./bin/ directory, so the PATH
-// lookup takes over naturally.
+// ./bin/ wins when a file exists there AND has the executable bit set,
+// because a developer running describe inside the nebu source tree
+// almost always wants the freshly-built binary rather than whatever
+// stale copy is in $GOPATH/bin. A non-executable leftover in ./bin
+// (e.g., a stale artifact with cleared permissions) does NOT shadow a
+// valid PATH-installed processor. Users outside the source tree won't
+// have a ./bin/ directory, so the PATH lookup takes over naturally.
 //
 // Returns an empty string and a non-nil error if the binary is not
 // found — callers should treat this as "fall back to registry-only
 // describe output," not a hard error.
 func findProcessorBinary(name string) (string, error) {
 	candidate := filepath.Join("bin", name)
-	if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+	// Only prefer ./bin/<name> if it's a regular file AND at least one
+	// executable bit is set. Unix-only semantics, which is fine because
+	// nebu is Linux-primary.
+	if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
 		abs, absErr := filepath.Abs(candidate)
 		if absErr == nil {
 			return abs, nil
