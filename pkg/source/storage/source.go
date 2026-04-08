@@ -1,4 +1,11 @@
-package source
+// Package storage provides a LedgerSource implementation backed by a
+// Stellar datastore (GCS, S3, FS).
+//
+// This package implements the source.LedgerSource interface from the parent
+// pkg/source package. Importers pay the full cost of the Stellar datastore
+// and cloud SDK dependencies (AWS SDK, GCS client); code that only needs
+// the interface should import pkg/source directly.
+package storage
 
 import (
 	"context"
@@ -11,17 +18,17 @@ import (
 	"github.com/stellar/go-stellar-sdk/xdr"
 )
 
-// StorageLedgerSource streams ledgers from GCS/S3 storage backends.
-type StorageLedgerSource struct {
+// LedgerSource streams ledgers from GCS/S3 storage backends.
+type LedgerSource struct {
 	backend   ledgerbackend.LedgerBackend
 	dataStore datastore.DataStore
 }
 
-// NewStorageLedgerSource creates a source from a storage datastore.
-func NewStorageLedgerSource(
+// NewLedgerSource creates a source from a storage datastore.
+func NewLedgerSource(
 	datastoreConfig datastore.DataStoreConfig,
 	bufferConfig ledgerbackend.BufferedStorageBackendConfig,
-) (*StorageLedgerSource, error) {
+) (*LedgerSource, error) {
 	// Validate configuration
 	if datastoreConfig.Type == "" {
 		return nil, fmt.Errorf("datastore type cannot be empty")
@@ -41,17 +48,17 @@ func NewStorageLedgerSource(
 		return nil, fmt.Errorf("failed to create buffered backend: %w", err)
 	}
 
-	return &StorageLedgerSource{
+	return &LedgerSource{
 		backend:   backend,
 		dataStore: store,
 	}, nil
 }
 
-// Stream implements LedgerSource.Stream.
+// Stream implements source.LedgerSource.Stream.
 // Supports both bounded and unbounded ranges:
 //   - Bounded: start > 0, end > 0 (streams ledgers from start to end)
 //   - Unbounded: start > 0, end == 0 (streams ledgers from start continuously)
-func (s *StorageLedgerSource) Stream(
+func (s *LedgerSource) Stream(
 	ctx context.Context,
 	start, end uint32,
 	out chan<- xdr.LedgerCloseMeta,
@@ -115,8 +122,8 @@ func (s *StorageLedgerSource) Stream(
 	}
 }
 
-// Close implements LedgerSource.Close.
-func (s *StorageLedgerSource) Close() error {
+// Close implements source.LedgerSource.Close.
+func (s *LedgerSource) Close() error {
 	var backendErr, datastoreErr error
 
 	if s.backend != nil {

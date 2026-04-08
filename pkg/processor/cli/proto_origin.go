@@ -16,7 +16,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
-	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
 	"github.com/withObsrvr/nebu/pkg/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -194,6 +194,12 @@ func RunProtoOriginCLI[T proto.Message](
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence (0 for unbounded)")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
+
+	// Short-circuit into the describe-json protocol before cobra
+	// validates required flags. --describe-json must work even when
+	// mandatory processor flags are missing.
+	emitDescribeIfRequested(buildOriginEnvelope(rootCmd, config, descriptorOf[T]()))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -203,14 +209,14 @@ func RunProtoOriginCLI[T proto.Message](
 
 func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOriginProcessor[T], rpcURL string, start, end uint32, authHeader string) error {
 	// Create RPC source with optional auth headers
-	var src *source.RPCLedgerSource
+	var src *rpc.LedgerSource
 	var err error
 
 	if authHeader != "" {
 		headers := map[string]string{"Authorization": authHeader}
-		src, err = source.NewRPCLedgerSourceWithHeaders(rpcURL, headers)
+		src, err = rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
 	} else {
-		src, err = source.NewRPCLedgerSource(rpcURL)
+		src, err = rpc.NewLedgerSource(rpcURL)
 	}
 
 	if err != nil {
@@ -243,10 +249,7 @@ func processFromStdinProto[T proto.Message](ctx context.Context, origin processo
 			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
 		}
 
-		if err := origin.ProcessLedger(ctx, ledger); err != nil {
-			return fmt.Errorf("processor error at ledger %d: %w", ledger.LedgerSequence(), err)
-		}
-
+		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 	}
 }

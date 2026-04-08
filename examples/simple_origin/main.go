@@ -20,7 +20,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
-	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
 // CountingOrigin is a simple origin processor that counts and prints ledgers.
@@ -45,7 +45,7 @@ func (o *CountingOrigin) Type() processor.Type {
 
 // ProcessLedger implements processor.Origin.
 // It prints information about each ledger and increments the counter.
-func (o *CountingOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
+func (o *CountingOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
 	o.count++
 
 	seq := ledger.LedgerSequence()
@@ -54,8 +54,6 @@ func (o *CountingOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerClo
 
 	fmt.Printf("[%d] Ledger %d (closed at %s) - %d transactions\n",
 		o.count, seq, closeTime.Format(time.RFC3339), txCount)
-
-	return nil
 }
 
 func main() {
@@ -82,7 +80,7 @@ func main() {
 	}()
 
 	// Create the RPC ledger source
-	src, err := source.NewRPCLedgerSource(rpcURL)
+	src, err := rpc.NewLedgerSource(rpcURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create RPC source: %v\n", err)
 		os.Exit(1)

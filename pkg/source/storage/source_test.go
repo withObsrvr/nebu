@@ -1,4 +1,4 @@
-package source
+package storage
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 )
 
-func TestNewStorageLedgerSource_Validation(t *testing.T) {
+func TestNewLedgerSource_Validation(t *testing.T) {
 	tests := []struct {
 		name           string
 		config         datastore.DataStoreConfig
@@ -49,15 +49,15 @@ func TestNewStorageLedgerSource_Validation(t *testing.T) {
 				RetryWait:  0,
 			}
 
-			_, err := NewStorageLedgerSource(tt.config, bufferConfig)
+			_, err := NewLedgerSource(tt.config, bufferConfig)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewStorageLedgerSource() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewLedgerSource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if tt.wantErrMessage != "" && err != nil {
 				if err.Error() != tt.wantErrMessage {
-					t.Errorf("NewStorageLedgerSource() error message = %v, want %v", err.Error(), tt.wantErrMessage)
+					t.Errorf("NewLedgerSource() error message = %v, want %v", err.Error(), tt.wantErrMessage)
 				}
 			}
 		})

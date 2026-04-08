@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 )
 
 // TransformConfig holds configuration for running a transform processor as a CLI tool.
@@ -16,6 +17,25 @@ type TransformConfig struct {
 	Name        string
 	Description string
 	Version     string
+
+	// SchemaID is the canonical identifier for the events this
+	// transform consumes and produces (e.g., "nebu.token_transfer.v1").
+	// Surfaced verbatim in --describe-json output. Optional.
+	SchemaID string
+
+	// InputType is a zero-value instance of the protobuf message
+	// type this transform accepts as input. When set, a JSON Schema
+	// is generated from its descriptor and published in the describe
+	// envelope's schema.input field. Optional: transforms that accept
+	// any JSON shape should leave this nil.
+	InputType proto.Message
+
+	// OutputType is a zero-value instance of the protobuf message
+	// type this transform emits. When set, a JSON Schema is generated
+	// from its descriptor and published in the describe envelope's
+	// schema.output field. Optional: pass-through filters may omit
+	// this and consumers should assume output == input.
+	OutputType proto.Message
 
 	// Optional rich help configuration
 	Help *HelpConfig
@@ -44,11 +64,17 @@ func RunTransformCLI(config TransformConfig, transformFunc TransformFunc, flags 
 	}
 
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 
 	// Allow the transform to add custom flags
 	if flags != nil {
 		flags(rootCmd)
 	}
+
+	// Short-circuit into the describe-json protocol before cobra
+	// validates required flags. --describe-json must work even when
+	// mandatory processor flags are missing.
+	emitDescribeIfRequested(buildTransformEnvelope(rootCmd, config))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

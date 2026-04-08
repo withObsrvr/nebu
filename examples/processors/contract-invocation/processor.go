@@ -50,7 +50,7 @@ func (o *Origin) Close() {
 }
 
 // ProcessLedger implements processor.Origin.
-func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
+func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
 	sequence := ledger.LedgerSequence()
 	closeTime := time.Unix(int64(ledger.LedgerHeaderHistoryEntry().Header.ScpValue.CloseTime), 0)
 
@@ -58,7 +58,8 @@ func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) 
 	txSuccessMap := make(map[string]bool)
 	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(o.passphrase, ledger)
 	if err != nil {
-		return err
+		processor.ReportWarning(ctx, o.Name(), fmt.Errorf("ledger %d: create tx reader: %w", sequence, err))
+		return
 	}
 	defer reader.Close()
 
@@ -68,7 +69,8 @@ func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) 
 			if err == io.EOF {
 				break
 			}
-			return err
+			processor.ReportWarning(ctx, o.Name(), fmt.Errorf("ledger %d: read tx (success map): %w", sequence, err))
+			return
 		}
 		txSuccessMap[tx.Result.TransactionHash.HexString()] = tx.Result.Successful()
 	}
@@ -76,7 +78,8 @@ func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) 
 	// Re-create reader to process transactions again
 	reader, err = ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(o.passphrase, ledger)
 	if err != nil {
-		return err
+		processor.ReportWarning(ctx, o.Name(), fmt.Errorf("ledger %d: re-create tx reader: %w", sequence, err))
+		return
 	}
 	defer reader.Close()
 
@@ -87,7 +90,8 @@ func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) 
 			if err == io.EOF {
 				break
 			}
-			return err
+			processor.ReportWarning(ctx, o.Name(), fmt.Errorf("ledger %d: read tx: %w", sequence, err))
+			return
 		}
 
 		// Check each operation for contract invocations
@@ -101,7 +105,7 @@ func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) 
 				if invocation != nil {
 					select {
 					case <-ctx.Done():
-						return ctx.Err()
+						return
 					default:
 						o.emitter.Emit(invocation)
 					}
@@ -109,8 +113,6 @@ func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) 
 			}
 		}
 	}
-
-	return nil
 }
 
 func (o *Origin) processContractInvocation(

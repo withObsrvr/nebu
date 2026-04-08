@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/withObsrvr/nebu/pkg/processor"
-	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
 // mockOrigin is a simple origin processor for testing
@@ -32,11 +32,10 @@ func (m *mockOrigin) Type() processor.Type {
 	return processor.TypeOrigin
 }
 
-func (m *mockOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
+func (m *mockOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processedCount++
-	return nil
 }
 
 func (m *mockOrigin) Count() int {
@@ -47,7 +46,7 @@ func (m *mockOrigin) Count() int {
 
 func TestRuntime_RunOrigin(t *testing.T) {
 	rt := NewRuntime()
-	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+	src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
@@ -66,7 +65,7 @@ func TestRuntime_RunOrigin(t *testing.T) {
 
 func TestRuntime_RunOrigin_Cancellation(t *testing.T) {
 	rt := NewRuntime()
-	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+	src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 
@@ -93,7 +92,7 @@ func TestRuntime_RunOrigin_Cancellation(t *testing.T) {
 
 func TestRuntime_RunOrigin_InvalidRange(t *testing.T) {
 	rt := NewRuntime()
-	src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+	src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
 	require.NoError(t, err)
 	defer src.Close()
 

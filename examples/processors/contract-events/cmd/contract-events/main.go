@@ -12,6 +12,7 @@ func main() {
 		Name:        "contract-events",
 		Description: "Extract all contract events from Stellar ledgers",
 		Version:     version,
+		SchemaID:    "nebu.contract_events.v1",
 	}
 
 	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*contract_events.ContractEvent] {

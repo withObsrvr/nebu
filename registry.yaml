@@ -22,15 +22,6 @@ processors:
       package: github.com/withObsrvr/nebu/examples/processors/token-transfer
       module_package: github.com/withObsrvr/nebu/examples/processors/token-transfer/cmd/token-transfer
 
-    # Service binary (for standalone mode)
-    service:
-      binary: ./cmd/nebu-ttpd
-      default_port: 8080
-      env:
-        - NEBU_RPC_URL
-        - NEBU_LISTEN_ADDR
-        - NEBU_NETWORK
-
     # Protocol buffer definitions
     proto:
       # Uses Stellar's official token_transfer.proto

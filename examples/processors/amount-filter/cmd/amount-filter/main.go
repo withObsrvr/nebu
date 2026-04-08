@@ -40,6 +40,8 @@ func main() {
 		Name:        "amount-filter",
 		Description: "Filter transfer events by amount range",
 		Version:     version,
+		// Pass-through filter: same schema in and out.
+		SchemaID: "nebu.token_transfer.v1",
 	}
 
 	cli.RunTransformCLI(config, filterByAmount, addFlags)

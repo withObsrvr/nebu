@@ -9,7 +9,20 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          config.packageOverrides = prev: {
+            duckdb = prev.duckdb.overrideAttrs (oldAttrs: rec {
+              version = "1.5.1";
+              src = prev.fetchFromGitHub {
+                owner = "duckdb";
+                repo = "duckdb";
+                rev = "v${version}";
+                hash = "sha256-FygBpfhvezvUbI969Dta+vZOPt6BnSW2d5gO4I4oB2A=";
+              };
+            });
+          };
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -60,7 +73,7 @@
         # Package the nebu CLI and processors
         packages.default = pkgs.buildGoModule {
           pname = "nebu";
-          version = "0.4.0";
+          version = "0.5.0";
           src = ./.;
           vendorHash = null;
 

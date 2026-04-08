@@ -10,30 +10,30 @@ Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries 
 
 ## Status
 
-🚀 **v0.4.0** - Production-hardened with retry, auto-resume, conditional upserts, and metrics
+🚀 **v0.5.0** — Introspectable toolkit: stable contract surface, streams-never-throw, and machine-readable processor schemas
 
-**What's new in v0.4.0:**
-- **Retry with backoff**: `postgres-sink --max-retries 5 --retry-backoff 5s` survives transient DB failures
-- **Auto-resume**: `nebu resume --dsn $DSN --table events -- "pipeline..."` picks up where you left off
-- **Conditional upserts**: `--conflict update-if-newer` prevents data regression during backfills
-- **Prometheus metrics**: `--metrics-port 9090` exposes `/metrics` for operational visibility
-- **ledger_sequence column**: Explicit column with index for efficient resume queries
+**What's new in v0.5.0:**
+- **Stable contract surface** — [`pkg/processor`](./pkg/processor), [`pkg/source`](./pkg/source), `registry.yaml` v1, and the `--describe-json` protocol are now committed-stable. See [docs/STABILITY.md](./docs/STABILITY.md).
+- **`--describe-json` protocol** — every processor binary emits a machine-readable envelope with its JSON Schema, flags, and examples. `nebu describe <name>` merges this with registry metadata, and `nebu describe <name> --schema` pipes the raw JSON Schema into validators.
+- **Streams-never-throw** — `Origin.ProcessLedger`, `Transform.ProcessEvent`, and `Sink.WriteEvent` return void. Per-ledger errors flow through `processor.ReportWarning` and the pipeline continues; 10M-event runs no longer die on one malformed event.
+- **Transform and Sink interfaces** — formalized in `pkg/processor` alongside `Origin`. The package doc no longer lies about having three types.
+- **`pkg/source` split** — `LedgerSource` interface lives in a dep-free root package; concrete implementations moved to `pkg/source/rpc` and `pkg/source/storage`. External processor authors no longer drag in the AWS SDK just to satisfy the interface.
+- **Registry spec** — [docs/REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) formally defines `registry.yaml` v1 and the `description.yml` v1 external-registry format.
 
 **What's included:**
 - **CLI & Fetch**: `nebu fetch` for streaming XDR from RPC or historical archives (GCS/S3)
 - **Origin Processors**: `token-transfer`, `contract-events`, `contract-invocation` - extract typed events from ledgers
 - **Transform Processors**: `usdc-filter`, `amount-filter`, `dedup`, `time-window` - filter and transform event streams
 - **Sink Processors**: `json-file-sink`, `nats-sink`, `postgres-sink` - route events to storage or message queues
-- **Registry System**: `nebu list` and `nebu install` for processor discovery and installation
+- **Registry System**: `nebu list`, `nebu describe`, and `nebu install` for processor discovery, introspection, and installation
 - **Archive Mode**: Fetch historical data from Google Cloud Storage for backfilling
 - **Authentication**: Premium RPC endpoint support with `NEBU_RPC_AUTH`
 - **Follow Mode**: Live-streaming with `--follow` (like `tail -f`)
 
-**Coming in v0.4:**
-- Hasura GraphQL integration (examples available now in `examples/hasura`)
-- Additional origin processors (AMM pools, liquidity events)
-- External processor support (install from any git repo)
-- Performance improvements for archive fetching
+**Coming next:**
+- Runtime hooks (`BeforeProcess`/`AfterProcess`/`OnCheckpoint`) for metrics, tracing, and agent-driven intervention
+- Serializable pipeline descriptors (IndexDescriptor) as the canonical hand-off format between nebu and AI agents
+- Presets catalog of well-known ledger ranges, contract IDs, and pipeline templates
 
 ## Quick Start
 
@@ -105,7 +105,7 @@ import (
     "github.com/stellar/go-stellar-sdk/xdr"
     "github.com/withObsrvr/nebu/pkg/processor"
     "github.com/withObsrvr/nebu/pkg/runtime"
-    "github.com/withObsrvr/nebu/pkg/source"
+    "github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
 // Simple processor that counts ledgers
@@ -121,7 +121,7 @@ func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)
 
 func main() {
     // Connect to Stellar RPC
-    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+    src, _ := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
     defer src.Close()
 
     // Create your processor
@@ -424,8 +424,7 @@ nebu/
 │   │   └── json-file-sink/  # Sink: JSONL file storage
 │   └── simple_origin/ # Basic usage example
 ├── cmd/
-│   ├── nebu/       # CLI tool
-│   └── nebu-ttpd/  # Token transfer HTTP service
+│   └── nebu/       # CLI tool
 ├── registry.yaml   # Processor registry
 └── Makefile
 ```
@@ -505,7 +504,7 @@ nebu is optimized for **simplicity and speed** - get from idea to results in min
 - Full observability (metrics, health checks, tracing)
 - Complex DAG topologies
 
-See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale.
+See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale, [docs/STABILITY.md](./docs/STABILITY.md) for which package surfaces are committed stable for external processors, and [docs/REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) for the formal `registry.yaml` v1 and `description.yml` v1 schemas.
 
 ## Schema Versioning
 
@@ -893,28 +892,6 @@ The registry will support installing directly from git repos:
 # Future: install community processors with one command
 nebu install awesome-processor  # Clones from git, builds, installs
 ```
-
-## Using the Token Transfer Service
-
-You can also run `nebu-ttpd` as a standalone HTTP service:
-
-```bash
-# Build and run
-make build-ttpd
-./bin/nebu-ttpd
-
-# Stream events from ledgers 60200000-60200100
-curl "http://localhost:8080/events?start=60200000&end=60200100"
-
-# Each line is a JSON event:
-# {"type":"transfer","ledger_sequence":60200000,"tx_hash":"...","from":"...","to":"...","amount":"100.0","asset":{"code":"USDC","issuer":"..."}}
-# {"type":"mint","ledger_sequence":60200001,"tx_hash":"...","to":"...","amount":"50.0","asset":{"code":"native"}}
-```
-
-Environment variables:
-- `NEBU_RPC_URL` - Stellar RPC endpoint (default: mainnet)
-- `NEBU_LISTEN_ADDR` - HTTP listen address (default: :8080)
-- `NEBU_NETWORK` - Network passphrase (default: mainnet)
 
 ## Roadmap
 

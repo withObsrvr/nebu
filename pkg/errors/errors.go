@@ -242,13 +242,6 @@ If you have JSON data, use the appropriate tool directly.`
 	}
 }
 
-// ProcessorError wraps a processor error with context.
-func ProcessorError(ledgerSeq uint32, err error) *NebuError {
-	return &NebuError{
-		Message: fmt.Sprintf("Processor error at ledger %d: %v", ledgerSeq, err),
-	}
-}
-
 // StreamError wraps a streaming error.
 func StreamError(err error) *NebuError {
 	return &NebuError{

@@ -28,6 +28,8 @@ func main() {
 		Name:        "usdc-filter",
 		Description: "Filter token transfer events for USDC transfers only",
 		Version:     version,
+		// Pass-through filter: same schema in and out.
+		SchemaID: "nebu.token_transfer.v1",
 	}
 
 	cli.RunTransformCLI(config, filterUSDC, nil)

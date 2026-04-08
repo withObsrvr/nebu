@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 )
 
 // SinkConfig holds configuration for running a sink processor as a CLI tool.
@@ -16,6 +17,18 @@ type SinkConfig struct {
 	Name        string
 	Description string
 	Version     string
+
+	// SchemaID is the canonical identifier for the events this
+	// sink consumes (e.g., "nebu.token_transfer.v1"). Surfaced
+	// verbatim in --describe-json output. Optional.
+	SchemaID string
+
+	// InputType is a zero-value instance of the protobuf message
+	// type this sink accepts as input. When set, a JSON Schema is
+	// generated from its descriptor and published in the describe
+	// envelope's schema.input field. Optional: sinks that accept any
+	// JSON shape (like json-file-sink) should leave this nil.
+	InputType proto.Message
 
 	// Optional rich help configuration
 	Help *HelpConfig
@@ -44,11 +57,17 @@ func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)
 	}
 
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 
 	// Allow the sink to add custom flags
 	if flags != nil {
 		flags(rootCmd)
 	}
+
+	// Short-circuit into the describe-json protocol before cobra
+	// validates required flags. --describe-json must work even when
+	// mandatory processor flags are missing.
+	emitDescribeIfRequested(buildSinkEnvelope(rootCmd, config))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -95,9 +114,19 @@ func runSink(sinkFunc SinkFunc, quietMode bool) error {
 			continue
 		}
 
-		// Process the event
+		// Process the event. Per-event failures are logged as warnings
+		// and the loop continues (streams-never-throw). Genuinely fatal
+		// conditions must be handled by the sinkFunc itself — either
+		// return a non-nil error (which is logged as a warning and the
+		// loop continues), or call os.Exit / panic directly for
+		// unrecoverable failures. The SinkFunc signature does not
+		// accept a context; sinks that need cancellation should wire
+		// their own via package-level variables or closure capture.
 		if err := sinkFunc(event); err != nil {
-			return fmt.Errorf("failed to process event: %w", err)
+			if !quietMode {
+				fmt.Fprintf(os.Stderr, "[sink] warning: failed to process event: %v\n", err)
+			}
+			continue
 		}
 
 		eventCount++

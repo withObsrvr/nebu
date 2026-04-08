@@ -24,6 +24,7 @@ func main() {
 		Name:        "token-transfer",
 		Description: "Stream token transfer events from Stellar ledgers (transfers, mints, burns, clawbacks, fees)",
 		Version:     version,
+		SchemaID:    "nebu.token_transfer.v1",
 	}
 
 	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*ttpb.TokenTransferEvent] {

@@ -20,7 +20,7 @@ import (
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
-	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
 	"github.com/withObsrvr/nebu/pkg/version"
 )
 
@@ -47,6 +47,11 @@ type OriginConfig struct {
 	Name        string
 	Description string
 	Version     string
+
+	// SchemaID is the canonical identifier for the events this
+	// processor emits (e.g., "nebu.token_transfer.v1"). Surfaced
+	// verbatim in the --describe-json output. Optional.
+	SchemaID string
 
 	// Optional rich help configuration
 	Help *HelpConfig
@@ -211,14 +216,14 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 
 func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string) error {
 	// Create RPC source with optional auth headers
-	var src *source.RPCLedgerSource
+	var src *rpc.LedgerSource
 	var err error
 
 	if authHeader != "" {
 		headers := map[string]string{"Authorization": authHeader}
-		src, err = source.NewRPCLedgerSourceWithHeaders(rpcURL, headers)
+		src, err = rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
 	} else {
-		src, err = source.NewRPCLedgerSource(rpcURL)
+		src, err = rpc.NewLedgerSource(rpcURL)
 	}
 
 	if err != nil {
@@ -251,10 +256,7 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 			return nebuErrors.XDRDecodeFailed(ledgerCount+1, err)
 		}
 
-		if err := origin.ProcessLedger(ctx, ledger); err != nil {
-			return nebuErrors.ProcessorError(ledger.LedgerSequence(), err)
-		}
-
+		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 	}
 }
