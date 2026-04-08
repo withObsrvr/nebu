@@ -48,6 +48,11 @@ type OriginConfig struct {
 	Description string
 	Version     string
 
+	// SchemaID is the canonical identifier for the events this
+	// processor emits (e.g., "nebu.token_transfer.v1"). Surfaced
+	// verbatim in the --describe-json output. Optional.
+	SchemaID string
+
 	// Optional rich help configuration
 	Help *HelpConfig
 }
