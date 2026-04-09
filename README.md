@@ -20,12 +20,19 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 
 ## Status
 
-🚀 **v0.6.0** — Runtime observability hooks for metrics, tracing, and agent intervention; building on the v0.5.0 stable contract surface and `--describe-json` introspection protocol.
+🚀 **v0.6.2** — Install experience fixes: `go install` for in-tree processors now works from a clean environment, `nebu --version` reports the real version even without ldflags, and `nebu install` errors now surface the underlying compiler output. Also introduces the first Claude Code skill ([`skills/pipeline-composer`](./skills/pipeline-composer/SKILL.md)) for agent-driven pipeline composition.
 
-**What's new in v0.6.0:**
+**What's new in v0.6.2:**
+- **`go install` for in-tree processors is unblocked** — every reference processor's `go.mod` previously pinned a pre-v0.5 pseudo-version of `github.com/withObsrvr/nebu` that predated `processor.ReportWarning`. Local `make build-processors` worked because of `go.work`, but users trying `go install github.com/withObsrvr/nebu/examples/processors/<name>/cmd/<name>@latest` from a clean environment hit `undefined: processor.ReportWarning`. All 10 reference processors are now pinned to `v0.6.1` in their `go.mod` files, matching the actual code contract they use.
+- **`nebu --version` shows the real version from runtime build info** — when nebu is installed via plain `go install` (no ldflags), the binary now reads `runtime/debug.ReadBuildInfo()` at startup and reports the module version recorded by the Go toolchain instead of the literal `"dev"` placeholder.
+- **`nebu install` surfaces the underlying `go install` output** — when installation fails, the wrapped nebu error now embeds the captured stderr from the subprocess (between explicit `--- go install output ---` markers), so the real compiler diagnostic is self-contained even in CI / log-forwarded contexts.
+- **`usdc-filter` dead-code fix** — the filter was walking a nested `transfer.asset.issuedAsset.assetCode` path that doesn't exist in real protojson output, so it silently dropped 100% of events. Now walks the flat `transfer.assetCode` correctly.
+- **Claude Code skills catalog** — new root [`SKILL.md`](./SKILL.md) index and [`skills/pipeline-composer/SKILL.md`](./skills/pipeline-composer/SKILL.md) skill that teaches agents to compose Stellar ledger pipelines from the installed catalog via `nebu list` + `--describe-json`, with a full worked USDC-transfers example and the common pitfalls documented inline.
+
+**Carried over from v0.6.0:**
 - **Runtime hooks** — `Runtime.Use(Hooks{...})` lets external code observe pipeline lifecycle events: `OnStart`, `BeforeLedger`, `AfterLedger`, `OnWarning`, `OnFatal`, `OnEnd`. Drop-in metrics, tracing, progress bars, checkpointing, rate limiting, and agent-driven control flow without owning the runtime loop. See [docs/HOOKS.md](./docs/HOOKS.md).
-- **Fatal-priority preemption** — when a processor reports a fatal error, the runtime now halts deterministically on the next loop iteration instead of racing the buffered ledger queue. Surprising old behavior: a fatal report with N buffered ledgers ahead could still drain several of them before halting.
-- **CI check for contract drift** — `make api-check` (also wired into [`.github/workflows/api-stability.yml`](./.github/workflows/api-stability.yml)) compares `pkg/processor` and `pkg/source` against committed snapshots in [`.api/`](./.api/) and fails the build on unexplained drift. The lightweight enforcement layer for [docs/STABILITY.md](./docs/STABILITY.md).
+- **Fatal-priority preemption** — when a processor reports a fatal error, the runtime halts deterministically on the next loop iteration instead of racing the buffered ledger queue.
+- **CI check for contract drift** — `make api-check` (also wired into [`.github/workflows/api-stability.yml`](./.github/workflows/api-stability.yml)) compares `pkg/processor` and `pkg/source` against committed snapshots in [`.api/`](./.api/) and fails the build on unexplained drift.
 
 **Carried over from v0.5.0:**
 - **Stable contract surface** — [`pkg/processor`](./pkg/processor), [`pkg/source`](./pkg/source), `registry.yaml` v1, and the `--describe-json` protocol are committed-stable. See [docs/STABILITY.md](./docs/STABILITY.md).
@@ -84,7 +91,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.6.0","meta":{"ledgerSequence":60200000,"closedAt":"2025-12-08T01:45:11Z","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","asset":{"issuedAsset":{"assetCode":"USDC","issuer":"GA..."}},"amount":"1000000"}}
+{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.6.2","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -92,7 +99,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 ```bash
 # Pipe to jq for filtering
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+  jq 'select(.transfer.assetCode == "USDC")'
 
 # Pipe to DuckDB for SQL analytics
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \

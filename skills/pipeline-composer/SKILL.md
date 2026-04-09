@@ -139,7 +139,7 @@ When `--start-ledger` is set, RPC mode wins even if stdin is `/dev/null` (CI/cro
 
 ### Pitfall 2: Schema path drift between filters
 
-Not every transform is updated every release. If a transform produces zero output on data that clearly matches its advertised behavior, dump one raw event after the origin and diff its shape against the path the transform is walking. The flat proto JSON shape (`transfer.assetCode`) is the current contract as of nebu v0.6.1.
+Not every transform is updated every release. If a transform produces zero output on data that clearly matches its advertised behavior, dump one raw event after the origin and diff its shape against the path the transform is walking. The flat proto JSON shape (`transfer.assetCode`) is the current contract as of nebu v0.6.2.
 
 Reproducing this is fast:
 
@@ -182,5 +182,5 @@ Do not claim the pipeline works without actually running it or explicitly flaggi
 - **Version:** 0.1.0
 - **Maintainer:** OBSRVR
 - **License:** MIT
-- **Tracks nebu contract:** v0.6.1 and forward (via `--describe-json`)
+- **Tracks nebu contract:** v0.6.2 and forward (via `--describe-json`)
 - **Source:** [github.com/withObsrvr/nebu/skills/pipeline-composer](https://github.com/withObsrvr/nebu)
