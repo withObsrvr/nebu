@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	github.com/stellar/go-stellar-sdk v0.5.0
 	github.com/stretchr/testify v1.11.1
-	github.com/withObsrvr/nebu v0.6.1
+	github.com/withObsrvr/nebu v0.6.2
 	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.11
 )

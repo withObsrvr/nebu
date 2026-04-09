@@ -2,7 +2,7 @@ module github.com/withObsrvr/nebu/examples/processors/usdc-filter
 
 go 1.25.4
 
-require github.com/withObsrvr/nebu v0.6.1
+require github.com/withObsrvr/nebu v0.6.2
 
 require (
 	cloud.google.com/go v0.114.0 // indirect

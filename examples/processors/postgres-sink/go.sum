@@ -243,8 +243,8 @@ github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6Kllzaw
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.34.0 h1:d3AAQJ2DRcxJYHm7OXNXtXt2as1vMDfxeIcFvhmGGm4=
 github.com/valyala/fasthttp v1.34.0/go.mod h1:epZA5N+7pY6ZaEKRmstzOuYJx9HI8DI1oaCGZpdH4h0=
-github.com/withObsrvr/nebu v0.6.1 h1:6AtoJIb/fVA+KGMSS5TrkuiCwf6LlnDh5sZEXtw+Z0A=
-github.com/withObsrvr/nebu v0.6.1/go.mod h1:2Mvo6dPscTT3rZZPd3El0P8h9lErO+wWGeZRCvQxe5Y=
+github.com/withObsrvr/nebu v0.6.2 h1:Ddx9WTND4nX9UGHg7Eyiq1pftIOSCTgOBg9iWhgHFk8=
+github.com/withObsrvr/nebu v0.6.2/go.mod h1:2Mvo6dPscTT3rZZPd3El0P8h9lErO+wWGeZRCvQxe5Y=
 github.com/xdrpp/goxdr v0.1.1 h1:E1B2c6E8eYhOVyd7yEpOyopzTPirUeF6mVOfXfGyJyc=
 github.com/xdrpp/goxdr v0.1.1/go.mod h1:dXo1scL/l6s7iME1gxHWo2XCppbHEKZS7m/KyYWkNzA=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f h1:J9EGpcZtP0E/raorCMxlFGSTBrsSlaDGf3jU/qvAE2c=
