@@ -33,7 +33,7 @@ need jq
 need duckdb
 
 for bin in \
-  "$NEBU_BIN" "$TOKEN_TRANSFER_BIN" "$CONTRACT_EVENTS_BIN" "$USDC_FILTER_BIN" \
+  "$NEBU_BIN" "$TOKEN_TRANSFER_BIN" "$CONTRACT_EVENTS_BIN" "$ROOT/bin/contract-invocation" "$USDC_FILTER_BIN" \
   "$AMOUNT_FILTER_BIN" "$DEDUP_BIN" "$JSON_FILE_SINK_BIN"; do
   [[ -x "$bin" ]] || { echo "missing executable: $bin" >&2; exit 1; }
 done
@@ -56,6 +56,10 @@ run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".s
 run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "token-transfer jq USDC filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -e "select(.transfer != null and .transfer.assetCode == \"USDC\")" | head -1 >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "contract-events jq eventType filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.eventType == \"fee\")" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
+run "contract-events jq contractId filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.contractId != null and .inSuccessfulTx == true)" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
+run "contract-invocation jq argument extraction" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.functionName == \"work\") | (.arguments[0] | fromjson | startswith(\"G\"))" | head -1 >/dev/null' "$ROOT/bin/contract-invocation"
+run "contract-invocation duckdb top contracts" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM (SELECT contractId, COUNT(*) AS invocations FROM read_json_auto(\"/dev/stdin\") GROUP BY contractId) t) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$ROOT/bin/contract-invocation"
+run "contract-invocation duckdb array_length stats" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM (SELECT functionName, AVG(array_length(stateChanges)) AS avg_state_changes FROM read_json_auto(\"/dev/stdin\") GROUP BY functionName) t) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$ROOT/bin/contract-invocation"
 run "nebu fetch | token-transfer" bash -lc '"$0" fetch 60200000 60200000 | "$1" --quiet | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$NEBU_BIN" "$TOKEN_TRANSFER_BIN"
 
 run "json-file-sink write" bash -lc 'out="$1/out.jsonl"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | "$3" --out "$out" >/dev/null; test -s "$out"; jq -e "has(\"_schema\")" "$out" >/dev/null' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN" "$JSON_FILE_SINK_BIN"
@@ -64,8 +68,11 @@ run "amount-filter flat assetCode" bash -lc 'printf "%s\n" "{\"_schema\":\"nebu.
 run "dedup nested key" bash -lc 'printf "%s\n%s\n" "{\"meta\":{\"txHash\":\"a\"},\"transfer\":{\"assetCode\":\"USDC\",\"amount\":\"1\"}}" "{\"meta\":{\"txHash\":\"a\"},\"transfer\":{\"assetCode\":\"USDC\",\"amount\":\"1\"}}" | "$0" --key meta.txHash | wc -l | grep -qx 1' "$DEDUP_BIN"
 
 run "pipeline doc: token-transfer | json-file-sink" bash -lc 'out="$1/pipeline.jsonl"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | "$3" --out "$out" >/dev/null; jq -e "select(.transfer != null or .fee != null)" "$out" >/dev/null' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN" "$JSON_FILE_SINK_BIN"
+run "readme fetch reuse jq" bash -lc 'xdr="$1/ledgers.xdr"; "$2" fetch 60200000 60200000 > "$xdr"; cat "$xdr" | "$3" --quiet | jq -e "select(.transfer != null or .fee != null)" | head -1 >/dev/null' _ "$TMPDIR" "$NEBU_BIN" "$TOKEN_TRANSFER_BIN"
 run "pipeline doc: token-transfer | duckdb" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json(\"/dev/stdin\") WHERE transfer IS NOT NULL OR fee IS NOT NULL) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
 run "duckdb cookbook assetCode query" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json(\"/dev/stdin\") WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.assetCode'\'') IS NOT NULL) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
+run "duckdb cookbook event type aggregation" bash -lc 'db="$1/cookbook.db"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb "$db" -c "CREATE OR REPLACE TABLE transfers AS SELECT * FROM read_json(\"/dev/stdin\")" >/dev/null; duckdb "$db" -c "COPY (SELECT CASE WHEN json_exists(to_json(transfers), '\''$.transfer'\'') AND transfer IS NOT NULL THEN '\''transfer'\'' WHEN json_exists(to_json(transfers), '\''$.mint'\'') AND mint IS NOT NULL THEN '\''mint'\'' WHEN json_exists(to_json(transfers), '\''$.fee'\'') AND fee IS NOT NULL THEN '\''fee'\'' ELSE '\''other'\'' END AS event_type, COUNT(*) AS count FROM transfers GROUP BY event_type) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "(transfer|fee|mint|other),[0-9]+"' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN"
+run "duckdb cookbook address activity" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (WITH events AS (SELECT * FROM read_json(\"/dev/stdin\")), address_activity AS (SELECT json_extract_string(transfer, '\''$.from'\'') AS address, COUNT(*) AS sends, 0 AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.from'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.from'\'') UNION ALL SELECT json_extract_string(transfer, '\''$.to'\'') AS address, 0 AS sends, COUNT(*) AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.to'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.to'\'')) SELECT COUNT(*) AS c FROM address_activity) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
 
 if [[ -x "$NATS_SINK_BIN" ]] && command -v docker >/dev/null 2>&1; then
   echo "==> nats-sink smoke (docker-backed)"

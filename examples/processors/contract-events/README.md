@@ -57,7 +57,7 @@ contract-events --start-ledger 60269740 --end-ledger 60269742
 
 # Pipe to transforms or sinks
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.event_type == "swap")' | \
+  jq 'select(.eventType == "swap")' | \
   json-file-sink --out swaps.jsonl
 ```
 
@@ -66,15 +66,15 @@ contract-events --start-ledger 60200000 --end-ledger 60200100 | \
 ```bash
 # Filter for transfer events only
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.event_type == "transfer")'
+  jq 'select(.eventType == "transfer")'
 
 # Filter for specific contract
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.contract_id == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
+  jq 'select(.contractId == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
 
 # Filter for successful transactions only
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.in_successful_tx == true)'
+  jq 'select(.inSuccessfulTx == true)'
 ```
 
 ## Output Schema

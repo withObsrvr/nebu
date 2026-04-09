@@ -540,7 +540,7 @@ Every JSON event includes:
   "_nebu_version": "0.4.0",
   "meta": {
     "ledgerSequence": 60200000,
-    "closedAt": "2025-12-08T01:45:11Z",
+    "closedAtUnix": "1765158311",
     "txHash": "abc...",
     "transactionIndex": 1,
     "contractAddress": "CA..."
@@ -657,8 +657,8 @@ nebu fetch 60200000 60200100 | token-transfer
 # This separates ledger fetching from processing,
 # allowing you to process the same data multiple times
 nebu fetch 60200000 60200100 > ledgers.xdr
-cat ledgers.xdr | token-transfer | jq 'select(.type == "transfer")'
-cat ledgers.xdr | token-transfer | duckdb-sink --db events.db
+cat ledgers.xdr | token-transfer | jq 'select(.transfer != null)'
+cat ledgers.xdr | token-transfer | duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"
 ```
 
 ### Archive Mode (GCS/S3)
