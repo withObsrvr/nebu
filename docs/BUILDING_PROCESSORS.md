@@ -1,685 +1,506 @@
 # Building Custom Processors
 
-This guide shows you how to build custom processors for nebu using the CLI wrapper packages.
+This guide shows how to build nebu processors against the current contract surface.
 
-## Table of Contents
-- [Transform Processors](#transform-processors)
-- [Sink Processors](#sink-processors)
-- [Origin Processors](#origin-processors)
-- [Testing Your Processor](#testing-your-processor)
-- [Distribution](#distribution)
+If you're building something intended to live outside this repo, start with:
 
-## Transform Processors
+- [`docs/STABILITY.md`](./STABILITY.md) — what is permanently stable
+- [`docs/REGISTRY_SPEC.md`](./REGISTRY_SPEC.md) — how processors are described and discovered
+- the external proto-first walkthrough in the community registry: [`BUILDING_PROTO_PROCESSORS.md`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md)
 
-Transform processors read JSON events from stdin, transform/filter them, and write to stdout.
+## The contract, in one minute
 
-### When to Use
+Processors come in three types:
 
-- Filter events based on criteria (asset type, amount, time)
-- Modify event structure (add fields, rename, flatten)
-- Enrich events with additional data
-- Deduplicate or aggregate events
+- **Origin** — consumes ledgers, emits events
+- **Transform** — consumes events, emits transformed events
+- **Sink** — consumes events, produces side effects
 
-### Quick Start (5 Minutes)
+The stable interfaces live in [`pkg/processor`](../pkg/processor) and [`pkg/source`](../pkg/source).
 
-**1. Create directory structure:**
+### Error handling: streams never throw
+
+The current processor contract does **not** return `error` from processing methods:
+
+- `Origin.ProcessLedger(ctx, ledger)`
+- `Transform.ProcessEvent(ctx, event)`
+- `Sink.WriteEvent(ctx, event)`
+
+Instead:
+
+- use `processor.ReportWarning(ctx, name, err)` for per-event/per-ledger failures that should **not** halt the pipeline
+- use `processor.ReportFatal(ctx, name, err)` for unrecoverable failures that **should** halt the pipeline
+
+That is the stable, current API. If you see old examples returning `error`, treat them as obsolete.
+
+## When to build each processor type
+
+### Build a Transform when you want to
+- filter events by asset, amount, or time
+- enrich or reshape JSON
+- deduplicate or normalize a stream
+
+### Build a Sink when you want to
+- write to a database
+- publish to a queue or webhook
+- write files in a custom format
+- trigger side effects
+
+### Build an Origin when you want to
+- extract new event types from Stellar ledgers
+- wrap Stellar SDK processors
+- parse contract-specific or protocol-specific ledger data
+
+---
+
+## Transform processors
+
+Transform processors read newline-delimited JSON from stdin, transform or filter each event, and write newline-delimited JSON to stdout.
+
+### Quick start
+
+**1. Create the directory structure**
+
 ```bash
 mkdir -p examples/processors/my-filter/cmd/my-filter
 cd examples/processors/my-filter
 ```
 
-**2. Create `cmd/my-filter/main.go`:**
+**2. Create `cmd/my-filter/main.go`**
+
 ```go
 package main
 
 import (
-	"github.com/withObsrvr/nebu/pkg/processor/cli"
+    "github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
 var version = "0.1.0"
 
 func main() {
-	config := cli.TransformConfig{
-		Name:        "my-filter",
-		Description: "Filter events based on custom criteria",
-		Version:     version,
-	}
+    config := cli.TransformConfig{
+        Name:        "my-filter",
+        Description: "Filter events based on custom criteria",
+        Version:     version,
+    }
 
-	cli.RunTransformCLI(config, filterFunc, nil)
+    cli.RunTransformCLI(config, filterFunc, nil)
 }
 
-// filterFunc processes each event.
-// Return the event to pass it through, or nil to filter it out.
+// Return the event to pass it through, or nil to drop it.
 func filterFunc(event map[string]interface{}) map[string]interface{} {
-	// Your filtering logic here
-
-	// Example: Only pass transfer events
-	eventType, ok := event["type"].(string)
-	if !ok || eventType != "transfer" {
-		return nil  // Filter out
-	}
-
-	return event  // Pass through
+    transfer, ok := event["transfer"].(map[string]interface{})
+    if !ok {
+        return nil
+    }
+    if transfer["assetCode"] != "USDC" {
+        return nil
+    }
+    return event
 }
 ```
 
-**3. Build and test:**
+**3. Build and test**
+
 ```bash
 go build -o ../../../bin/my-filter ./cmd/my-filter
 
-# Test it
-echo '{"type":"transfer","amount":"100"}
-{"type":"fee","amount":"50"}
-{"type":"transfer","amount":"200"}' | ./bin/my-filter
-
-# Should output only the transfer events
+echo '{"transfer":{"assetCode":"USDC","amount":"100"}}'
 ```
 
-### Adding Custom Flags
+```bash
+echo '{"transfer":{"assetCode":"USDC","amount":"100"}}' | ./bin/my-filter
+```
 
-If your transform needs configuration flags:
+### Adding custom flags
 
 ```go
 package main
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/withObsrvr/nebu/pkg/processor/cli"
+    "github.com/spf13/cobra"
+    "github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
 var (
-	minAmount int64
-	assetCode string
+    minAmount int64
+    assetCode string
 )
 
 func main() {
-	config := cli.TransformConfig{
-		Name:        "my-filter",
-		Description: "Filter events with custom criteria",
-		Version:     "0.1.0",
-	}
+    config := cli.TransformConfig{
+        Name:        "my-filter",
+        Description: "Filter events with custom criteria",
+        Version:     "0.1.0",
+    }
 
-	cli.RunTransformCLI(config, filterFunc, addFlags)
+    cli.RunTransformCLI(config, filterFunc, addFlags)
 }
 
 func addFlags(cmd *cobra.Command) {
-	cmd.Flags().Int64Var(&minAmount, "min", 0, "Minimum amount")
-	cmd.Flags().StringVar(&assetCode, "asset", "", "Asset code to filter")
+    cmd.Flags().Int64Var(&minAmount, "min", 0, "Minimum amount")
+    cmd.Flags().StringVar(&assetCode, "asset", "", "Asset code to filter")
 }
 
 func filterFunc(event map[string]interface{}) map[string]interface{} {
-	// Use minAmount and assetCode here
-	// ...
-	return event
+    transfer, ok := event["transfer"].(map[string]interface{})
+    if !ok {
+        return nil
+    }
+    if assetCode != "" && transfer["assetCode"] != assetCode {
+        return nil
+    }
+    return event
 }
 ```
 
-### Transform Patterns
+### Real examples
 
-**Filtering Pattern:**
-```go
-func filterFunc(event map[string]interface{}) map[string]interface{} {
-	// Check condition
-	if !meetsCondition(event) {
-		return nil  // Filter out
-	}
-	return event  // Keep
-}
-```
-
-**Modification Pattern:**
-```go
-func transformFunc(event map[string]interface{}) map[string]interface{} {
-	// Add new field
-	event["processed_at"] = time.Now().Unix()
-
-	// Modify existing field
-	if amount, ok := event["amount"].(string); ok {
-		event["amount_numeric"], _ = strconv.ParseInt(amount, 10, 64)
-	}
-
-	return event
-}
-```
-
-**Enrichment Pattern:**
-```go
-var cache = make(map[string]interface{})
-
-func enrichFunc(event map[string]interface{}) map[string]interface{} {
-	// Look up additional data
-	key := event["account"].(string)
-	if metadata, exists := cache[key]; exists {
-		event["metadata"] = metadata
-	}
-
-	return event
-}
-```
-
-### Real-World Examples
-
-See these processors for complete examples:
-- [`usdc-filter`](../examples/processors/usdc-filter/cmd/usdc-filter/main.go) - Filter by asset code
-- [`amount-filter`](../examples/processors/amount-filter/cmd/amount-filter/main.go) - Filter by amount range with custom flags
-- [`time-window`](../examples/processors/time-window/cmd/time-window/main.go) - Filter by time range
-- [`dedup`](../examples/processors/dedup/cmd/dedup/main.go) - Stateful deduplication
+- [`usdc-filter`](../examples/processors/usdc-filter/cmd/usdc-filter/main.go)
+- [`amount-filter`](../examples/processors/amount-filter/cmd/amount-filter/main.go)
+- [`time-window`](../examples/processors/time-window/cmd/time-window/main.go)
+- [`dedup`](../examples/processors/dedup/cmd/dedup/main.go)
 
 ---
 
-## Sink Processors
+## Sink processors
 
-Sink processors read JSON events from stdin and produce side effects (write to databases, files, APIs, etc).
+Sink processors read newline-delimited JSON from stdin and produce side effects.
 
-### When to Use
+### Quick start
 
-- Write events to databases (PostgreSQL, MongoDB, etc)
-- Send events to message queues (Kafka, RabbitMQ)
-- POST events to webhooks
-- Write to files with special formatting
-- Trigger alerts or notifications
+**1. Create the directory structure**
 
-### Quick Start (5 Minutes)
-
-**1. Create directory structure:**
 ```bash
 mkdir -p examples/processors/my-sink/cmd/my-sink
 cd examples/processors/my-sink
 ```
 
-**2. Create `cmd/my-sink/main.go`:**
+**2. Create `cmd/my-sink/main.go`**
+
 ```go
 package main
 
 import (
-	"fmt"
+    "fmt"
 
-	"github.com/spf13/cobra"
-	"github.com/withObsrvr/nebu/pkg/processor/cli"
+    "github.com/spf13/cobra"
+    "github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
 var version = "0.1.0"
 var outputPath string
 
 func main() {
-	config := cli.SinkConfig{
-		Name:        "my-sink",
-		Description: "Write events to custom destination",
-		Version:     version,
-	}
+    config := cli.SinkConfig{
+        Name:        "my-sink",
+        Description: "Write events to a custom destination",
+        Version:     version,
+    }
 
-	cli.RunSinkCLI(config, sinkFunc, addFlags)
+    cli.RunSinkCLI(config, sinkFunc, addFlags)
 }
 
 func addFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVar(&outputPath, "out", "output.txt", "Output path")
+    cmd.Flags().StringVar(&outputPath, "out", "output.txt", "Output path")
 }
 
-// sinkFunc processes each event and produces a side effect.
-// Return an error to stop processing.
+// sinkFunc should return nil on success and a non-nil error when the
+// CLI wrapper should stop the process. Prefer internal retries where
+// appropriate; for typed in-runtime sinks, use ReportWarning / ReportFatal.
 func sinkFunc(event map[string]interface{}) error {
-	// Your sink logic here
-
-	// Example: Print event type
-	eventType := event["type"]
-	fmt.Printf("Received %v event\n", eventType)
-
-	return nil
+    fmt.Printf("received event with schema %v\n", event["_schema"])
+    return nil
 }
 ```
 
-**3. Build and test:**
-```bash
-go build -o ../../../bin/my-sink ./cmd
+### Sink patterns
 
-# Test it
-echo '{"type":"transfer","amount":"100"}
-{"type":"fee","amount":"50"}' | ./bin/my-sink
-```
+**Database writing**
 
-### Sink Patterns
-
-**Database Writing Pattern:**
 ```go
 var db *sql.DB
 
 func sinkFunc(event map[string]interface{}) error {
-	// Open DB on first event
-	if db == nil {
-		var err error
-		db, err = sql.Open("postgres", connectionString)
-		if err != nil {
-			return fmt.Errorf("failed to connect: %w", err)
-		}
-	}
+    if db == nil {
+        var err error
+        db, err = sql.Open("postgres", connectionString)
+        if err != nil {
+            return fmt.Errorf("connect postgres: %w", err)
+        }
+    }
 
-	// Insert event
-	_, err := db.Exec(
-		"INSERT INTO events (type, amount) VALUES ($1, $2)",
-		event["type"], event["amount"],
-	)
-	return err
+    _, err := db.Exec(
+        "INSERT INTO events (schema_id, payload) VALUES ($1, $2)",
+        event["_schema"], event,
+    )
+    return err
 }
 ```
 
-**Batching Pattern:**
+**Batching**
+
 ```go
-var (
-	batch      []map[string]interface{}
-	batchSize  = 100
-	eventCount = 0
-)
+var batch []map[string]interface{}
+const batchSize = 100
 
 func sinkFunc(event map[string]interface{}) error {
-	batch = append(batch, event)
-	eventCount++
-
-	// Flush batch when full
-	if len(batch) >= batchSize {
-		if err := flushBatch(); err != nil {
-			return err
-		}
-		batch = nil
-	}
-
-	return nil
-}
-
-func flushBatch() error {
-	// Write batch to destination
-	// ...
-	return nil
+    batch = append(batch, event)
+    if len(batch) < batchSize {
+        return nil
+    }
+    if err := flushBatch(batch); err != nil {
+        return err
+    }
+    batch = nil
+    return nil
 }
 ```
 
-**Webhook Pattern:**
-```go
-import "net/http"
+### Real examples
 
-var httpClient = &http.Client{}
-
-func sinkFunc(event map[string]interface{}) error {
-	jsonData, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-
-	resp, err := httpClient.Post(
-		webhookURL,
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("webhook returned %d", resp.StatusCode)
-	}
-
-	return nil
-}
-```
-
-### Real-World Examples
-
-See this processor for a complete example:
-- [`json-file-sink`](../examples/processors/json-file-sink/cmd/json-file-sink/main.go) - Write to JSONL files
+- [`json-file-sink`](../examples/processors/json-file-sink/cmd/json-file-sink/main.go)
+- [`nats-sink`](../examples/processors/nats-sink/cmd/nats-sink/main.go)
+- [`postgres-sink`](../examples/processors/postgres-sink/cmd/postgres-sink/main.go)
 
 ---
 
-## Origin Processors
+## Origin processors
 
-Origin processors fetch raw data (XDR ledgers) and output JSON events to stdout.
+Origins are best built **proto-first**.
 
-**IMPORTANT:** Always use the **proto-first** approach when building origin processors. This ensures:
-- Type safety via protobuf schemas
-- Consistency across processors
-- flowctl-ready from day one (just add gRPC server)
-- Automatic JSON conversion via protojson
+That means:
 
-### When to Use
+- define a protobuf message for your event
+- emit that protobuf type internally
+- let the CLI helper expose JSON on stdout
+- implement `--describe-json` through the helper so tools can introspect your processor
 
-- Extract different event types from Stellar ledgers (NFT transfers, trades, liquidity pools)
-- Parse custom smart contract events
-- Process other blockchain data formats
+### Quick start
 
-### Quick Start (Proto-First) - 20 Minutes
+**1. Create the directory structure**
 
-**1. Create directory structure:**
 ```bash
 mkdir -p examples/processors/my-origin/cmd/my-origin
 cd examples/processors/my-origin
 ```
 
-**2. Define protobuf schema (`my_origin.proto`):**
+**2. Define protobuf schema in `proto/my_origin.proto`**
+
 ```protobuf
 syntax = "proto3";
 
 package my_origin;
 
-option go_package = "github.com/withObsrvr/nebu/examples/processors/my-origin";
+option go_package = "github.com/withObsrvr/nebu/examples/processors/my-origin/proto";
 
 message MyEvent {
-  int64 timestamp = 1;
-  uint32 ledger_sequence = 2;
-  string transaction_hash = 3;
-  string event_type = 4;
-  // Add your custom fields here
-  string custom_field = 5;
+  uint32 ledger_sequence = 1;
+  string transaction_hash = 2;
+  string event_type = 3;
+  string custom_field = 4;
 }
 ```
 
-**3. Generate Go code:**
-```bash
-# Install protoc-gen-go if not already installed
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+**3. Generate Go code**
 
-# Generate
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 export PATH="$HOME/go/bin:$PATH"
-nix-shell -p protobuf --run "protoc --go_out=. --go_opt=paths=source_relative my_origin.proto"
+protoc --go_out=. --go_opt=paths=source_relative proto/my_origin.proto
 ```
 
-**4. Create processor (`my_origin.go`):**
+**4. Create the processor**
+
 ```go
 package my_origin
 
 import (
-	"context"
-	"fmt"
+    "context"
+    "fmt"
 
-	"github.com/stellar/go-stellar-sdk/xdr"
-	"github.com/withObsrvr/nebu/pkg/processor"
+    "github.com/stellar/go-stellar-sdk/xdr"
+    "github.com/withObsrvr/nebu/pkg/processor"
+
+    mypb "github.com/withObsrvr/nebu/examples/processors/my-origin/proto"
 )
 
 type Origin struct {
-	networkPass string
-	out         chan *MyEvent
+    emitter *processor.Emitter[*mypb.MyEvent]
 }
 
-func NewOrigin(networkPass string) *Origin {
-	return &Origin{
-		networkPass: networkPass,
-		out:         make(chan *MyEvent, 128),
-	}
+func NewOrigin() *Origin {
+    return &Origin{
+        emitter: processor.NewEmitter[*mypb.MyEvent](128),
+    }
 }
 
-func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
-	// Extract events from ledger
-	events := o.extractEvents(ledger)
+func (o *Origin) Name() string         { return "my-origin" }
+func (o *Origin) Type() processor.Type { return processor.TypeOrigin }
+func (o *Origin) Out() <-chan *mypb.MyEvent {
+    return o.emitter.Out()
+}
+func (o *Origin) Close() { o.emitter.Close() }
 
-	// Emit each event
-	for _, event := range events {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case o.out <- event:
-			// Event sent
-		}
-	}
+func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
+    events, err := extractEvents(ledger)
+    if err != nil {
+        processor.ReportWarning(ctx, o.Name(), fmt.Errorf("ledger %d: %w", ledger.LedgerSequence(), err))
+        return
+    }
 
-	return nil
+    for _, ev := range events {
+        select {
+        case <-ctx.Done():
+            return
+        default:
+            o.emitter.Emit(ev)
+        }
+    }
 }
 
-func (o *Origin) extractEvents(ledger xdr.LedgerCloseMeta) []*MyEvent {
-	var events []*MyEvent
-
-	// Your extraction logic here
-	// Parse ledger and build MyEvent protobuf messages
-
-	return events
+func extractEvents(ledger xdr.LedgerCloseMeta) ([]*mypb.MyEvent, error) {
+    // Parse the ledger and build protobuf events.
+    return nil, nil
 }
-
-// Required processor.Origin interface methods
-func (o *Origin) Out() <-chan *MyEvent { return o.out }
-func (o *Origin) Close()                { close(o.out) }
-func (o *Origin) Name() string          { return "my-origin" }
-func (o *Origin) Type() processor.Type  { return processor.TypeOrigin }
 ```
 
-**5. Create CLI wrapper (`cmd/my-origin/main.go`):**
+**5. Create the CLI wrapper**
+
 ```go
 package main
 
 import (
-	"github.com/withObsrvr/nebu/examples/processors/my-origin"
-	"github.com/withObsrvr/nebu/pkg/processor/cli"
+    myorigin "github.com/withObsrvr/nebu/examples/processors/my-origin"
+    mypb "github.com/withObsrvr/nebu/examples/processors/my-origin/proto"
+    "github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
 var version = "0.1.0"
 
 func main() {
-	config := cli.OriginConfig{
-		Name:        "my-origin",
-		Description: "Extract custom events from Stellar ledgers",
-		Version:     version,
-	}
+    config := cli.OriginConfig{
+        Name:        "my-origin",
+        Description: "Extract custom events from Stellar ledgers",
+        Version:     version,
+        SchemaID:    "nebu.my_origin.v1",
+    }
 
-	// Use RunProtoOriginCLI for proto-first processors
-	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*my_origin.MyEvent] {
-		return my_origin.NewOrigin(networkPass)
-	})
+    cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*mypb.MyEvent] {
+        _ = networkPass
+        return myorigin.NewOrigin()
+    })
 }
 ```
 
-**6. Create go.mod:**
+**6. Initialize the module**
+
 ```bash
 go mod init github.com/withObsrvr/nebu/examples/processors/my-origin
 go mod tidy
 ```
 
-**7. Build and test:**
+**7. Build and test**
+
 ```bash
 go build -o ../../../bin/my-origin ./cmd/my-origin
-
-# Test with real data
-./bin/my-origin --start-ledger 60200000 --end-ledger 60200001 | head
+./bin/my-origin --describe-json | jq .
 ```
 
-### Real-World Example
+### Real examples
 
-See this processor for a complete example:
-- [`token-transfer`](../examples/processors/token-transfer/) - Extract token transfer events from Stellar ledgers
+- [`token-transfer`](../examples/processors/token-transfer/)
+- [`contract-events`](../examples/processors/contract-events/)
+- [`contract-invocation`](../examples/processors/contract-invocation/)
 
 ---
 
-## Testing Your Processor
+## Testing your processor
 
-### Manual Testing
+### Manual testing
 
-**Test transform processor:**
+**Transform**
+
 ```bash
-# Create test input
-echo '{"type":"transfer","amount":"100"}
-{"type":"fee","amount":"50"}
-{"type":"transfer","amount":"200"}' > test-input.jsonl
-
-# Run processor
-cat test-input.jsonl | ./bin/my-filter
-
-# Verify output
-cat test-input.jsonl | ./bin/my-filter | jq .
+echo '{"transfer":{"assetCode":"USDC","amount":"100"}}' | ./bin/my-filter | jq .
 ```
 
-**Test in pipeline:**
+**Full pipeline**
+
 ```bash
-# Origin → Transform → Sink
-./bin/token-transfer --start-ledger 60200000 --end-ledger 60200001 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200001 | \
   ./bin/my-filter | \
   ./bin/json-file-sink --out test-output.jsonl
-
-# Verify
-cat test-output.jsonl | jq . | head
 ```
 
-### Automated Testing
+### Runtime contract tests
 
-Create a test script (`test_my_processor.sh`):
+For typed processors embedded in Go, test the actual interfaces from `pkg/processor`:
 
-```bash
-#!/usr/bin/env bash
-set -e
-
-echo "Testing my-filter..."
-
-# Test 1: Valid JSON output
-OUTPUT=$(echo '{"type":"transfer"}' | ./bin/my-filter)
-if echo "$OUTPUT" | jq -e . > /dev/null 2>&1; then
-    echo "✓ Produces valid JSON"
-else
-    echo "✗ Invalid JSON output"
-    exit 1
-fi
-
-# Test 2: Filtering works
-INPUT='{"type":"transfer"}
-{"type":"fee"}
-{"type":"transfer"}'
-
-COUNT=$(echo "$INPUT" | ./bin/my-filter | wc -l)
-if [[ $COUNT -eq 2 ]]; then
-    echo "✓ Filtering works"
-else
-    echo "✗ Expected 2 events, got $COUNT"
-    exit 1
-fi
-
-echo "All tests passed!"
-```
-
-Make it executable and run:
-```bash
-chmod +x test_my_processor.sh
-./test_my_processor.sh
-```
+- origins should implement `ProcessLedger(ctx, ledger)` without returning `error`
+- transforms should implement `ProcessEvent(ctx, event)`
+- sinks should implement `WriteEvent(ctx, event)`
+- warnings/fatals should be asserted via a test reporter attached with `processor.WithReporter`
 
 ---
 
 ## Distribution
 
-### Building Binaries
+### Build locally
 
-**Single platform:**
 ```bash
-go build -o ./bin/my-processor ./examples/processors/my-processor/cmd
+go build -o ./bin/my-processor ./examples/processors/my-processor/cmd/my-processor
 ```
 
-**Cross-platform builds:**
+### Install via `go install`
+
 ```bash
-# Linux
-GOOS=linux GOARCH=amd64 go build -o ./bin/my-processor-linux \
-  ./examples/processors/my-processor/cmd
-
-# macOS
-GOOS=darwin GOARCH=amd64 go build -o ./bin/my-processor-macos \
-  ./examples/processors/my-processor/cmd
-
-# Windows
-GOOS=windows GOARCH=amd64 go build -o ./bin/my-processor.exe \
-  ./examples/processors/my-processor/cmd
-```
-
-### Installation
-
-**Local installation:**
-```bash
-# Build and copy to PATH
-go build -o $HOME/.local/bin/my-processor \
-  ./examples/processors/my-processor/cmd
-```
-
-**Using go install:**
-```bash
-# If processor has its own module
 cd examples/processors/my-processor
-go install ./cmd
+go install ./cmd/my-processor
 ```
 
-### Packaging
+### Publish for `nebu install`
 
-**Create release tarball:**
-```bash
-# Build
-go build -o ./bin/my-processor ./examples/processors/my-processor/cmd
+For a processor that lives outside this repo:
 
-# Package
-tar -czf my-processor-v1.0.0-linux-amd64.tar.gz \
-  -C ./bin my-processor \
-  -C .. README.md LICENSE
-```
-
-**Docker image:**
-```dockerfile
-FROM golang:1.25 AS builder
-WORKDIR /app
-COPY . .
-RUN go build -o /bin/my-processor ./examples/processors/my-processor/cmd
-
-FROM alpine:latest
-COPY --from=builder /bin/my-processor /usr/local/bin/
-ENTRYPOINT ["my-processor"]
-```
+1. put it in its own Go module
+2. make sure `go install <module>/cmd/<name>@latest` works
+3. implement `--describe-json` (the Go CLI helpers do this automatically)
+4. add a `description.yml` entry in an external registry per [`docs/REGISTRY_SPEC.md`](./REGISTRY_SPEC.md)
 
 ---
 
-## Tips and Best Practices
+## Best practices
 
-### Performance
+### Contract usage
 
-1. **Avoid repeated allocations** - Reuse buffers and maps
-2. **Batch operations** - For sinks, batch writes to databases/APIs
-3. **Use goroutines carefully** - CLI wrappers handle concurrency
-4. **Profile your processor** - Use `go tool pprof` for bottlenecks
+- depend only on `pkg/processor` and `pkg/source` if you want stability
+- treat `pkg/runtime`, `pkg/registry`, and concrete source implementations as unstable unless you intentionally pin versions
 
-### Error Handling
+### Errors
 
-1. **Fail fast** - Return errors immediately for critical failures
-2. **Log warnings** - Use stderr for non-fatal issues (in non-quiet mode)
-3. **Provide context** - Wrap errors with `fmt.Errorf("context: %w", err)`
-4. **Test error paths** - Ensure your processor handles bad input gracefully
+- use `ReportWarning` for malformed input, partial decode failures, and per-event issues
+- use `ReportFatal` only when the processor cannot continue safely
+- do not panic for normal bad data
+
+### CLI behavior
+
+- read from stdin when you are a transform or sink
+- write JSONL to stdout when you are an origin or transform CLI
+- keep logs and progress on stderr
+- support `--describe-json`
 
 ### Documentation
 
-1. **Add usage examples** - Show common use cases in comments
-2. **Document flags** - Explain what each flag does
-3. **Version your processor** - Update version string on changes
-4. **Include examples** - Provide sample input/output in README
+- document your `_schema` value
+- include copy-pasteable examples
+- show one bounded-range example first
+- prefer installed-binary examples over repo-local build examples in user docs
 
-### Composability
+## See also
 
-1. **Read from stdin** - Accept piped input
-2. **Write to stdout** - Output events as JSONL
-3. **Support quiet mode** - Use `-q` to suppress progress messages
-4. **Chain with others** - Test your processor in pipelines
-
----
-
-## Getting Help
-
-- Check existing processors in `examples/processors/` for patterns
-- Read the [main README](../README.md) for architecture overview
-- See [PIPELINE.md](../PIPELINE.md) for pipeline examples
-- Run integration tests: `./tests/integration/test_pipelines.sh`
-
----
-
-## Summary
-
-**Transform Processor in 3 Steps:**
-1. Create `cmd/processor-name/main.go` with `cli.RunTransformCLI()`
-2. Implement `filterFunc(event) event|nil`
-3. Build and test in pipelines
-
-**Sink Processor in 3 Steps:**
-1. Create `cmd/processor-name/main.go` with `cli.RunSinkCLI()`
-2. Implement `sinkFunc(event) error`
-3. Build and test with real data
-
-**Origin Processor in 4 Steps:**
-1. Implement `ProcessLedger(ledger) error`
-2. Create `cmd/processor-name/main.go` with `cli.RunOriginCLI()`
-3. Build and test with Stellar data
-4. Chain with transforms and sinks
-
-Happy building! 🚀
+- [`README.md`](../README.md)
+- [`docs/STABILITY.md`](./STABILITY.md)
+- [`docs/PIPELINE.md`](./PIPELINE.md)
+- [`docs/REGISTRY_SPEC.md`](./REGISTRY_SPEC.md)
+- [`examples/processors/token-transfer/SCHEMA.md`](../examples/processors/token-transfer/SCHEMA.md)

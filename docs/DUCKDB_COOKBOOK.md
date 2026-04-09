@@ -45,7 +45,7 @@ Query event streams directly without saving to disk:
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
-      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset_code,
+      json_extract_string(transfer, '$.assetCode') as asset_code,
       COUNT(*) as transfer_count,
       SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as total_volume
     FROM read_json('/dev/stdin')
@@ -61,7 +61,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
       json_extract_string(transfer, '$.from') as from_address,
       json_extract_string(transfer, '$.to') as to_address,
       CAST(json_extract_string(transfer, '$.amount') AS DOUBLE) / 10000000.0 as amount_decimal,
-      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset
+      json_extract_string(transfer, '$.assetCode') as asset
     FROM read_json('/dev/stdin')
     WHERE transfer IS NOT NULL
     ORDER BY CAST(json_extract_string(transfer, '$.amount') AS DOUBLE) DESC
@@ -88,7 +88,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
     FROM read_json('/dev/stdin')
     WHERE
       transfer IS NOT NULL
-      AND json_extract_string(transfer, '$.asset.issuedAsset.assetCode') = 'USDC'
+      AND json_extract_string(transfer, '$.assetCode') = 'USDC'
   "
 
 # Query transformed data
@@ -144,7 +144,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
     WITH ledger_stats AS (
       SELECT
         json_extract(meta, '$.ledgerSequence') as ledger_sequence,
-        json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset_code,
+        json_extract_string(transfer, '$.assetCode') as asset_code,
         COUNT(*) as event_count,
         SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
       FROM read_json('/dev/stdin')

@@ -131,6 +131,10 @@ func RunProtoOriginCLI[T proto.Message](
 			eventCount := 0
 			done := make(chan error, 1)
 			go func() {
+				schemaID := config.SchemaID
+				if schemaID == "" {
+					schemaID = version.GetSchemaVersion(config.Name)
+				}
 				for ev := range origin.Out() {
 					eventCount++
 
@@ -144,7 +148,7 @@ func RunProtoOriginCLI[T proto.Message](
 					// Simple approach: prepend schema fields to JSON
 					// This avoids complex map manipulation
 					fmt.Printf(`{"_schema":"%s","_nebu_version":"%s",`,
-						version.GetSchemaVersion(config.Name), version.Version)
+						schemaID, version.Version)
 
 					// Print the rest of the JSON (skip opening brace)
 					if len(jsonBytes) > 2 { // More than just {}

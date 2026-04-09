@@ -1,4 +1,4 @@
-.PHONY: all test build lint clean fmt vet build-cli install gen-protos build-processors test-integration api-snapshot api-check
+.PHONY: all test build lint clean fmt vet build-cli install gen-protos build-processors test-integration api-snapshot api-check docs-smoke
 
 # Force bash for all recipes. The api-check target uses process
 # substitution (diff -u file <(cmd)), which is a bash extension and
@@ -74,6 +74,9 @@ build-processors:
 # Run integration tests
 test-integration:
 	@./tests/integration/test_pipelines.sh
+
+docs-smoke:
+	@./scripts/docs-smoke.sh
 
 # Regenerate the public-API snapshots for the stable surfaces
 # (pkg/processor and pkg/source). Run this after intentionally
