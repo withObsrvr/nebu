@@ -83,7 +83,7 @@ func addFlags(cmd *cobra.Command) {
 
 	// Publishing flags
 	cmd.Flags().StringVar(&subjectTmpl, "subject", "events",
-		"Subject template (e.g. 'stellar.{type}' or 'stellar.{transfer.assetCode}')")
+		"Subject template (e.g. 'stellar.{eventType}' or 'stellar.{transfer.assetCode}')")
 	cmd.Flags().BoolVar(&useJetStream, "jetstream", false,
 		"Use JetStream for reliable delivery")
 	cmd.Flags().BoolVar(&strict, "strict", false,
@@ -173,7 +173,7 @@ func resolveSubject(template string, event map[string]interface{}) string {
 	matches := re.FindAllStringSubmatch(template, -1)
 
 	for _, match := range matches {
-		placeholder := match[0] // e.g., "{type}"
+		placeholder := match[0] // e.g., "{eventType}"
 		path := match[1]        // e.g., "type" or "transfer.assetCode"
 
 		// Resolve value from event

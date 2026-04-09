@@ -10,7 +10,7 @@ Publish JSON events from nebu pipelines to NATS message bus for real-time distri
 `nats-sink` bridges the Unix pipe world (stdout) to the distributed messaging world (NATS), enabling event-driven architectures and real-time data distribution.
 
 ```
-token-transfer | nats-sink --subject "stellar.{type}"
+token-transfer | nats-sink --subject "stellar.{transfer.assetCode}"
 ```
 
 **Key Features:**
@@ -49,9 +49,9 @@ docker run -p 4222:4222 nats:latest
 token-transfer --start-ledger 60200000 --end-ledger 60200010 | \
   nats-sink --url nats://localhost:4222 --subject "stellar.events"
 
-# Dynamic subject - route by event type
+# Dynamic subject - route by asset code
 token-transfer --start-ledger 60200000 --end-ledger 60200010 | \
-  nats-sink --url nats://localhost:4222 --subject "stellar.{type}"
+  nats-sink --url nats://localhost:4222 --subject "stellar.{transfer.assetCode}"
 ```
 
 ### 3. Subscribe to Events
@@ -63,9 +63,9 @@ token-transfer --start-ledger 60200000 --end-ledger 60200010 | \
 # Subscribe to all events
 nats sub "stellar.>"
 
-# Subscribe to specific types
-nats sub "stellar.transfer"
-nats sub "stellar.mint"
+# Subscribe to specific asset streams
+nats sub "stellar.USDC"
+nats sub "stellar.XLM"
 ```
 
 ## Usage
@@ -110,20 +110,19 @@ nats-sink --subject "stellar.events"
 ### Dynamic Subjects with Top-Level Fields
 
 ```bash
-# Route by event type
-nats-sink --subject "stellar.{type}"
-# → transfer events → "stellar.transfer"
-# → mint events → "stellar.mint"
-# → burn events → "stellar.burn"
+# Route contract-events by top-level eventType
+nats-sink --subject "stellar.{eventType}"
+# → fee events → "stellar.fee"
+# → swap events → "stellar.swap"
 ```
 
 ### Dynamic Subjects with Nested Fields
 
 ```bash
-# Route by asset code
-nats-sink --subject "stellar.{type}.{assetCode}"
-# → USDC transfers → "stellar.transfer.USDC"
-# → AQUA mints → "stellar.mint.AQUA"
+# Route token-transfer events by asset code
+nats-sink --subject "stellar.transfers.{transfer.assetCode}"
+# → USDC transfer-like events → "stellar.transfers.USDC"
+# → XLM fee events → "stellar.transfers.XLM"
 
 # Route by nested field
 nats-sink --subject "stellar.{transfer.assetCode}"
@@ -155,27 +154,27 @@ token-transfer --start-ledger 60200000 --end-ledger 60200010 | \
 ### Example 2: Filter and Route by Type
 
 ```bash
-# Route different event types to different subjects
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  nats-sink --subject "stellar.{type}"
+# Route contract-events by eventType
+contract-events --start-ledger 60200000 --end-ledger 60200100 | \
+  nats-sink --subject "stellar.{eventType}"
 
 # Subscribers can listen to specific types
-# Terminal 1: nats sub "stellar.transfer"
-# Terminal 2: nats sub "stellar.mint"
-# Terminal 3: nats sub "stellar.burn"
+# Terminal 1: nats sub "stellar.fee"
+# Terminal 2: nats sub "stellar.swap"
+# Terminal 3: nats sub "stellar.transfer"
 ```
 
 ### Example 3: Multi-Level Routing
 
 ```bash
-# Route by type AND asset
+# Route token-transfer events by asset
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  nats-sink --subject "stellar.{type}.{assetCode}"
+  nats-sink --subject "stellar.transfers.{transfer.assetCode}"
 
 # Wildcard subscriptions
-nats sub "stellar.transfer.*"  # All transfers
-nats sub "stellar.*.USDC"      # All USDC events
-nats sub "stellar.>"           # All events
+nats sub "stellar.transfers.*"     # All token-transfer assets
+nats sub "stellar.transfers.USDC"  # USDC events
+nats sub "stellar.>"               # All events
 ```
 
 ### Example 4: JetStream for Reliability
@@ -199,7 +198,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
 ```bash
 # Only publish USDC transfers
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq -c 'select(.assetCode == "USDC")' | \
+  jq -c 'select(.transfer != null and .transfer.assetCode == "USDC")' | \
   nats-sink --subject "stellar.usdc.transfers"
 ```
 
@@ -220,7 +219,7 @@ token-transfer | \
   nats-sink \
     --url nats://production.example.com:4222 \
     --creds ~/.nats/prod.creds \
-    --subject "stellar.prod.{type}" \
+    --subject "stellar.prod.{transfer.assetCode}" \
     --jetstream
 ```
 
@@ -240,9 +239,9 @@ nebu fetch (continuous) → token-transfer → nats-sink
 
 ```bash
 # Producer (run once, streams forever)
-nebu fetch --start-ledger 60200000 0 | \
+nebu fetch 60200000 0 | \
   token-transfer -q | \
-  nats-sink --subject "stellar.live.{type}" --jetstream
+  nats-sink --subject "stellar.live.{transfer.assetCode}" --jetstream
 ```
 
 ### Pattern 2: Multi-Consumer Analytics
@@ -256,13 +255,13 @@ token-transfer → nats-sink → NATS → ┬→ Database Writer
 
 ```bash
 # Producer
-token-transfer | nats-sink --subject "stellar.{type}.{assetCode}"
+token-transfer | nats-sink --subject "stellar.transfers.{transfer.assetCode}"
 
 # Consumer 1: Database
 nats sub "stellar.>" | database-writer
 
 # Consumer 2: Alerts
-nats sub "stellar.transfer.USDC" | alert-on-large-transfers
+nats sub "stellar.transfers.USDC" | alert-on-large-transfers
 
 # Consumer 3: Metrics
 nats sub "stellar.>" | prometheus-exporter
@@ -299,9 +298,9 @@ nats stream add STELLAR_EVENTS \
 ### 2. Publish with JetStream
 
 ```bash
-token-transfer | \
+contract-events | \
   nats-sink \
-    --subject "stellar.{type}" \
+    --subject "stellar.{eventType}" \
     --jetstream
 ```
 
@@ -370,11 +369,11 @@ nats sub "stellar.transfers"  # ❌ Wrong
 **Check 2:** Use wildcards for dynamic subjects
 ```bash
 # Publisher uses template
-nats-sink --subject "stellar.{type}"
+nats-sink --subject "stellar.{eventType}"
 
 # Subscriber should use wildcard
-nats sub "stellar.>"  # Matches all
-nats sub "stellar.transfer"  # Matches only transfers
+nats sub "stellar.>"    # Matches all
+nats sub "stellar.fee"  # Matches only fee events
 ```
 
 ## Integration with nebu

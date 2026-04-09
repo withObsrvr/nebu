@@ -49,15 +49,15 @@ contract-events --start-ledger 60269740
 nebu fetch 60200000 60200100 | contract-events
 ```
 
-### With nebu CLI
+### With installed binaries
 
 ```bash
-# Using nebu run (once added to registry)
-nebu run origin contract-events --start-ledger 60269740 --end-ledger 60269742
+# Process a bounded range
+contract-events --start-ledger 60269740 --end-ledger 60269742
 
-# Pipe to transforms
-nebu run origin contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.event_type == "swap")' | \
+# Pipe to transforms or sinks
+contract-events --start-ledger 60200000 --end-ledger 60200100 | \
+  jq 'select(.eventType == "swap")' | \
   json-file-sink --out swaps.jsonl
 ```
 
@@ -66,15 +66,15 @@ nebu run origin contract-events --start-ledger 60200000 --end-ledger 60200100 | 
 ```bash
 # Filter for transfer events only
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.event_type == "transfer")'
+  jq 'select(.eventType == "transfer")'
 
 # Filter for specific contract
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.contract_id == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
+  jq 'select(.contractId == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
 
 # Filter for successful transactions only
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.in_successful_tx == true)'
+  jq 'select(.inSuccessfulTx == true)'
 ```
 
 ## Output Schema
@@ -83,25 +83,24 @@ Each event is output as a JSON object with the following fields:
 
 ```json
 {
-  "_schema": "nebu.contract-events.v1",
+  "_schema": "nebu.contract_events.v1",
   "_nebu_version": "dev",
-  "timestamp": 1765560602,
-  "ledger_sequence": 60269740,
-  "transaction_hash": "20287f293c7a3cacf2e471bf8495963c52b3dfda695ec51d256abe9e04024b91",
-  "contract_id": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
-  "type": "contract",
-  "event_type": "transfer",
-  "topic_decoded": [
-    "transfer",
-    "GAEEMKYQGU6XGQP74NVVJI7JHSY6DRPRGMKRZM3XSLGTA3VJJGVZFACH",
-    "GDQPT65VSMG7PRBUV2GHPANXGNMOAHMUSDMNIIWE5QIVERCOX36WFYXS",
-    "USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+  "timestamp": "1765560602",
+  "ledgerSequence": 60269740,
+  "transactionHash": "20287f293c7a3cacf2e471bf8495963c52b3dfda695ec51d256abe9e04024b91",
+  "contractId": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+  "type": "CONTRACT",
+  "eventType": "transfer",
+  "topicDecoded": [
+    {"symbolValue":"transfer"},
+    {"addressValue":"GAEEMKYQGU6XGQP74NVVJI7JHSY6DRPRGMKRZM3XSLGTA3VJJGVZFACH"},
+    {"addressValue":"GDQPT65VSMG7PRBUV2GHPANXGNMOAHMUSDMNIIWE5QIVERCOX36WFYXS"}
   ],
-  "data_decoded": "0x0000000000000000000000000000000000000000000000000000000066ead216",
-  "in_successful_tx": true,
-  "event_index": 2,
-  "operation_index": 0,
-  "network_passphrase": "Public Global Stellar Network ; September 2015"
+  "dataDecoded": {"i128Value":"0x0000000000000000000000000000000000000000000000000000000066ead216"},
+  "inSuccessfulTx": true,
+  "eventIndex": 2,
+  "operationIndex": 0,
+  "networkPassphrase": "Public Global Stellar Network ; September 2015"
 }
 ```
 
@@ -110,18 +109,18 @@ Each event is output as a JSON object with the following fields:
 | Field | Type | Description |
 |-------|------|-------------|
 | `timestamp` | int64 | Ledger close time (Unix timestamp) |
-| `ledger_sequence` | uint32 | Ledger sequence number |
-| `transaction_hash` | string | Transaction hash |
-| `contract_id` | string | Contract ID (strkey encoded) |
-| `type` | string | Event type: "contract", "system", or "diagnostic" |
-| `event_type` | string | Detected event type from topics (e.g., "transfer", "swap") |
-| `topic_decoded` | array | Decoded topic values as JSON |
-| `data_decoded` | any | Decoded event data as JSON |
-| `in_successful_tx` | bool | Whether the transaction succeeded |
-| `event_index` | int | Event index within the transaction |
-| `operation_index` | int | Operation index (-1 for transaction-level events) |
-| `diagnostic_events` | array | Diagnostic events (if any) |
-| `network_passphrase` | string | Network identifier |
+| `ledgerSequence` | uint32 | Ledger sequence number |
+| `transactionHash` | string | Transaction hash |
+| `contractId` | string | Contract ID (strkey encoded) |
+| `type` | string | Event type: `CONTRACT`, `SYSTEM`, or `DIAGNOSTIC` |
+| `eventType` | string | Detected event type from topics (e.g., `transfer`, `swap`) |
+| `topicDecoded` | array | Decoded topic values as structured JSON |
+| `dataDecoded` | any | Decoded event data as structured JSON |
+| `inSuccessfulTx` | bool | Whether the transaction succeeded |
+| `eventIndex` | int | Event index within the transaction |
+| `operationIndex` | int | Operation index (`-1` for transaction-level events) |
+| `diagnosticEvents` | array | Diagnostic events (if any) |
+| `networkPassphrase` | string | Network identifier |
 
 ### Detected Event Types
 
@@ -186,8 +185,8 @@ contract-events ledgers.xdr
 
 ```bash
 contract-events --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.event_type == "swap")' | \
-  jq '{contract: .contract_id, topics: .topic_decoded, data: .data_decoded}'
+  jq 'select(.eventType == "swap")' | \
+  jq '{contract: .contractId, topics: .topicDecoded, data: .dataDecoded}'
 ```
 
 ### Track Contract Activity
@@ -195,7 +194,7 @@ contract-events --start-ledger 60200000 --end-ledger 60200100 | \
 ```bash
 # Monitor a specific contract
 contract-events --start-ledger 60269740 | \
-  jq 'select(.contract_id == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
+  jq 'select(.contractId == "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")'
 ```
 
 ### Save to Database

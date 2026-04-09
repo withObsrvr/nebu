@@ -297,8 +297,8 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
       functionName,
-      AVG(list_length(stateChanges)) as avg_state_changes,
-      MAX(list_length(stateChanges)) as max_state_changes,
+      AVG(array_length(stateChanges)) as avg_state_changes,
+      MAX(array_length(stateChanges)) as max_state_changes,
       COUNT(*) as invocations
     FROM read_json_auto('/dev/stdin')
     GROUP BY functionName
@@ -314,7 +314,7 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
       functionName,
-      AVG(list_length(diagnosticEvents)) as avg_events,
+      AVG(array_length(diagnosticEvents)) as avg_events,
       COUNT(*) as invocations
     FROM read_json_auto('/dev/stdin')
     GROUP BY functionName
@@ -335,9 +335,9 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | \
         functionName as function,
         successful,
         meta.inSuccessfulTx as tx_success,
-        list_length(arguments) as num_args,
-        list_length(diagnosticEvents) as num_events,
-        list_length(stateChanges) as num_state_changes
+        array_length(arguments) as num_args,
+        array_length(diagnosticEvents) as num_events,
+        array_length(stateChanges) as num_state_changes
       FROM read_json_auto('/dev/stdin')
     ) TO 'invocations.csv' (HEADER, DELIMITER ',')
   "
@@ -497,8 +497,8 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
       functionName,
-      AVG(list_length(stateChanges)) as avg_storage_ops,
-      AVG(list_length(diagnosticEvents)) as avg_events,
+      AVG(array_length(stateChanges)) as avg_storage_ops,
+      AVG(array_length(diagnosticEvents)) as avg_events,
       COUNT(*) as invocations
     FROM read_json_auto('/dev/stdin')
     GROUP BY functionName

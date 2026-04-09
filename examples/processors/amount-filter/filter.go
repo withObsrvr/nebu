@@ -63,26 +63,28 @@ func (f *Filter) FilterEvent(event map[string]interface{}) map[string]interface{
 
 	// Check asset if specified
 	if f.AssetCode != "" {
-		asset, ok := eventData["asset"].(map[string]interface{})
-		if !ok {
-			return nil
-		}
-
-		// Check for issued asset
-		issuedAsset, ok := asset["issuedAsset"].(map[string]interface{})
-		if ok {
-			// Issued asset - check asset code
-			code, ok := issuedAsset["assetCode"].(string)
-			if !ok || code != f.AssetCode {
+		// Current token-transfer output uses flat fields like assetCode / assetIssuer.
+		if code, ok := eventData["assetCode"].(string); ok {
+			if code != f.AssetCode {
 				return nil
 			}
-		} else if nativeAsset, ok := asset["native"].(bool); ok && nativeAsset {
-			// Native asset - check if looking for native/XLM
-			if f.AssetCode != "native" && f.AssetCode != "XLM" {
-				return nil
+		} else if asset, ok := eventData["asset"].(map[string]interface{}); ok {
+			// Backward-compatibility for older nested shapes.
+			issuedAsset, ok := asset["issuedAsset"].(map[string]interface{})
+			if ok {
+				code, ok := issuedAsset["assetCode"].(string)
+				if !ok || code != f.AssetCode {
+					return nil
+				}
+			} else if nativeAsset, ok := asset["native"].(bool); ok && nativeAsset {
+				if f.AssetCode != "native" && f.AssetCode != "XLM" {
+					return nil
+				}
+			} else {
+				return nil // Unknown asset format
 			}
 		} else {
-			return nil // Unknown asset format
+			return nil
 		}
 	}
 

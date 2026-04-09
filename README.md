@@ -95,7 +95,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token-transfer.v1","_nebu_version":"v0.6.2","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.6.2","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -132,12 +132,11 @@ import (
 // Simple processor that counts ledgers
 type Counter struct{ count int }
 
-func (c *Counter) Name() string                 { return "counter" }
-func (c *Counter) Type() processor.Type         { return processor.TypeOrigin }
-func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
+func (c *Counter) Name() string         { return "counter" }
+func (c *Counter) Type() processor.Type { return processor.TypeOrigin }
+func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
     c.count++
     fmt.Printf("Processed ledger %d\n", ledger.LedgerSequence())
-    return nil
 }
 
 func main() {
@@ -170,7 +169,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100
 
 ```bash
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+  jq 'select(.transfer.assetCode == "USDC")'
 ```
 
 **Stream continuously from a ledger (like `tail -f`):**
@@ -194,7 +193,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
-      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset,
+      json_extract_string(transfer, '$.assetCode') as asset,
       COUNT(*) as count,
       SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
     FROM read_json('/dev/stdin')
@@ -231,7 +230,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
 
 ```bash
 token-transfer --start-ledger 60200000 --follow | \
-  jq -c 'select(.transfer.asset.issuedAsset.assetCode == "USDC")' | \
+  jq -c 'select(.transfer.assetCode == "USDC")' | \
   dedup --key meta.txHash | \
   json-file-sink --out usdc-transfers.jsonl
 ```
@@ -324,25 +323,25 @@ Processors come in three types:
 **Origin** - Consumes ledgers from Stellar, emits typed events
 ```go
 type Origin interface {
-    ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error
+    ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)
 }
 ```
 
-**Transform** - Consumes events, emits transformed events *(coming soon)*
+**Transform** - Consumes events, emits transformed events
 
 **Sink** - Consumes events, produces side effects (DB writes, etc.)
 ```go
 type Sink interface {
-    ConsumeEvent(ctx context.Context, event interface{}) error
+    WriteEvent(ctx context.Context, event proto.Message)
 }
 ```
 
 ### Sources
 
-Sources stream ledger data:
+`pkg/source` defines the stable `LedgerSource` interface. Concrete implementations live in unstable subpackages such as `pkg/source/rpc` and `pkg/source/storage`:
 
 ```go
-src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
 defer src.Close()
 
 // Stream ledgers to a channel
@@ -461,7 +460,7 @@ Written in Go. Decouples fetching from processing. **Backfill 5 years of history
 nebu fetch 60200000 60300000 > ledgers.xdr
 
 # Process the same data multiple ways (no repeated RPC calls)
-cat ledgers.xdr | token-transfer | jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+cat ledgers.xdr | token-transfer | jq 'select(.transfer.assetCode == "USDC")'
 cat ledgers.xdr | contract-events | grep -i "swap"
 ```
 
@@ -476,7 +475,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
 
 # Filter with jq
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.transfer.asset.issuedAsset.assetCode == "USDC")'
+  jq 'select(.transfer.assetCode == "USDC")'
 ```
 
 ### 🌐 SaaS Ready (NATS)
@@ -532,16 +531,16 @@ See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the f
 nebu includes schema version information in all JSON output to prevent silent breakage when formats change.
 
 Every JSON event includes:
-- `_schema`: Schema version identifier (e.g., `nebu.token-transfer.v1`)
+- `_schema`: Schema version identifier (e.g., `nebu.token_transfer.v1`)
 - `_nebu_version`: The nebu CLI version that produced the event (e.g., `0.4.0`)
 
 ```json
 {
-  "_schema": "nebu.token-transfer.v1",
+  "_schema": "nebu.token_transfer.v1",
   "_nebu_version": "0.4.0",
   "meta": {
     "ledgerSequence": 60200000,
-    "closedAt": "2025-12-08T01:45:11Z",
+    "closedAtUnix": "1765158311",
     "txHash": "abc...",
     "transactionIndex": 1,
     "contractAddress": "CA..."
@@ -549,12 +548,8 @@ Every JSON event includes:
   "transfer": {
     "from": "GA...",
     "to": "GB...",
-    "asset": {
-      "issuedAsset": {
-        "assetCode": "USDC",
-        "issuer": "GA..."
-      }
-    },
+    "assetCode": "USDC",
+    "assetIssuer": "GA...",
     "amount": "1000000"
   }
 }
@@ -582,7 +577,7 @@ Each processor documents its schema in `SCHEMA.md`:
 # Filter events by schema version in DuckDB
 duckdb analytics.db -c "
   SELECT * FROM transfers
-  WHERE _schema = 'nebu.token-transfer.v1'
+  WHERE _schema = 'nebu.token_transfer.v1'
 "
 
 # Check nebu version distribution
@@ -593,7 +588,7 @@ duckdb analytics.db -c "
 "
 
 # Filter with jq
-cat events.jsonl | jq 'select(._schema == "nebu.token-transfer.v1")'
+cat events.jsonl | jq 'select(._schema == "nebu.token_transfer.v1")'
 ```
 
 ## Using the CLI
@@ -662,8 +657,8 @@ nebu fetch 60200000 60200100 | token-transfer
 # This separates ledger fetching from processing,
 # allowing you to process the same data multiple times
 nebu fetch 60200000 60200100 > ledgers.xdr
-cat ledgers.xdr | token-transfer | jq 'select(.type == "transfer")'
-cat ledgers.xdr | token-transfer | duckdb-sink --db events.db
+cat ledgers.xdr | token-transfer | jq 'select(.transfer != null)'
+cat ledgers.xdr | token-transfer | duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"
 ```
 
 ### Archive Mode (GCS/S3)
@@ -810,7 +805,7 @@ DuckDB excels at analyzing nebu event streams via Unix pipes - often **replacing
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
-      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset,
+      json_extract_string(transfer, '$.assetCode') as asset,
       COUNT(*) as transfers,
       SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
     FROM read_json('/dev/stdin')

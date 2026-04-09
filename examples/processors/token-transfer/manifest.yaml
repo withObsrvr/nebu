@@ -27,12 +27,12 @@ usage:
   go: |
     import (
         "github.com/stellar/go-stellar-sdk/network"
-        "github.com/withObsrvr/nebu/processors/core/token_transfer"
+        token_transfer "github.com/withObsrvr/nebu/examples/processors/token-transfer"
         "github.com/withObsrvr/nebu/pkg/runtime"
-        "github.com/withObsrvr/nebu/pkg/source"
+        "github.com/withObsrvr/nebu/pkg/source/rpc"
     )
 
-    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+    src, _ := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
     origin := token_transfer.NewOrigin(network.PublicNetworkPassphrase)
     rt := runtime.NewRuntime()
     rt.RunOrigin(ctx, src, origin, 60200000, 60200100)

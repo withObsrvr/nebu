@@ -43,13 +43,11 @@ if (stat.Mode() & os.ModeCharDevice) == 0 {
 **Recommendation**:
 Make input mode explicit:
 ```bash
-# Current (magic):
-cat ledgers.xdr | nebu run origin token-transfer
+# Current (common):
+cat ledgers.xdr | token-transfer
 
-# Better (explicit):
-nebu run origin token-transfer --input stdin < ledgers.xdr
-# or
-nebu run origin token-transfer --input -
+# Better (explicit file redirection):
+token-transfer < ledgers.xdr
 ```
 
 **Mitigation**: The `-` (dash) argument does work explicitly (`cmd/nebu/run.go:77`), so users can opt out of magic. The auto-detection is a convenience, not the only way.
@@ -79,10 +77,10 @@ cmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, 
 Current approach is acceptable, but consider for production deployments:
 ```bash
 # Could require explicit network:
-nebu run origin token-transfer --network mainnet --start 100 --end 200
+token-transfer --network mainnet --start-ledger 100 --end-ledger 200
 
 # Instead of allowing default:
-nebu run origin token-transfer --start 100 --end 200  # implies mainnet
+token-transfer --start-ledger 100 --end-ledger 200  # implies mainnet
 ```
 
 **Decision**: Keep as-is. This is a reasonable default that's documented and overridable. Requiring `--network` every time would be tedious without providing much safety benefit.
@@ -182,11 +180,11 @@ func simplifyTokenTransferEvent(ev *token_transfer.TokenTransferEvent) map[strin
 **Example**:
 ```bash
 # Current (implicit JSON):
-nebu run origin token-transfer --start 100 --end 200
+token-transfer --start-ledger 100 --end-ledger 200
 
-# Better (explicit format):
-nebu run origin token-transfer --start 100 --end 200 --format json
-nebu run origin token-transfer --start 100 --end 200 --format protobuf
+# Better (if alternate formats are ever added):
+token-transfer --start-ledger 100 --end-ledger 200 --format json
+token-transfer --start-ledger 100 --end-ledger 200 --format protobuf
 ```
 
 ---
@@ -303,7 +301,7 @@ func validateNetworkConfig(rpcURL, networkPass string) error {
 Or better: infer network from RPC URL if not specified:
 ```bash
 # Explicit is better:
-nebu run origin token-transfer --rpc-url https://testnet.sorobanrpc.com --network testnet ...
+token-transfer --rpc-url https://testnet.sorobanrpc.com --network testnet ...
 
 # But if we must have magic, make it safe:
 # Auto-detect "testnet" in URL → use test network passphrase
@@ -316,7 +314,7 @@ nebu run origin token-transfer --rpc-url https://testnet.sorobanrpc.com --networ
 ### 1. Explicit Ledger Ranges
 
 ```bash
-nebu run origin token-transfer --start-ledger 60200000 --end-ledger 60200100
+token-transfer --start-ledger 60200000 --end-ledger 60200100
 ```
 
 ✅ User explicitly specifies the data range, no guessing or defaults

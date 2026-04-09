@@ -33,7 +33,18 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
 
 # Query the data
-duckdb events.db -c "SELECT type, COUNT(*) FROM transfers GROUP BY type"
+duckdb events.db -c "
+  SELECT
+    CASE
+      WHEN json_exists(to_json(transfers), '$.transfer') AND transfer IS NOT NULL THEN 'transfer'
+      WHEN json_exists(to_json(transfers), '$.mint') AND mint IS NOT NULL THEN 'mint'
+      WHEN json_exists(to_json(transfers), '$.fee') AND fee IS NOT NULL THEN 'fee'
+      ELSE 'other'
+    END AS event_type,
+    COUNT(*) AS count
+  FROM transfers
+  GROUP BY event_type
+"
 ```
 
 ## Ad-Hoc Analytics (No Persistence)
@@ -45,7 +56,7 @@ Query event streams directly without saving to disk:
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
     SELECT
-      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset_code,
+      json_extract_string(transfer, '$.assetCode') as asset_code,
       COUNT(*) as transfer_count,
       SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as total_volume
     FROM read_json('/dev/stdin')
@@ -61,7 +72,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
       json_extract_string(transfer, '$.from') as from_address,
       json_extract_string(transfer, '$.to') as to_address,
       CAST(json_extract_string(transfer, '$.amount') AS DOUBLE) / 10000000.0 as amount_decimal,
-      json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset
+      json_extract_string(transfer, '$.assetCode') as asset
     FROM read_json('/dev/stdin')
     WHERE transfer IS NOT NULL
     ORDER BY CAST(json_extract_string(transfer, '$.amount') AS DOUBLE) DESC
@@ -88,7 +99,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
     FROM read_json('/dev/stdin')
     WHERE
       transfer IS NOT NULL
-      AND json_extract_string(transfer, '$.asset.issuedAsset.assetCode') = 'USDC'
+      AND json_extract_string(transfer, '$.assetCode') = 'USDC'
   "
 
 # Query transformed data
@@ -144,7 +155,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
     WITH ledger_stats AS (
       SELECT
         json_extract(meta, '$.ledgerSequence') as ledger_sequence,
-        json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset_code,
+        json_extract_string(transfer, '$.assetCode') as asset_code,
         COUNT(*) as event_count,
         SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
       FROM read_json('/dev/stdin')
@@ -173,16 +184,19 @@ Track top addresses by activity:
 ```bash
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "
-    WITH address_activity AS (
+    WITH events AS (
+      SELECT * FROM read_json('/dev/stdin')
+    ),
+    address_activity AS (
       SELECT json_extract_string(transfer, '$.from') as address, COUNT(*) as sends, 0 as receives
-      FROM read_json('/dev/stdin')
+      FROM events
       WHERE transfer IS NOT NULL AND json_extract_string(transfer, '$.from') IS NOT NULL
       GROUP BY json_extract_string(transfer, '$.from')
 
       UNION ALL
 
       SELECT json_extract_string(transfer, '$.to') as address, 0 as sends, COUNT(*) as receives
-      FROM read_json('/dev/stdin')
+      FROM events
       WHERE transfer IS NOT NULL AND json_extract_string(transfer, '$.to') IS NOT NULL
       GROUP BY json_extract_string(transfer, '$.to')
     )
@@ -284,14 +298,13 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
     COPY (
       SELECT
         CASE
-          WHEN transfer IS NOT NULL THEN 'transfer'
-          WHEN mint IS NOT NULL THEN 'mint'
-          WHEN burn IS NOT NULL THEN 'burn'
-          WHEN fee IS NOT NULL THEN 'fee'
+          WHEN json_exists(to_json(e), '$.transfer') AND transfer IS NOT NULL THEN 'transfer'
+          WHEN json_exists(to_json(e), '$.mint') AND mint IS NOT NULL THEN 'mint'
+          WHEN json_exists(to_json(e), '$.fee') AND fee IS NOT NULL THEN 'fee'
           ELSE 'other'
         END as event_type,
         COUNT(*) as count
-      FROM read_json('/dev/stdin')
+      FROM read_json('/dev/stdin') AS e
       GROUP BY event_type
     ) TO 'summary.csv' (HEADER, DELIMITER ',')
   "
@@ -329,9 +342,9 @@ token-transfer --start-ledger 60200101 --end-ledger 60200200 | \
 
 # Check for duplicates
 duckdb events.db -c "
-  SELECT ledger_sequence, tx_hash, COUNT(*)
+  SELECT meta.ledgerSequence AS ledger_sequence, meta.txHash AS tx_hash, COUNT(*)
   FROM transfers
-  GROUP BY ledger_sequence, tx_hash
+  GROUP BY meta.ledgerSequence, meta.txHash
   HAVING COUNT(*) > 1
 "
 ```

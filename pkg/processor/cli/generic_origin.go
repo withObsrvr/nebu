@@ -146,11 +146,15 @@ Examples:
 			done := make(chan error, 1)
 			go func() {
 				encoder := json.NewEncoder(os.Stdout)
+				schemaID := config.SchemaID
+				if schemaID == "" {
+					schemaID = version.GetSchemaVersion(config.Name)
+				}
 				for ev := range origin.Out() {
 					eventCount++
 					// Add schema version wrapper
 					wrapped := map[string]interface{}{
-						"_schema":       version.GetSchemaVersion(config.Name),
+						"_schema":       schemaID,
 						"_nebu_version": version.Version,
 					}
 

@@ -1,100 +1,105 @@
 # Building Pipelines with nebu
 
-nebu uses Unix pipes to stream events between processors. This guide shows you how to connect origin processors to sink processors.
+nebu processors compose through Unix pipes. A typical pipeline looks like:
 
-## Quick Start
+```text
+nebu fetch | origin | transform | sink
+```
 
-### 1. Stream to JSON File (Simplest)
+Or, more commonly for installed processors:
+
+```text
+token-transfer | usdc-filter | amount-filter | json-file-sink
+```
+
+## Recommended workflow
+
+For end users, the canonical flow is:
 
 ```bash
-# Build the JSON file sink
-go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/
+go install github.com/withObsrvr/nebu/cmd/nebu@latest
+nebu install token-transfer
+nebu install json-file-sink
+```
 
-# Stream 100 ledgers into a JSON file
+Then run the installed binaries directly:
+
+```bash
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  ./bin/json-file-sink --out events.jsonl
+  json-file-sink --out events.jsonl
+```
 
-# Query the results
+Use repo-local `go build` examples only when developing a processor.
+
+## Quick start
+
+### 1. Stream to a JSONL file
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  json-file-sink --out events.jsonl
+
 cat events.jsonl | jq 'select(.transfer != null)'
 ```
 
-### 2. Stream to DuckDB (Analytics)
+### 2. Stream to DuckDB
 
-DuckDB can read JSON directly from stdin, no custom sink needed:
+DuckDB can read JSON directly from stdin, so you often do not need a custom sink.
 
 ```bash
-# Stream events into DuckDB and create a table
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb events.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
+```
 
-# Run SQL analytics
+Query the table:
+
+```bash
 duckdb events.db -c "
   SELECT
-    CASE
-      WHEN transfer IS NOT NULL THEN 'transfer'
-      WHEN mint IS NOT NULL THEN 'mint'
-      WHEN burn IS NOT NULL THEN 'burn'
-      WHEN fee IS NOT NULL THEN 'fee'
-      ELSE 'other'
-    END as event_type,
-    COUNT(*) as count
-  FROM transfers
-  GROUP BY event_type
-"
-
-# Find USDC transfers
-duckdb events.db -c "
-  SELECT
-    json_extract(meta, '$.ledgerSequence') as ledger,
-    json_extract_string(transfer, '$.from') as from_addr,
-    json_extract_string(transfer, '$.to') as to_addr,
-    json_extract_string(transfer, '$.amount') as amount
+    json_extract_string(transfer, '$.assetCode') AS asset,
+    COUNT(*) AS count,
+    SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) AS volume
   FROM transfers
   WHERE transfer IS NOT NULL
-    AND json_extract_string(transfer, '$.asset.issuedAsset.assetCode') = 'USDC'
-  LIMIT 10
+  GROUP BY asset
+  ORDER BY volume DESC
 "
 ```
 
-## How It Works
+## How it works
 
-```
+```text
 ┌─────────────────┐
 │  Stellar RPC    │
 └────────┬────────┘
          │ XDR ledgers
          ▼
 ┌─────────────────┐
-│ token-transfer  │
-│  (processor)    │
+│ token-transfer  │  origin processor
 └────────┬────────┘
-         │ JSON events (stdout)
+         │ JSON events on stdout
          ▼
-     Unix Pipe |
+     Unix pipe
          │
          ▼
 ┌─────────────────┐
 │   Destination   │
-│ (json-file-sink,│
-│  DuckDB, jq,    │
-│  custom tools)  │
-└────────┬────────┘
-         │
-         ▼
-  events.jsonl / events.db / etc.
+│ jq / DuckDB /   │
+│ sink processor  │
+└─────────────────┘
 ```
 
-## Event Format
+## Event format
 
-Events are newline-delimited JSON with protobuf structure:
+Token-transfer events are newline-delimited JSON. A transfer event looks like:
 
 ```json
 {
-  "_schema": "nebu.token-transfer.v1",
-  "_nebu_version": "0.3.0",
+  "_schema": "nebu.token_transfer.v1",
+  "_nebu_version": "v0.6.2",
   "meta": {
     "ledgerSequence": 60200000,
-    "closedAt": "2025-12-08T01:45:11Z",
+    "closedAtUnix": "1765158311",
     "txHash": "abc123...",
     "transactionIndex": 1,
     "contractAddress": "CABC..."
@@ -102,84 +107,98 @@ Events are newline-delimited JSON with protobuf structure:
   "transfer": {
     "from": "GABC...",
     "to": "GDEF...",
-    "asset": {
-      "issuedAsset": {
-        "assetCode": "USDC",
-        "issuer": "GA5Z..."
-      }
-    },
+    "assetCode": "USDC",
+    "assetIssuer": "GA5Z...",
     "amount": "100"
   }
 }
 ```
 
-Event types (as top-level fields): `transfer`, `mint`, `burn`, `clawback`, `fee`
+Top-level event fields include `transfer`, `mint`, `burn`, `clawback`, and `fee`.
 
-## Building Custom Sinks
+## Common pipeline patterns
 
-Create a program that:
-1. Reads JSON from stdin
-2. Processes each event
-3. Writes to your target (DB, API, file, etc.)
+### Filter with jq
 
-Example:
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  jq 'select(.transfer != null and .transfer.assetCode == "USDC")'
+```
+
+### Chain nebu transforms
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  usdc-filter | \
+  amount-filter --min 1000000 | \
+  json-file-sink --out usdc-large.jsonl
+```
+
+### Reuse fetched ledger data
+
+```bash
+nebu fetch 60200000 60200100 > ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.transfer != null)'
+```
+
+### Multi-sink fanout
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  tee >(json-file-sink --out backup.jsonl) | \
+  tee >(nats-sink --subject stellar.transfers) | \
+  jq -c 'select(.transfer != null)'
+```
+
+### Real-time monitoring
+
+```bash
+token-transfer --start-ledger 60200000 --follow | \
+  jq -c 'select(.transfer != null) | {
+    ledger: .meta.ledgerSequence,
+    from: .transfer.from,
+    to: .transfer.to,
+    amount: .transfer.amount,
+    asset: .transfer.assetCode
+  }'
+```
+
+## Building a custom sink
+
+A custom sink only needs to:
+
+1. read JSON lines from stdin
+2. process each event
+3. write to its target system
+
+Minimal pattern:
 
 ```go
 scanner := bufio.NewScanner(os.Stdin)
 for scanner.Scan() {
     var event map[string]interface{}
     json.Unmarshal(scanner.Bytes(), &event)
-
-    // Process event
     processEvent(event)
 }
 ```
 
-Then pipe processor output into your sink:
+Then use it in a pipeline:
 
 ```bash
-token-transfer --start-ledger X --end-ledger Y | ./my-custom-sink
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | ./my-custom-sink
 ```
 
-## Examples
+## Performance tips
 
-### Filter and Transform
+1. buffer writes in sinks
+2. batch DB inserts or HTTP sends
+3. separate fetch from processing when reusing the same ledger range
+4. keep logs on stderr so stdout remains clean JSON/XDR
+5. use DuckDB for ad-hoc analytics before writing a custom processor
 
-```bash
-# Only USDC transfers
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.transfer != null and .transfer.asset.issuedAsset.assetCode == "USDC")' | \
-  ./bin/json-file-sink --out usdc-only.jsonl
-```
+## See also
 
-### Real-time Monitoring
-
-```bash
-# Watch transfers as they happen
-token-transfer --start-ledger 60200000 --end-ledger 60201000 | \
-  jq -c 'select(.transfer != null) | {from: .transfer.from, to: .transfer.to, amount: .transfer.amount, asset: .transfer.asset.issuedAsset.assetCode}'
-```
-
-### Multi-Sink Fanout
-
-```bash
-# Tee events to multiple destinations
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  tee >(./bin/json-file-sink --out backup.jsonl) | \
-  duckdb analytics.db -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
-```
-
-## Performance Tips
-
-1. **Buffering**: Custom sinks should buffer writes for better performance
-2. **Batch Inserts**: For databases, batch multiple events per INSERT
-3. **Parallel Processing**: Run multiple processors for different ledger ranges and combine results
-4. **Error Handling**: Sinks should continue on invalid events (log warnings)
-5. **Use DuckDB**: For analytics, pipe directly to DuckDB instead of building custom sinks
-
-## Next Steps
-
-- Check `examples/processors/` for more processor examples
-- See [BUILDING_PROCESSORS.md](./BUILDING_PROCESSORS.md) to build your own processors
-- Check the [DuckDB Cookbook](./DUCKDB_COOKBOOK.md) for analytics examples and reusable queries
-- See `registry.yaml` to understand how processors are discovered
+- [`README.md`](../README.md)
+- [`BUILDING_PROCESSORS.md`](./BUILDING_PROCESSORS.md)
+- [`DUCKDB_COOKBOOK.md`](./DUCKDB_COOKBOOK.md)
+- [`REGISTRY_SPEC.md`](./REGISTRY_SPEC.md)

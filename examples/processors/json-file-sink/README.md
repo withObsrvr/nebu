@@ -1,40 +1,68 @@
 # JSON File Sink
 
-A simple sink processor that writes events to a newline-delimited JSON (JSONL) file.
+A simple sink processor that writes newline-delimited JSON (JSONL) to a file.
 
-## Usage
+## Recommended usage
+
+Install the processors, then run the binaries directly:
 
 ```bash
-# Build the sink
-go build -o json-file-sink ./cmd
+nebu install token-transfer
+nebu install json-file-sink
 
-# Stream events into file
-nebu run origin token-transfer --start 60200000 --end 60200100 | \
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  json-file-sink --out events.jsonl
+```
+
+## Query the results
+
+```bash
+cat events.jsonl | jq 'select(.transfer != null and .transfer.assetCode == "USDC")'
+
+cat events.jsonl | jq -s '
+  map(
+    if .transfer != null then {event_type: "transfer"}
+    elif .mint != null then {event_type: "mint"}
+    elif .burn != null then {event_type: "burn"}
+    elif .clawback != null then {event_type: "clawback"}
+    elif .fee != null then {event_type: "fee"}
+    else {event_type: "other"}
+    end
+  )
+  | group_by(.event_type)
+  | map({type: .[0].event_type, count: length})
+'
+```
+
+## Development workflow
+
+If you're working from a clone of this repo, you can build locally:
+
+```bash
+go build -o json-file-sink ./cmd/json-file-sink
+
+token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   ./json-file-sink --out events.jsonl
-
-# Query the events
-cat events.jsonl | jq 'select(.asset.code == "USDC")'
-cat events.jsonl | jq -s 'group_by(.type) | map({type: .[0].type, count: length})'
 ```
 
 ## Features
 
-- **Simple**: No external dependencies
-- **Fast**: Buffered writes for performance
-- **Unix-friendly**: Reads from stdin, writes to file
-- **Portable**: Pure Go, works everywhere
+- **Simple**: no external dependencies
+- **Fast**: buffered writes for performance
+- **Unix-friendly**: reads from stdin, writes to a file
+- **Portable**: pure Go
 
-## Example Pipeline
+## Example pipeline
 
 ```bash
-# Count event types
-nebu run origin token-transfer --start 60200000 --end 60200001 | \
-  ./json-file-sink --out /tmp/events.jsonl
+token-transfer --start-ledger 60200000 --end-ledger 60200001 | \
+  json-file-sink --out /tmp/events.jsonl
 
-cat /tmp/events.jsonl | jq -s 'group_by(.type) | map({type: .[0].type, count: length})'
-# Output:
-# [
-#   {"type": "fee", "count": 1500},
-#   {"type": "transfer", "count": 126}
-# ]
+cat /tmp/events.jsonl | jq 'select(.transfer != null) | {
+  ledger: .meta.ledgerSequence,
+  from: .transfer.from,
+  to: .transfer.to,
+  amount: .transfer.amount,
+  asset: .transfer.assetCode
+}'
 ```
