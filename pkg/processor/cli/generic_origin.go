@@ -191,7 +191,7 @@ Examples:
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader)
+				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -222,7 +222,7 @@ Examples:
 	}
 }
 
-func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProcessor[T], rpcURL string, start, end uint32, authHeader string) error {
+func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -240,6 +240,7 @@ func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProce
 	defer src.Close()
 
 	rt := runtime.NewRuntime()
+	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 

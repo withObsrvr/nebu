@@ -167,7 +167,7 @@ func RunProtoOriginCLI[T proto.Message](
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCProto[T](ctx, origin, rpcURL, startLedger, endLedger, authHeader)
+				err = processFromRPCProto[T](ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -207,7 +207,7 @@ func RunProtoOriginCLI[T proto.Message](
 	}
 }
 
-func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOriginProcessor[T], rpcURL string, start, end uint32, authHeader string) error {
+func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -225,6 +225,7 @@ func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOrigi
 	defer src.Close()
 
 	rt := runtime.NewRuntime()
+	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 

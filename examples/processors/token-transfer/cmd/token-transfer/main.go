@@ -15,6 +15,7 @@ import (
 	token_transfer_processor "github.com/withObsrvr/nebu/examples/processors/token-transfer"
 	ttpb "github.com/withObsrvr/nebu/examples/processors/token-transfer/proto"
 	"github.com/withObsrvr/nebu/pkg/processor/cli"
+	"github.com/withObsrvr/nebu/pkg/runtime"
 )
 
 var version = "0.3.0"
@@ -25,6 +26,16 @@ func main() {
 		Description: "Stream token transfer events from Stellar ledgers (transfers, mints, burns, clawbacks, fees)",
 		Version:     version,
 		SchemaID:    "nebu.token_transfer.v1",
+
+		// Hooks: a single bundle that prints live ledger progress to
+		// stderr during long backfills. See progress.go for the
+		// implementation. Showing this here as a reference for how
+		// processor authors wire observability via the v0.6.1 hooks
+		// interface — drop in any [runtime.Hooks] bundle to plug in
+		// metrics, tracing, checkpoints, or anything else.
+		Hooks: []runtime.Hooks{
+			progressHook(),
+		},
 	}
 
 	cli.RunProtoOriginCLI(config, func(networkPass string) cli.ProtoOriginProcessor[*ttpb.TokenTransferEvent] {

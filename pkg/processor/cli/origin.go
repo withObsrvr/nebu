@@ -53,6 +53,17 @@ type OriginConfig struct {
 	// verbatim in the --describe-json output. Optional.
 	SchemaID string
 
+	// Hooks is a list of [runtime.Hooks] bundles to attach to the
+	// internal runtime before the pipeline starts. Each bundle is
+	// installed via [runtime.Runtime.Use] in the order it appears
+	// here, so independent concerns (metrics, tracing, progress
+	// bars, checkpointing) compose without manual merging.
+	//
+	// See docs/HOOKS.md for the full hook lifecycle and worked
+	// examples. Hooks are an unstable API; the surface may evolve
+	// before nebu 1.0.
+	Hooks []runtime.Hooks
+
 	// Optional rich help configuration
 	Help *HelpConfig
 }
@@ -180,7 +191,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader)
+				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -214,7 +225,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	}
 }
 
-func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string) error {
+func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -232,6 +243,7 @@ func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string,
 	defer src.Close()
 
 	rt := runtime.NewRuntime()
+	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
