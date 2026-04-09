@@ -53,6 +53,17 @@ type OriginConfig struct {
 	// verbatim in the --describe-json output. Optional.
 	SchemaID string
 
+	// Hooks is a list of [runtime.Hooks] bundles to attach to the
+	// internal runtime before the pipeline starts. Each bundle is
+	// installed via [runtime.Runtime.Use] in the order it appears
+	// here, so independent concerns (metrics, tracing, progress
+	// bars, checkpointing) compose without manual merging.
+	//
+	// See docs/HOOKS.md for the full hook lifecycle and worked
+	// examples. Hooks are an unstable API; the surface may evolve
+	// before nebu 1.0.
+	Hooks []runtime.Hooks
+
 	// Optional rich help configuration
 	Help *HelpConfig
 }
@@ -84,10 +95,18 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Determine input mode:
-			//   1. Explicit file argument or "-" for stdin
-			//   2. --start-ledger flag → RPC mode (takes priority over stdin detection)
-			//   3. Auto-detect piped stdin as fallback
+			// Check input mode. Resolution order:
+			//   1. Positional arg "-"        → explicit stdin
+			//   2. Positional arg <path>     → explicit file
+			//   3. --start-ledger N (N>0)    → explicit RPC mode
+			//   4. stdin is a non-tty pipe   → auto-detect stdin
+			//   5. (otherwise — error in validation below)
+			//
+			// Step 3 must come before step 4: in non-interactive
+			// shells (CI, scripts, cron jobs) stdin is often
+			// /dev/null, which is non-tty. Without this guard, the
+			// auto-detect would override explicit --start-ledger
+			// flags and fail with an EOF-decoding-XDR error.
 			var inputFile string
 			useStdin := false
 
@@ -97,10 +116,9 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				} else {
 					inputFile = args[0]
 				}
-			} else if startLedger > 0 {
-				// Explicit --start-ledger flag: use RPC mode
-			} else {
-				// No flags, no args: check if stdin is a pipe
+			} else if startLedger == 0 {
+				// No positional arg, no explicit RPC range — try to
+				// auto-detect a piped stdin source.
 				stat, _ := os.Stdin.Stat()
 				if (stat.Mode() & os.ModeCharDevice) == 0 {
 					useStdin = true
@@ -180,7 +198,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader)
+				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -214,7 +232,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	}
 }
 
-func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string) error {
+func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -232,6 +250,7 @@ func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string,
 	defer src.Close()
 
 	rt := runtime.NewRuntime()
+	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
