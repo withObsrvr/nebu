@@ -73,7 +73,7 @@
         # Package the nebu CLI and processors
         packages.default = pkgs.buildGoModule {
           pname = "nebu";
-          version = "0.5.0";
+          version = "0.6.0";
           src = ./.;
           vendorHash = null;
 

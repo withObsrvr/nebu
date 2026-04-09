@@ -1,0 +1,436 @@
+package processor // import "github.com/withObsrvr/nebu/pkg/processor"
+
+Package processor defines interfaces and types for nebu processors.
+
+Processors are the core building blocks of nebu pipelines. They come in three
+types:
+  - Origin: Consumes ledgers from Stellar and emits typed events
+  - Transform: Consumes typed events and emits transformed events
+  - Sink: Consumes typed events and produces side effects (DB writes, etc.)
+
+FUNCTIONS
+
+func ReportFatal(ctx context.Context, processorName string, err error)
+    ReportFatal is a convenience helper that reports an unrecoverable error
+    through the reporter attached to ctx. The runtime will halt the pipeline
+    after receiving a fatal report. Processors should return from their Process
+    method immediately after calling this.
+
+func ReportWarning(ctx context.Context, processorName string, err error)
+    ReportWarning is a convenience helper that reports a per-event error through
+    the reporter attached to ctx. The pipeline continues after this call.
+
+func WithReporter(ctx context.Context, r Reporter) context.Context
+    WithReporter returns a new context carrying the given reporter. The runtime
+    attaches a reporter before calling processor methods; tests should do the
+    same.
+
+
+TYPES
+
+type DescribeEnvelope struct {
+	// Name is the processor name. Matches the binary name and the
+	// registry entry name.
+	Name string `json:"name"`
+
+	// Type is one of "origin", "transform", or "sink" — matching
+	// [Type.String].
+	Type string `json:"type"`
+
+	// Version is the processor's reported version string (as set
+	// in OriginConfig/TransformConfig/SinkConfig). Optional.
+	Version string `json:"version,omitempty"`
+
+	// Description is a one-line human-readable summary.
+	Description string `json:"description,omitempty"`
+
+	// Schema describes the data the processor emits (and, for
+	// transforms and sinks, the data it consumes).
+	Schema DescribeSchema `json:"schema"`
+
+	// Flags lists the command-line flags the processor accepts.
+	// Derived automatically from the cobra flagset.
+	Flags []DescribeFlag `json:"flags,omitempty"`
+
+	// Examples lists representative command lines.
+	Examples []DescribeExample `json:"examples,omitempty"`
+}
+    DescribeEnvelope is the top-level JSON object that every processor binary
+    must emit when invoked with --describe-json. It is the machine-readable
+    protocol by which nebu and external consumers introspect a processor without
+    reading its source.
+
+    The envelope is part of the stable contract surface (see docs/STABILITY.md).
+    Field additions are permitted at any time; renames and removals require a
+    major version bump.
+
+    Consumers should be prepared for unknown fields: nebu may add non-required
+    fields in minor releases, and well-behaved parsers must ignore them rather
+    than fail.
+
+type DescribeExample struct {
+	Comment string `json:"comment,omitempty"`
+	Command string `json:"command"`
+}
+    DescribeExample is a representative command line with an optional
+    explanatory comment.
+
+type DescribeFlag struct {
+	// Name is the long flag name without the leading "--"
+	// (e.g., "start-ledger").
+	Name string `json:"name"`
+
+	// Type is the pflag type name ("string", "uint32", "bool",
+	// "stringSlice", etc.). Consumers can map these to their own
+	// type systems.
+	Type string `json:"type"`
+
+	// Required is true if the flag must be supplied for the
+	// processor to run.
+	Required bool `json:"required"`
+
+	// Description is the short usage string shown in --help.
+	Description string `json:"description,omitempty"`
+
+	// Default is the default value, rendered as a string by pflag.
+	// Omitted when empty.
+	Default string `json:"default,omitempty"`
+}
+    DescribeFlag describes a single command-line flag.
+
+type DescribeSchema struct {
+	// ID is the canonical schema identifier declared by the
+	// processor author (e.g., "nebu.token_transfer.v1"). When the
+	// processor output changes in an incompatible way the author
+	// bumps the version in the ID. Optional.
+	ID string `json:"id,omitempty"`
+
+	// Output is the JSON Schema of the events this processor emits.
+	// Always present for origins and transforms; omitted for sinks
+	// (which have no output).
+	Output map[string]any `json:"output,omitempty"`
+
+	// Input is the JSON Schema of the events this processor
+	// consumes. Omitted for origins (which consume raw ledgers, not
+	// events) and optional for transforms/sinks that accept any
+	// JSON-encodable input.
+	Input map[string]any `json:"input,omitempty"`
+}
+    DescribeSchema carries the processor's input and output schemas plus a
+    canonical identifier.
+
+    The Output and Input fields are raw JSON Schema documents (Draft 2020-12).
+    They are map[string]any rather than a typed struct so that the walker in
+    pkg/processor/jsonschema can produce them without any marshaling round-trip.
+
+type Emitter[T proto.Message] struct {
+	// Has unexported fields.
+}
+    Emitter is a helper that manages a typed output channel for processors.
+    It provides a simple abstraction over channels for emitting events.
+
+    Example usage:
+
+        type MyProcessor struct {
+            emitter *Emitter[*MyEvent]
+        }
+
+        func NewMyProcessor() *MyProcessor {
+            return &MyProcessor{
+                emitter: NewEmitter[*MyEvent](1024),
+            }
+        }
+
+        func (p *MyProcessor) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
+            event := &MyEvent{...}
+            p.emitter.Emit(event)
+            return nil
+        }
+
+        func (p *MyProcessor) Out() <-chan *MyEvent {
+            return p.emitter.Out()
+        }
+
+func NewEmitter[T proto.Message](bufSize int) *Emitter[T]
+    NewEmitter creates a new Emitter with the specified buffer size. A larger
+    buffer can help smooth over processing rate differences, but increases
+    memory usage.
+
+func (e *Emitter[T]) Close()
+    Close closes the output channel, signaling that no more events will be
+    emitted. Consumers will see the channel close when they drain all buffered
+    events.
+
+func (e *Emitter[T]) Emit(ev T)
+    Emit sends an event to the output channel. This will block if the channel
+    buffer is full.
+
+    Callers should check context cancellation when emitting in a loop:
+
+        select {
+        case <-ctx.Done():
+            return ctx.Err()
+        default:
+            emitter.Emit(event)
+        }
+
+func (e *Emitter[T]) Out() <-chan T
+    Out returns the read-only output channel for consuming emitted events.
+
+type ErrorReport struct {
+	// Processor is the name of the reporting processor (Processor.Name()).
+	Processor string
+
+	// Severity is the operational impact of the error.
+	Severity Severity
+
+	// Err is the underlying error. Wrapping is preserved; downstream
+	// reporters can unwrap with errors.Is / errors.As.
+	Err error
+
+	// EventID is an optional opaque hint identifying the failed event.
+	// Examples: "ledger 60200432", "tx abc123", "batch 47".
+	EventID string
+}
+    ErrorReport is a structured error observed during processing.
+
+    Reports are observability records, not event replay tools: a report carries
+    an opaque EventID hint identifying the failed event (e.g., "ledger 60200432"
+    or "tx abc123"), not a reference to the event itself. If you need to capture
+    failed events for reprocessing, write a sink that subscribes to warnings and
+    persists them.
+
+type Origin interface {
+	Processor
+
+	// ProcessLedger processes a single ledger and emits events via the
+	// processor's internal Emitter. The implementation must respect
+	// context cancellation and report errors through the Reporter
+	// attached to ctx (see [ReportWarning], [ReportFatal]).
+	ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)
+}
+    Origin processors consume LedgerCloseMeta from Stellar and emit typed
+    events.
+
+    Origin processors are the entry point for data into a nebu pipeline. They
+    typically wrap Stellar SDK processors (like token_transfer.EventsProcessor)
+    and convert raw ledger data into structured protobuf events.
+
+    # Error handling
+
+    ProcessLedger does not return an error. A pipeline that runs for hours over
+    millions of ledgers must not die because one ledger had a malformed field.
+    Per-ledger errors should be reported via ReportWarning and the method
+    should return normally; the pipeline will continue with the next ledger.
+    Unrecoverable errors (e.g., the processor has lost a required resource)
+    should be reported via ReportFatal and the method should return immediately;
+    the runtime will halt the pipeline.
+
+    Implementations should also respect context cancellation, returning as soon
+    as possible when ctx.Done() is observed.
+
+    Example implementation:
+
+        type TokenTransferOrigin struct {
+            name       string
+            eventsProc *token_transfer.EventsProcessor
+            emitter    *Emitter[*token_transfer.TokenTransferEvent]
+        }
+
+        func (o *TokenTransferOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
+            events, err := o.eventsProc.EventsFromLedger(ledger)
+            if err != nil {
+                processor.ReportWarning(ctx, o.name, fmt.Errorf("ledger %d: %w", ledger.LedgerSequence(), err))
+                return
+            }
+            for _, ev := range events {
+                select {
+                case <-ctx.Done():
+                    return
+                default:
+                    o.emitter.Emit(ev)
+                }
+            }
+        }
+
+type Processor interface {
+	// Name returns a unique identifier for this processor instance.
+	Name() string
+
+	// Type returns the type of this processor.
+	Type() Type
+}
+    Processor is the base interface that all nebu processors implement.
+
+type Reporter interface {
+	Report(ErrorReport)
+}
+    Reporter receives structured error reports from processors. Implementations
+    must be safe for concurrent use: processors may be called from multiple
+    goroutines simultaneously.
+
+func ReporterFrom(ctx context.Context) Reporter
+    ReporterFrom returns the reporter attached to ctx, or the package default
+    reporter if none is attached.
+
+    The default reporter logs warnings to stderr and exits the process on fatal
+    reports. This is the right behavior for standalone CLI mode: a warning
+    is a diagnostic; a fatal error should kill the binary. Runtime-managed
+    pipelines always attach their own reporter before calling into processors,
+    so the default is only used when a processor runs outside a runtime (or when
+    a caller forgot to wire one up).
+
+type ReporterFunc func(ErrorReport)
+    ReporterFunc is an adapter that allows using an ordinary function as a
+    Reporter. Useful in tests and simple wiring.
+
+func (f ReporterFunc) Report(r ErrorReport)
+    Report implements Reporter by invoking f.
+
+type Severity int
+    Severity describes the operational impact of a reported error.
+
+const (
+	// SeverityWarning reports a per-event error. The pipeline continues
+	// processing subsequent events. Use this for malformed input, skipped
+	// records, or any error that is specific to one event and does not
+	// threaten the health of the processor.
+	SeverityWarning Severity = iota
+
+	// SeverityFatal reports an unrecoverable error. The runtime will cancel
+	// the pipeline and return this error from its Run method. Processors
+	// should return from their Process method immediately after calling
+	// ReportFatal; continuing to emit events after a fatal report is
+	// undefined behavior.
+	SeverityFatal
+)
+func (s Severity) String() string
+    String returns a human-readable name for the severity.
+
+type Sink interface {
+	Processor
+
+	// WriteEvent writes a single event to the sink's external destination.
+	// The implementation must respect context cancellation, type-assert
+	// the input event to its expected concrete type, and report errors
+	// through the Reporter attached to ctx (see [ReportWarning],
+	// [ReportFatal]).
+	WriteEvent(ctx context.Context, event proto.Message)
+}
+    Sink processors consume typed events and produce external side effects.
+
+    Sinks are the terminal nodes of a pipeline: they write to databases, files,
+    message buses, or other external systems. Unlike Transform processors,
+    Sinks do not emit events to downstream processors.
+
+    Sinks that hold resources (database connections, file handles, network
+    clients) should additionally implement io.Closer so the runtime can release
+    them during graceful shutdown.
+
+    # Error handling
+
+    WriteEvent does not return an error. Per-event write failures (a bad row,
+    a serialization error) should be reported via ReportWarning and the method
+    should return normally; the pipeline will continue with the next event.
+    Failures that leave the sink unable to write anything further (a dropped
+    database connection that cannot be re-established) should be reported via
+    ReportFatal and the method should return immediately.
+
+    Example implementation:
+
+        type JSONFileSink struct {
+            name string
+            enc  *json.Encoder
+        }
+
+        func (s *JSONFileSink) Name() string         { return s.name }
+        func (s *JSONFileSink) Type() processor.Type { return processor.TypeSink }
+
+        func (s *JSONFileSink) WriteEvent(ctx context.Context, event proto.Message) {
+            select {
+            case <-ctx.Done():
+                return
+            default:
+            }
+            if err := s.enc.Encode(event); err != nil {
+                processor.ReportWarning(ctx, s.name, err)
+            }
+        }
+
+type Transform interface {
+	Processor
+
+	// ProcessEvent processes a single input event. The implementation
+	// must respect context cancellation, type-assert the input event
+	// to its expected concrete type, and report errors through the
+	// Reporter attached to ctx (see [ReportWarning], [ReportFatal]).
+	// Transformed output is written to the implementation's internal
+	// Emitter.
+	ProcessEvent(ctx context.Context, event proto.Message)
+}
+    Transform processors consume typed events and emit transformed events.
+
+    Transform processors sit between origins and sinks in a pipeline. They
+    filter, enrich, deduplicate, aggregate, or otherwise reshape an event stream
+    without producing external side effects.
+
+    Implementations typically hold an Emitter[T] of their output type and write
+    transformed events to it from ProcessEvent. Because the input type varies by
+    upstream processor, ProcessEvent accepts proto.Message and implementations
+    are expected to type-assert to their concrete input type.
+
+    # Error handling
+
+    ProcessEvent does not return an error. Per-event errors (a malformed input,
+    an unexpected type) should be reported via ReportWarning and the method
+    should return normally; the pipeline will continue with the next event.
+    Unrecoverable errors should be reported via ReportFatal and the method
+    should return immediately.
+
+    Example implementation:
+
+        type USDCFilter struct {
+            name    string
+            emitter *processor.Emitter[*ttpb.TokenTransferEvent]
+        }
+
+        func (f *USDCFilter) Name() string         { return f.name }
+        func (f *USDCFilter) Type() processor.Type { return processor.TypeTransform }
+
+        func (f *USDCFilter) ProcessEvent(ctx context.Context, event proto.Message) {
+            ev, ok := event.(*ttpb.TokenTransferEvent)
+            if !ok {
+                processor.ReportWarning(ctx, f.name,
+                    fmt.Errorf("unexpected event type %T", event))
+                return
+            }
+            if isUSDC(ev) {
+                select {
+                case <-ctx.Done():
+                    return
+                default:
+                    f.emitter.Emit(ev)
+                }
+            }
+        }
+
+        func (f *USDCFilter) Out() <-chan *ttpb.TokenTransferEvent {
+            return f.emitter.Out()
+        }
+
+type Type int
+    Type represents the type of processor.
+
+const (
+	// TypeOrigin processors consume LedgerCloseMeta and emit events.
+	TypeOrigin Type = iota
+
+	// TypeTransform processors consume events and emit transformed events.
+	TypeTransform
+
+	// TypeSink processors consume events and produce side effects.
+	TypeSink
+)
+func (t Type) String() string
+    String returns a human-readable name for the processor type.
+

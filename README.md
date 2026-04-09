@@ -1,39 +1,49 @@
 # nebu
 
-**Query live Stellar data with one command.**
+**A toolkit for building Stellar indexers.** Unix pipes meet a stable Go contract surface.
 
-Unix pipes for blockchain indexing. No complex infrastructure required.
+nebu (pronounced "neh-buh") is two things in one repo:
 
-nebu (pronounced "neh-buh") streams Stellar ledger data through composable processors. Pipe to `jq` for filtering, `duckdb` for SQL analytics, or build custom pipelines with tools you already know.
+1. A small, **stable Go contract** ([`pkg/processor`](./pkg/processor) and [`pkg/source`](./pkg/source)) that anyone can implement to write a Stellar processor — origin, transform, or sink. External processors live in their own Go modules and depend only on this contract; they get a CLI, a JSON-schema-emitting `--describe-json` protocol, and runtime observability hooks for free.
+2. A **CLI and a set of reference processors** for users who just want to query live Stellar data, pipe events through `jq` / `duckdb`, and chain pipelines without writing any Go.
+
+The reference processors in [`examples/processors/`](./examples/processors/) are exemplars, not the "real" nebu — the real nebu is the contract. Build your own processor against `pkg/processor`, ship it as its own binary, register it via [`description.yml`](./docs/REGISTRY_SPEC.md) in any Git repo, and `nebu install your-processor` works.
 
 Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries data from the on-chain truth to your applications.
 
+## Two ways in
+
+**I want to build a custom processor →**
+The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, `Reporter`) and [`pkg/source`](./pkg/source) (`LedgerSource`). Both are committed-stable per [docs/STABILITY.md](./docs/STABILITY.md), enforced by a CI check against committed API snapshots in [`.api/`](./.api/). The full proto-first walkthrough lives in the registry repo: [BUILDING_PROTO_PROCESSORS.md](https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md). For runtime extensibility (metrics, tracing, progress bars, agent gating), see [docs/HOOKS.md](./docs/HOOKS.md).
+
+**I want to query Stellar data →** Jump to [Quick Start](#quick-start) below. You'll have JSON events streaming in two minutes.
+
 ## Status
 
-🚀 **v0.5.0** — Introspectable toolkit: stable contract surface, streams-never-throw, and machine-readable processor schemas
+🚀 **v0.6.0** — Runtime observability hooks for metrics, tracing, and agent intervention; building on the v0.5.0 stable contract surface and `--describe-json` introspection protocol.
 
-**What's new in v0.5.0:**
-- **Stable contract surface** — [`pkg/processor`](./pkg/processor), [`pkg/source`](./pkg/source), `registry.yaml` v1, and the `--describe-json` protocol are now committed-stable. See [docs/STABILITY.md](./docs/STABILITY.md).
+**What's new in v0.6.0:**
+- **Runtime hooks** — `Runtime.Use(Hooks{...})` lets external code observe pipeline lifecycle events: `OnStart`, `BeforeLedger`, `AfterLedger`, `OnWarning`, `OnFatal`, `OnEnd`. Drop-in metrics, tracing, progress bars, checkpointing, rate limiting, and agent-driven control flow without owning the runtime loop. See [docs/HOOKS.md](./docs/HOOKS.md).
+- **Fatal-priority preemption** — when a processor reports a fatal error, the runtime now halts deterministically on the next loop iteration instead of racing the buffered ledger queue. Surprising old behavior: a fatal report with N buffered ledgers ahead could still drain several of them before halting.
+- **CI check for contract drift** — `make api-check` (also wired into [`.github/workflows/api-stability.yml`](./.github/workflows/api-stability.yml)) compares `pkg/processor` and `pkg/source` against committed snapshots in [`.api/`](./.api/) and fails the build on unexplained drift. The lightweight enforcement layer for [docs/STABILITY.md](./docs/STABILITY.md).
+
+**Carried over from v0.5.0:**
+- **Stable contract surface** — [`pkg/processor`](./pkg/processor), [`pkg/source`](./pkg/source), `registry.yaml` v1, and the `--describe-json` protocol are committed-stable. See [docs/STABILITY.md](./docs/STABILITY.md).
 - **`--describe-json` protocol** — every processor binary emits a machine-readable envelope with its JSON Schema, flags, and examples. `nebu describe <name>` merges this with registry metadata, and `nebu describe <name> --schema` pipes the raw JSON Schema into validators.
 - **Streams-never-throw** — `Origin.ProcessLedger`, `Transform.ProcessEvent`, and `Sink.WriteEvent` return void. Per-ledger errors flow through `processor.ReportWarning` and the pipeline continues; 10M-event runs no longer die on one malformed event.
-- **Transform and Sink interfaces** — formalized in `pkg/processor` alongside `Origin`. The package doc no longer lies about having three types.
-- **`pkg/source` split** — `LedgerSource` interface lives in a dep-free root package; concrete implementations moved to `pkg/source/rpc` and `pkg/source/storage`. External processor authors no longer drag in the AWS SDK just to satisfy the interface.
+- **Transform and Sink interfaces** formalized in `pkg/processor` alongside `Origin`.
+- **`pkg/source` split** — `LedgerSource` interface in a dep-free root package; concrete implementations in `pkg/source/rpc` / `pkg/source/storage`. External processor authors no longer drag in the AWS SDK just to satisfy the interface.
 - **Registry spec** — [docs/REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) formally defines `registry.yaml` v1 and the `description.yml` v1 external-registry format.
 
-**What's included:**
-- **CLI & Fetch**: `nebu fetch` for streaming XDR from RPC or historical archives (GCS/S3)
-- **Origin Processors**: `token-transfer`, `contract-events`, `contract-invocation` - extract typed events from ledgers
-- **Transform Processors**: `usdc-filter`, `amount-filter`, `dedup`, `time-window` - filter and transform event streams
-- **Sink Processors**: `json-file-sink`, `nats-sink`, `postgres-sink` - route events to storage or message queues
-- **Registry System**: `nebu list`, `nebu describe`, and `nebu install` for processor discovery, introspection, and installation
-- **Archive Mode**: Fetch historical data from Google Cloud Storage for backfilling
-- **Authentication**: Premium RPC endpoint support with `NEBU_RPC_AUTH`
-- **Follow Mode**: Live-streaming with `--follow` (like `tail -f`)
+**Reference processors shipped in this repo (examples, not product):**
+- **Origins**: [`token-transfer`](./examples/processors/token-transfer), [`contract-events`](./examples/processors/contract-events), [`contract-invocation`](./examples/processors/contract-invocation)
+- **Transforms**: [`usdc-filter`](./examples/processors/usdc-filter), [`amount-filter`](./examples/processors/amount-filter), [`dedup`](./examples/processors/dedup), [`time-window`](./examples/processors/time-window)
+- **Sinks**: [`json-file-sink`](./examples/processors/json-file-sink), [`nats-sink`](./examples/processors/nats-sink), [`postgres-sink`](./examples/processors/postgres-sink)
 
 **Coming next:**
-- Runtime hooks (`BeforeProcess`/`AfterProcess`/`OnCheckpoint`) for metrics, tracing, and agent-driven intervention
 - Serializable pipeline descriptors (IndexDescriptor) as the canonical hand-off format between nebu and AI agents
 - Presets catalog of well-known ledger ranges, contract IDs, and pipeline templates
+- Contract module extraction (`pkg/processor` → `nebu-api`) — deferred until external demand justifies the migration cost
 
 ## Quick Start
 
@@ -74,7 +84,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.4.0","meta":{"ledgerSequence":60200000,"closedAt":"2025-12-08T01:45:11Z","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","asset":{"issuedAsset":{"assetCode":"USDC","issuer":"GA..."}},"amount":"1000000"}}
+{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.6.0","meta":{"ledgerSequence":60200000,"closedAt":"2025-12-08T01:45:11Z","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","asset":{"issuedAsset":{"assetCode":"USDC","issuer":"GA..."}},"amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**

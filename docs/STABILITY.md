@@ -15,6 +15,20 @@ This document says what is and is not covered by that commitment. If you're writ
 
 **"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver. As of the streams-never-throw landing (see below), **no further breaking changes to the stable surface are planned before 1.0**.
 
+### Enforcement
+
+The promises above are mechanically enforced by a CI check ([`.github/workflows/api-stability.yml`](../.github/workflows/api-stability.yml)) that runs on every pull request touching `pkg/processor` or `pkg/source`. The check compares the live `go doc -all` output of each stable package against committed snapshots in [`.api/`](../.api/) and fails if they differ.
+
+When the check fails, the PR diff shows exactly which symbol or signature changed. The expected workflow on intentional contract changes is:
+
+1. Verify the change is acceptable per this document.
+2. Run `make api-snapshot` locally to regenerate the snapshots.
+3. Commit the updated `.api/` files alongside the code change.
+
+The reviewer then sees both the code change and the snapshot diff in the PR, giving a clear "this PR is moving the contract surface" signal that's hard to miss in code review.
+
+This is the lightweight enforcement layer until a future release where `pkg/processor` may be extracted into its own Go module (which would let semver itself enforce contract stability). Until then, the snapshot check is the substitute.
+
 ## Error handling: streams-never-throw
 
 `Origin.ProcessLedger`, `Transform.ProcessEvent`, and `Sink.WriteEvent` do not return `error`. The previous behavior — halt the pipeline on the first error — was the wrong default for indexing jobs that run for hours over millions of ledgers: one malformed event shouldn't kill the whole run.
