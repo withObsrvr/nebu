@@ -37,31 +37,18 @@ func main() {
 
 // filterUSDC filters events to only include USDC transfers.
 // Returns the event if it's a USDC transfer, nil otherwise.
+//
+// token-transfer emits protojson with asset code/issuer flattened
+// directly onto the transfer payload (transfer.assetCode,
+// transfer.assetIssuer) — not nested under an asset.issuedAsset
+// object. Walk the flat shape.
 func filterUSDC(event map[string]interface{}) map[string]interface{} {
-	// Check if this is a transfer event (protojson format)
 	transfer, ok := event["transfer"].(map[string]interface{})
 	if !ok {
-		return nil // Filter out non-transfer events
+		return nil // Not a transfer event.
 	}
-
-	// Get the asset object
-	asset, ok := transfer["asset"].(map[string]interface{})
-	if !ok {
-		return nil
+	if code, _ := transfer["assetCode"].(string); code != "USDC" {
+		return nil // Not USDC.
 	}
-
-	// Check for issued asset (not native)
-	issuedAsset, ok := asset["issuedAsset"].(map[string]interface{})
-	if !ok {
-		return nil // Not an issued asset
-	}
-
-	// Check if the asset code is USDC
-	assetCode, ok := issuedAsset["assetCode"].(string)
-	if !ok || assetCode != "USDC" {
-		return nil // Filter out non-USDC events
-	}
-
-	// This is a USDC transfer - pass it through
 	return event
 }
