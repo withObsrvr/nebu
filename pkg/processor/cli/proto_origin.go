@@ -54,7 +54,18 @@ func RunProtoOriginCLI[T proto.Message](
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Check input mode
+			// Check input mode. Resolution order:
+			//   1. Positional arg "-"        → explicit stdin
+			//   2. Positional arg <path>     → explicit file
+			//   3. --start-ledger N (N>0)    → explicit RPC mode
+			//   4. stdin is a non-tty pipe   → auto-detect stdin
+			//   5. (otherwise — error in validation below)
+			//
+			// Step 3 must come before step 4: in non-interactive
+			// shells (CI, scripts, cron jobs) stdin is often
+			// /dev/null, which is non-tty. Without this guard, the
+			// auto-detect would override explicit --start-ledger
+			// flags and fail with an EOF-decoding-XDR error.
 			var inputFile string
 			useStdin := false
 
@@ -64,8 +75,9 @@ func RunProtoOriginCLI[T proto.Message](
 				} else {
 					inputFile = args[0]
 				}
-			} else {
-				// Auto-detect stdin
+			} else if startLedger == 0 {
+				// No positional arg, no explicit RPC range — try to
+				// auto-detect a piped stdin source.
 				stat, _ := os.Stdin.Stat()
 				if (stat.Mode() & os.ModeCharDevice) == 0 {
 					useStdin = true

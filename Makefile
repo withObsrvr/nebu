@@ -1,5 +1,17 @@
 .PHONY: all test build lint clean fmt vet build-cli install gen-protos build-processors test-integration api-snapshot api-check
 
+# Force bash for all recipes. The api-check target uses process
+# substitution (diff -u file <(cmd)), which is a bash extension and
+# not supported by POSIX /bin/sh — Ubuntu's default sh is dash, which
+# would otherwise fail with "Syntax error: '(' unexpected" when CI
+# spawns recipes with /bin/sh.
+#
+# Resolve bash via PATH at make-parse time so this works both in
+# nix dev shells (bash lives in /nix/store/...) and in standard
+# Linux/CI environments (bash at /bin/bash). Falls back to /bin/bash
+# if 'which' fails for any reason.
+SHELL := $(shell command -v bash 2>/dev/null || echo /bin/bash)
+
 # Version information
 VERSION ?= 0.6.1
 LDFLAGS = -X github.com/withObsrvr/nebu/pkg/version.Version=$(VERSION)
