@@ -16,6 +16,12 @@ import "runtime/debug"
 // value regardless of how the binary was produced.
 var Version = "dev"
 
+// nebuModulePath is the canonical Go module path for the nebu module.
+// It's used in init to pick the correct version out of runtime build
+// info when this package is compiled into a binary whose main module
+// is NOT nebu (e.g., a processor submodule under examples/processors).
+const nebuModulePath = "github.com/withObsrvr/nebu"
+
 func init() {
 	if Version != "dev" {
 		return // ldflags injected a concrete value; keep it
@@ -24,8 +30,30 @@ func init() {
 	if !ok {
 		return
 	}
-	if v := info.Main.Version; v != "" && v != "(devel)" {
-		Version = v
+
+	// Case 1: compiled into the nebu main module itself (e.g., the
+	// nebu CLI at cmd/nebu). info.Main.Version is the nebu version.
+	if info.Main.Path == nebuModulePath {
+		if v := info.Main.Version; v != "" && v != "(devel)" {
+			Version = v
+		}
+		return
+	}
+
+	// Case 2: compiled into a submodule (e.g., a processor binary
+	// like token-transfer under examples/processors/). info.Main
+	// holds the submodule's own pseudo-version, which is not what
+	// we want — consumers of version.Version (including the
+	// _nebu_version field every origin CLI helper writes into the
+	// event envelope) expect the nebu release version. Scan Deps
+	// for the actual nebu module entry.
+	for _, dep := range info.Deps {
+		if dep.Path == nebuModulePath {
+			if v := dep.Version; v != "" && v != "(devel)" {
+				Version = v
+			}
+			return
+		}
 	}
 }
 

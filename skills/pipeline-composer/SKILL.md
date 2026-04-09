@@ -77,11 +77,11 @@ The `--describe-json` envelope contains:
 
 7. **Verify.** After the run completes, check the stderr summaries (each stage reports its event counts) and the sink's output file/table.
 
-## Worked example: USDC transfers over 10k XLM, written to JSONL
+## Worked example: USDC transfers of 10 USDC or more, written to JSONL
 
 This is the canonical walkthrough. Adapt it to other assets/filters/sinks.
 
-**Goal:** Capture every USDC transfer of 10 XLM (100,000,000 stroops) or more from ledgers 60200000–60200100 on mainnet, stored as JSONL.
+**Goal:** Capture every USDC transfer of 10 USDC (100,000,000 stroops — Stellar assets have 7 decimal places) or more from ledgers 60200000–60200100 on mainnet, stored as JSONL.
 
 ### Step 1: Discover
 
@@ -162,8 +162,8 @@ Origins like `token-transfer` wire a progress hook that prints to stderr *only w
 ## Handoffs
 
 - **User wants a new processor** (their extraction/filter/sink logic doesn't exist yet) → stop and invoke `nebu-processor-builder` (planned; for now point them at `skills/nebu-processor-builder/` in the `nebu-processor-registry` repo).
-- **User wants a long-running production deployment** → nebu pipelines are the prototype; they graduate to [flowctl](./docs/GRADUATING_TO_FLOWCTL.md) for managed scheduling, checkpointing, and restart.
-- **User wants observability beyond stderr** → see [`docs/HOOKS.md`](./docs/HOOKS.md) for the runtime hooks interface (progress, metrics, tracing).
+- **User wants a long-running production deployment** → nebu pipelines are the prototype; they graduate to [flowctl](../../docs/FLOWCTL_INTEGRATION.md) for managed scheduling, checkpointing, and restart.
+- **User wants observability beyond stderr** → see [`../../docs/HOOKS.md`](../../docs/HOOKS.md) for the runtime hooks interface (progress, metrics, tracing).
 - **User's pipeline fails with "XDR decode error"** — most common cause is piping into an origin that also has `--start-ledger` set. Drop one or the other.
 
 ## Output contract
