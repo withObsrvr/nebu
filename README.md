@@ -20,11 +20,15 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 
 ## Status
 
-🚀 **v0.6.2** — Install experience fixes: `go install` for in-tree processors now works from a clean environment, `nebu --version` reports the real version even without ldflags, and `nebu install` errors now surface the underlying compiler output. Also introduces the first Claude Code skill ([`skills/pipeline-composer`](./skills/pipeline-composer/SKILL.md)) for agent-driven pipeline composition.
+🚀 **v0.6.3** — Closes the `_nebu_version` loop from the v0.6.2 install fix. Every reference processor's `go.mod` is now pinned to `github.com/withObsrvr/nebu v0.6.2`, so processor binaries installed via `go install` (without ldflags) correctly report `_nebu_version: "v0.6.2"` in their event envelopes via the runtime build-info fallback introduced in v0.6.2.
 
-**What's new in v0.6.2:**
-- **`go install` for in-tree processors is unblocked** — every reference processor's `go.mod` previously pinned a pre-v0.5 pseudo-version of `github.com/withObsrvr/nebu` that predated `processor.ReportWarning`. Local `make build-processors` worked because of `go.work`, but users trying `go install github.com/withObsrvr/nebu/examples/processors/<name>/cmd/<name>@latest` from a clean environment hit `undefined: processor.ReportWarning`. All 10 reference processors are now pinned to `v0.6.1` in their `go.mod` files, matching the actual code contract they use.
-- **`nebu --version` shows the real version from runtime build info** — when nebu is installed via plain `go install` (no ldflags), the binary now reads `runtime/debug.ReadBuildInfo()` at startup and reports the module version recorded by the Go toolchain instead of the literal `"dev"` placeholder.
+**What's new in v0.6.3:**
+- **`_nebu_version` envelope field now resolves correctly for `go install`-ed processors** — v0.6.2 introduced a `runtime/debug.ReadBuildInfo()` fallback in `pkg/version` that scans the compiled-in dep list for the nebu module version when ldflags aren't set. It didn't take effect in v0.6.2 itself because the reference processors still pinned nebu `v0.6.1`, which predates the fallback code. v0.6.3 bumps all 10 reference processors to pin `v0.6.2`, so a fresh `nebu install token-transfer` (or any other processor) now produces events with `_nebu_version: "v0.6.2"` instead of the stale `"dev"` placeholder.
+- **No other code changes.** This is a pinning-only release that closes the tail of v0.6.2's install-experience work.
+
+**Carried over from v0.6.2:**
+- **`go install` for in-tree processors is unblocked** — every reference processor's `go.mod` (previously pinned to a pre-v0.5 pseudo-version that predated `processor.ReportWarning`) is now a valid, published nebu version. `go install github.com/withObsrvr/nebu/examples/processors/<name>/cmd/<name>@latest` works from a clean environment, and `nebu install <name>` (which delegates to `go install` internally) works end-to-end.
+- **`nebu --version` shows the real version from runtime build info** — when nebu is installed via plain `go install` (no ldflags), the binary reads `runtime/debug.ReadBuildInfo()` at startup and reports the module version recorded by the Go toolchain instead of the literal `"dev"` placeholder.
 - **`nebu install` surfaces the underlying `go install` output** — when installation fails, the wrapped nebu error now embeds the captured stderr from the subprocess (between explicit `--- go install output ---` markers), so the real compiler diagnostic is self-contained even in CI / log-forwarded contexts.
 - **`usdc-filter` dead-code fix** — the filter was walking a nested `transfer.asset.issuedAsset.assetCode` path that doesn't exist in real protojson output, so it silently dropped 100% of events. Now walks the flat `transfer.assetCode` correctly.
 - **Claude Code skills catalog** — new root [`SKILL.md`](./SKILL.md) index and [`skills/pipeline-composer/SKILL.md`](./skills/pipeline-composer/SKILL.md) skill that teaches agents to compose Stellar ledger pipelines from the installed catalog via `nebu list` + `--describe-json`, with a full worked USDC-transfers example and the common pitfalls documented inline.
@@ -91,7 +95,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token-transfer.v1","_nebu_version":"0.6.2","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
+{"_schema":"nebu.token-transfer.v1","_nebu_version":"v0.6.2","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**

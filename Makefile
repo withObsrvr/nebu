@@ -13,7 +13,7 @@
 SHELL := $(shell command -v bash 2>/dev/null || echo /bin/bash)
 
 # Version information
-VERSION ?= 0.6.2
+VERSION ?= 0.6.3
 LDFLAGS = -X github.com/withObsrvr/nebu/pkg/version.Version=$(VERSION)
 
 all: test build

@@ -4,7 +4,7 @@ go 1.25.4
 
 require (
 	github.com/spf13/cobra v1.10.2
-	github.com/withObsrvr/nebu v0.6.1
+	github.com/withObsrvr/nebu v0.6.2
 	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.11
 )
