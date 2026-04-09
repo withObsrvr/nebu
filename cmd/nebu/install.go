@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -136,16 +138,23 @@ func installProcessorLocal(name, processorPath, installPath string) error {
 	return nil
 }
 
-// installProcessorModule installs a processor using go install
+// installProcessorModule installs a processor using go install.
+//
+// We mirror `go install`'s stderr to both the live terminal and a
+// buffer so (a) users watching interactively still see the compiler
+// output as it streams, and (b) the buffer contents can be attached
+// to the wrapped error for log-forwarded / CI contexts where the
+// live stderr may be truncated or separated from the error message.
 func installProcessorModule(name, modulePackage, installPath string) error {
 	logInfo("Running: go install %s@latest", modulePackage)
 
+	var stderrBuf bytes.Buffer
 	cmd := exec.Command("go", "install", modulePackage+"@latest")
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
 	if err := cmd.Run(); err != nil {
-		return nebuErrors.InstallFailed(name, err)
+		return nebuErrors.InstallFailedWithOutput(name, err, stderrBuf.String())
 	}
 
 	installedPath := filepath.Join(installPath, name)

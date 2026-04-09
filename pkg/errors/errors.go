@@ -281,8 +281,22 @@ func BuildFailed(name string, err error) *NebuError {
 
 // InstallFailed returns an error for processor installation failures.
 func InstallFailed(name string, err error) *NebuError {
+	return InstallFailedWithOutput(name, err, "")
+}
+
+// InstallFailedWithOutput returns an installation-failure error that
+// includes captured output from the underlying `go install` invocation.
+// Prefer this over [InstallFailed] when the caller can capture the
+// subprocess output — the raw compiler/linker diagnostics are nearly
+// always what the user actually needs to see, and they can otherwise
+// get truncated or swallowed by downstream log forwarders / CI runners.
+func InstallFailedWithOutput(name string, err error, output string) *NebuError {
+	msg := fmt.Sprintf("Failed to install processor '%s': %v", name, err)
+	if trimmed := strings.TrimSpace(output); trimmed != "" {
+		msg += "\n\n--- go install output ---\n" + trimmed + "\n--- end go install output ---"
+	}
 	return &NebuError{
-		Message: fmt.Sprintf("Failed to install processor '%s': %v", name, err),
+		Message: msg,
 		Suggestion: `Check that:
   - You have write permission to $GOPATH/bin
   - The module path is correct
