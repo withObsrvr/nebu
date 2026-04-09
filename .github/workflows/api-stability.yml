@@ -1,0 +1,49 @@
+name: API stability
+
+# Verify that the public API of nebu's stable surfaces (pkg/processor
+# and pkg/source) has not drifted from the committed snapshots in
+# .api/. This is the lightweight enforcement layer for the stability
+# policy in docs/STABILITY.md.
+#
+# When this check fails, the PR author has changed an exported symbol,
+# method signature, type, or doc comment in a stable package without
+# regenerating the snapshot. The fix is one of:
+#
+#   1. If the change is unintentional, revert it.
+#   2. If the change is intentional and acceptable per the stability
+#      policy, run `make api-snapshot` locally and commit the updated
+#      .api/ files alongside the code change. The PR diff will then
+#      show exactly which symbol changed, giving reviewers a clear
+#      signal that the contract surface moved.
+
+on:
+  pull_request:
+    paths:
+      - 'pkg/processor/**'
+      - 'pkg/source/**'
+      - '.api/**'
+      - 'Makefile'
+      - '.github/workflows/api-stability.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'pkg/processor/**'
+      - 'pkg/source/**'
+      - '.api/**'
+
+jobs:
+  api-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Verify stable API snapshots
+        run: make api-check
