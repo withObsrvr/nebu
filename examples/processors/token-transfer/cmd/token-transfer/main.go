@@ -30,7 +30,7 @@ func main() {
 		// Hooks: a single bundle that prints live ledger progress to
 		// stderr during long backfills. See progress.go for the
 		// implementation. Showing this here as a reference for how
-		// processor authors wire observability via the v0.6.1 hooks
+		// processor authors wire observability via the v0.6.0 hooks
 		// interface — drop in any [runtime.Hooks] bundle to plug in
 		// metrics, tracing, checkpoints, or anything else.
 		Hooks: []runtime.Hooks{

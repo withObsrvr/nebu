@@ -4,7 +4,7 @@ go 1.25.4
 
 require (
 	github.com/stellar/go-stellar-sdk v0.5.0
-	github.com/withObsrvr/nebu v0.0.0-20251220140929-61e9fa85d21a
+	github.com/withObsrvr/nebu v0.6.1
 	google.golang.org/protobuf v1.36.11
 )
 
