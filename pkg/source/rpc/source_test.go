@@ -64,7 +64,6 @@ func TestRPCLedgerSource_InvalidRange(t *testing.T) {
 		end   uint32
 	}{
 		{"zero start", 0, 100},
-		{"zero end", 100, 0},
 		{"both zero", 0, 0},
 		{"start > end", 100, 50},
 	}
@@ -77,6 +76,35 @@ func TestRPCLedgerSource_InvalidRange(t *testing.T) {
 			assert.Error(t, err, "expected error for invalid range")
 		})
 	}
+}
+
+func TestRPCLedgerSource_Unbounded(t *testing.T) {
+	src, err := NewLedgerSource("https://archive-rpc.lightsail.network")
+	require.NoError(t, err)
+	defer src.Close()
+
+	ch := make(chan xdr.LedgerCloseMeta, 10)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		_ = src.Stream(ctx, 60200000, 0, ch)
+	}()
+
+	count := 0
+	for range ch {
+		count++
+		if count == 2 {
+			cancel()
+			break
+		}
+	}
+
+	for range ch {
+		count++
+	}
+
+	assert.GreaterOrEqual(t, count, 1, "unbounded stream should yield ledgers before cancellation")
 }
 
 func TestRPCLedgerSource_Cancellation(t *testing.T) {

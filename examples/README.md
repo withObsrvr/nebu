@@ -1,92 +1,79 @@
 # nebu Examples
 
-This directory contains working examples demonstrating how to use nebu to build Stellar data pipelines.
+This directory contains runnable examples for building Stellar data pipelines with nebu.
 
 ## Running Examples
 
-All examples can be run directly with `go run`:
+Run the shipped example directly:
 
 ```bash
 go run examples/simple_origin/main.go
 ```
 
-Or use the Makefile shortcut:
+Or via Make:
 
 ```bash
 make run-example
 ```
 
-## Examples
+## Included Example
 
-### `simple_origin` - Counting Origin Processor
+### `simple_origin` — Counting Origin Processor
 
-**What it demonstrates:**
-- Creating an RPC ledger source
-- Implementing a basic origin processor
-- Using the runtime to wire source → processor
-- Processing a bounded range of ledgers
-- Graceful shutdown on Ctrl+C
+This example demonstrates:
+- creating an RPC-backed ledger source
+- implementing a basic `processor.Origin`
+- wiring source → runtime → processor
+- processing a bounded ledger range
+- graceful shutdown on Ctrl+C
 
-**Code walkthrough:**
+### Core shape
 
-1. **Define your processor** - Implement the `processor.Origin` interface:
-   ```go
-   type CountingOrigin struct {
-       count int
-   }
+Implement `processor.Origin`:
 
-   func (o *CountingOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
-       o.count++
-       fmt.Printf("Processed ledger %d\n", ledger.LedgerSequence())
-       return nil
-   }
-   ```
+```go
+type CountingOrigin struct {
+    count int
+}
 
-2. **Create the source** - Connect to Stellar RPC:
-   ```go
-   src, err := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
-   defer src.Close()
-   ```
+func (o *CountingOrigin) Name() string { return "counting-origin" }
+func (o *CountingOrigin) Type() processor.Type { return processor.TypeOrigin }
 
-3. **Wire and run** - Use the runtime:
-   ```go
-   rt := runtime.NewRuntime()
-   rt.RunOrigin(ctx, src, origin, 60200000, 60200009)
-   ```
-
-**Run it:**
-```bash
-go run examples/simple_origin/main.go
+func (o *CountingOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
+    o.count++
+    fmt.Printf("Processed ledger %d\n", ledger.LedgerSequence())
+}
 ```
 
-**Environment variables:**
-- `NEBU_RPC_URL` - Override the RPC endpoint (default: mainnet)
+Create the source:
 
-## Coming Soon
+```go
+src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
+if err != nil {
+    panic(err)
+}
+defer src.Close()
+```
 
-### `token_transfers` - Token Transfer Events
-- Stream token transfer events using Stellar's token_transfer processor
-- Filter by asset type
-- Emit structured protobuf events
+Run it with the runtime:
 
-### `event_emitter` - Using the Emitter Helper
-- Demonstrate the `Emitter[T]` pattern
-- Consume events from an origin processor
-- Pipeline multiple processors
+```go
+rt := runtime.NewRuntime()
+err = rt.RunOrigin(ctx, src, origin, 60200000, 60200009)
+```
 
-### `custom_sink` - Writing to External Systems
-- Consume events and write to a database
-- Batch processing
-- Error handling and retry logic
+### Environment variables
+
+- `NEBU_RPC_URL` — override the default RPC endpoint
 
 ## Building Your Own
 
-To build your own processor:
+General guidelines:
 
-1. **Implement the interface** - Origin, Transform, or Sink
-2. **Handle context cancellation** - Respect `ctx.Done()`
-3. **Return errors clearly** - Help debugging
-4. **Test with real RPC** - Use recent ledger numbers
+1. Implement `processor.Origin`, `processor.Transform`, or `processor.Sink`
+2. Respect `ctx.Done()` for cancellation
+3. Report per-item problems via the processor reporter helpers instead of returning stream-killing errors
+4. Test against a small real ledger range first
 
 Example skeleton:
 
@@ -95,10 +82,11 @@ package main
 
 import (
     "context"
+
     "github.com/stellar/go-stellar-sdk/xdr"
     "github.com/withObsrvr/nebu/pkg/processor"
     "github.com/withObsrvr/nebu/pkg/runtime"
-    "github.com/withObsrvr/nebu/pkg/source"
+    "github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
 type MyProcessor struct{}
@@ -106,38 +94,32 @@ type MyProcessor struct{}
 func (p *MyProcessor) Name() string { return "my-processor" }
 func (p *MyProcessor) Type() processor.Type { return processor.TypeOrigin }
 
-func (p *MyProcessor) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
-    // Your logic here
-    return nil
+func (p *MyProcessor) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
+    _ = ctx
+    _ = ledger
 }
 
 func main() {
-    src, _ := source.NewRPCLedgerSource("https://archive-rpc.lightsail.network")
+    src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
+    if err != nil {
+        panic(err)
+    }
     defer src.Close()
 
-    processor := &MyProcessor{}
+    proc := &MyProcessor{}
     rt := runtime.NewRuntime()
 
-    rt.RunOrigin(context.Background(), src, processor, 60200000, 60200009)
+    if err := rt.RunOrigin(context.Background(), src, proc, 60200000, 60200009); err != nil {
+        panic(err)
+    }
 }
 ```
 
 ## Tips
 
-**Finding recent ledger numbers:**
-- RPC typically retains ~24 hours of ledgers
-- Recent ledgers are in the 60M+ range (as of Dec 2024)
-- Use smaller ranges (5-10 ledgers) for testing
-
-**Performance:**
-- Buffer sizes matter - see `pkg/source/rpc_source.go`
-- Process ledgers quickly to avoid backpressure
-- Consider using goroutines for I/O within processors
-
-**Error handling:**
-- Always check errors from `RunOrigin`
-- Implement graceful shutdown with context cancellation
-- Log errors with context (ledger number, timestamp, etc.)
+- Use small ranges first, e.g. 5–10 ledgers
+- `pkg/source/rpc/source.go` is the reference RPC implementation
+- Always check the error returned by `RunOrigin`
 
 ## Questions?
 

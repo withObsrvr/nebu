@@ -491,7 +491,7 @@ token-transfer --start-ledger 60200000 --follow | \
 token-transfer --start-ledger 60200000 --follow | \
   tee >(nats-sink --subject "stellar.live") | \
   tee >(json-file-sink --out archive.jsonl) | \
-  jq 'select(.transfer.amount > 1000000)'
+  jq 'select(.transfer != null and (.transfer.amount | tonumber) > 1000000)'
 ```
 
 ## Design Principles
@@ -890,7 +890,8 @@ The community registry is a directory of processors built by the community:
 # Clone and build from processor's repository
 git clone https://github.com/user/awesome-processor
 cd awesome-processor
-go build -o $GOPATH/bin/awesome-processor ./cmd
+mkdir -p "$(go env GOPATH)/bin"
+go build -o "$(go env GOPATH)/bin/awesome-processor" ./cmd
 
 # Use like any other processor
 awesome-processor --start-ledger 60200000 --end-ledger 60200100 | jq

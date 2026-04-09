@@ -54,8 +54,8 @@ SELECT
   (data->'transfer'->>'amount')::numeric as amount,
   created_at
 FROM events
-WHERE data->>'type' = 'transfer'
-  AND data->'transfer'->'asset'->>'code' = 'USDC'
+WHERE event_type = 'transfer'
+  AND data->'transfer'->>'assetCode' = 'USDC'
 ORDER BY created_at DESC
 LIMIT 10;
 ```
@@ -146,8 +146,9 @@ contract-events --start-ledger 60200000 --follow | \
 
 ```bash
 token-transfer --start-ledger 60200000 --follow | \
-  jq -c 'select(.transfer.asset.code == "USDC")' | \
+  jq -c 'select(.transfer != null and .transfer.assetCode == "USDC")' | \
   postgres-sink \
+    --dsn "postgres://localhost/stellar" \
     --table usdc_transfers \
     --conflict update
 ```
@@ -170,9 +171,9 @@ ORDER BY count DESC;
 SELECT
   id,
   (data->'transfer'->>'amount')::numeric as amount,
-  data->'transfer'->'asset'->>'code' as asset
+  data->'transfer'->>'assetCode' as asset
 FROM events
-WHERE data->>'type' = 'transfer'
+WHERE event_type = 'transfer'
   AND (data->'transfer'->>'amount')::numeric > 1000000
 ORDER BY amount DESC;
 ```
@@ -190,8 +191,8 @@ SELECT
   data->'meta'->>'txHash' as tx_hash,
   created_at
 FROM events
-WHERE data->>'type' = 'transfer'
-  AND data->'transfer'->'asset'->>'code' = 'USDC';
+WHERE event_type = 'transfer'
+  AND data->'transfer'->>'assetCode' = 'USDC';
 
 -- Query the view
 SELECT * FROM usdc_transfers
@@ -216,9 +217,9 @@ ALTER TABLE events
 CREATE OR REPLACE FUNCTION extract_transfer_fields()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.data->>'type' = 'transfer' THEN
+    IF NEW.event_type = 'transfer' THEN
         NEW.amount = (NEW.data->'transfer'->>'amount')::NUMERIC;
-        NEW.asset_code = NEW.data->'transfer'->'asset'->>'code';
+        NEW.asset_code = NEW.data->'transfer'->>'assetCode';
         NEW.from_account = NEW.data->'transfer'->>'from';
         NEW.to_account = NEW.data->'transfer'->>'to';
     END IF;
@@ -364,7 +365,7 @@ WHERE tablename = 'events';
 
 -- Analyze query plans
 EXPLAIN ANALYZE
-SELECT * FROM events WHERE data->>'type' = 'transfer';
+SELECT * FROM events WHERE event_type = 'transfer';
 ```
 
 ### Out of disk space

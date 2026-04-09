@@ -103,7 +103,10 @@ fly postgres connect -a nebu-db
 # Example queries
 SELECT COUNT(*) FROM contract_events;
 SELECT event_type, COUNT(*) FROM contract_events GROUP BY event_type;
-SELECT * FROM contract_events WHERE contract_id = 'YOUR_CONTRACT_ID' LIMIT 10;
+SELECT *
+FROM contract_events
+WHERE data->>'contractId' = 'YOUR_CONTRACT_ID'
+LIMIT 10;
 ```
 
 ---
