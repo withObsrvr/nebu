@@ -4,19 +4,21 @@ This directory contains runnable examples for building Stellar data pipelines wi
 
 ## Running Examples
 
-Run the shipped example directly:
+Run the shipped examples directly:
 
 ```bash
 go run examples/simple_origin/main.go
+go run examples/go-library/transaction-stats/main.go
+go run examples/go-library/ledger-change-stats/main.go
 ```
 
-Or via Make:
+Or via Make for the simple origin example:
 
 ```bash
 make run-example
 ```
 
-## Included Example
+## Included Examples
 
 ### `simple_origin` — Counting Origin Processor
 
@@ -26,6 +28,40 @@ This example demonstrates:
 - wiring source → runtime → processor
 - processing a bounded ledger range
 - graceful shutdown on Ctrl+C
+
+### `go-library/transaction-stats` — Transaction Statistics
+
+This example demonstrates:
+- embedding nebu as a Go library
+- using `runtime.RunOrigin` over an RPC-backed range
+- reading transactions from `xdr.LedgerCloseMeta`
+- computing successful/failed transaction and operation counts
+
+Run with:
+
+```bash
+go run examples/go-library/transaction-stats/main.go
+```
+
+### `go-library/ledger-change-stats` — Ledger Change Statistics
+
+This example demonstrates:
+- embedding nebu as a Go library
+- reading ledger entry changes from `xdr.LedgerCloseMeta`
+- classifying created / updated / deleted changes
+- classifying fee / transaction / operation-caused changes
+
+Run with:
+
+```bash
+go run examples/go-library/ledger-change-stats/main.go
+```
+
+### Standalone processor forms
+
+The same ideas also exist as example standalone processors:
+- `examples/processors/transaction-stats`
+- `examples/processors/ledger-change-stats`
 
 ### Core shape
 

@@ -120,6 +120,128 @@ processors:
       name: OBSRVR
       url: https://withobsrvr.com
 
+  # Transaction Stats Origin Processor
+  - name: transaction-stats
+    type: origin
+    description: Summarize successful and failed transactions and operations across a ledger range
+    long_description: |
+      Example origin processor that reads transactions from each ledger and emits
+      a single summary event at the end of the processed range. Demonstrates the
+      evolution from raw ingest logic to a first-class Nebu processor.
+
+    location:
+      type: local
+      path: ./examples/processors/transaction-stats
+      package: github.com/withObsrvr/nebu/examples/processors/transaction-stats
+      module_package: github.com/withObsrvr/nebu/examples/processors/transaction-stats/cmd/transaction-stats
+
+    schema:
+      version: v1
+      identifier: nebu.transaction_stats.v1
+      documentation: ./examples/processors/transaction-stats/README.md
+
+    events:
+      - name: summary
+        description: Aggregate statistics for the full processed ledger range
+
+    output_fields:
+      - path: startLedger
+        description: First ledger included in the processed range
+      - path: endLedger
+        description: Last ledger included in the processed range
+      - path: successfulTransactions
+        description: Count of successful transactions
+      - path: failedTransactions
+        description: Count of failed transactions
+      - path: totalTransactions
+        description: Total transaction count
+      - path: operationsInSuccessful
+        description: Count of operations in successful transactions
+      - path: operationsInFailed
+        description: Count of operations in failed transactions
+      - path: totalOperations
+        description: Total operation count
+
+    examples:
+      - comment: Basic usage
+        command: transaction-stats --start-ledger 60200000 --end-ledger 60200009
+      - comment: Use after fetch separation
+        command: nebu fetch 60200000 60200009 | transaction-stats
+
+    works_with:
+      input:
+        - nebu fetch
+      transforms: []
+      sinks:
+        - json-file-sink
+        - postgres-sink
+        - nats-sink
+
+    manifest: ./examples/processors/transaction-stats/manifest.yaml
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
+  # Ledger Change Stats Origin Processor
+  - name: ledger-change-stats
+    type: origin
+    description: Emit per-ledger created, updated, deleted, and change-reason statistics
+    long_description: |
+      Example origin processor that reads ledger entry changes from each ledger and
+      emits one summary event per ledger. Demonstrates how raw change-reader logic
+      becomes a first-class Nebu processor with CLI packaging and schema metadata.
+
+    location:
+      type: local
+      path: ./examples/processors/ledger-change-stats
+      package: github.com/withObsrvr/nebu/examples/processors/ledger-change-stats
+      module_package: github.com/withObsrvr/nebu/examples/processors/ledger-change-stats/cmd/ledger-change-stats
+
+    schema:
+      version: v1
+      identifier: nebu.ledger_change_stats.v1
+      documentation: ./examples/processors/ledger-change-stats/README.md
+
+    events:
+      - name: per-ledger-summary
+        description: Summary statistics for one ledger's entry changes
+
+    output_fields:
+      - path: ledgerSequence
+        description: Ledger number summarized by this event
+      - path: ledgerEntriesCreated
+        description: Count of created ledger entries
+      - path: ledgerEntriesUpdated
+        description: Count of updated ledger entries
+      - path: ledgerEntriesDeleted
+        description: Count of deleted ledger entries
+      - path: feeRelatedChanges
+        description: Count of fee-caused changes
+      - path: txRelatedChanges
+        description: Count of transaction-caused changes
+      - path: operationRelatedChanges
+        description: Count of operation-caused changes
+
+    examples:
+      - comment: Basic usage
+        command: ledger-change-stats --start-ledger 60200000 --end-ledger 60200005
+      - comment: Use after fetch separation
+        command: nebu fetch 60200000 60200005 | ledger-change-stats
+
+    works_with:
+      input:
+        - nebu fetch
+      transforms: []
+      sinks:
+        - json-file-sink
+        - postgres-sink
+        - nats-sink
+
+    manifest: ./examples/processors/ledger-change-stats/manifest.yaml
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
+
   # JSON File Sink
   - name: json-file-sink
     type: sink

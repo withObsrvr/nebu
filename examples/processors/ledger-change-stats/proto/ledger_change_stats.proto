@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package nebu.ledger_change_stats;
+
+option go_package = "github.com/withObsrvr/nebu/examples/processors/ledger-change-stats/proto;changestatspb";
+
+message LedgerChangeStats {
+  uint32 ledger_sequence = 1;
+  uint32 ledger_entries_created = 2;
+  uint32 ledger_entries_updated = 3;
+  uint32 ledger_entries_deleted = 4;
+  uint32 fee_related_changes = 5;
+  uint32 tx_related_changes = 6;
+  uint32 operation_related_changes = 7;
+}

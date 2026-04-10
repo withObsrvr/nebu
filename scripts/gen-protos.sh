@@ -52,4 +52,18 @@ protoc \
   --proto_path=. \
   examples/processors/contract-invocation/proto/contract_invocation.proto
 
+# Generate transaction_stats
+protoc \
+  --go_out=. \
+  --go_opt=paths=source_relative \
+  --proto_path=. \
+  examples/processors/transaction-stats/proto/transaction_stats.proto
+
+# Generate ledger_change_stats
+protoc \
+  --go_out=. \
+  --go_opt=paths=source_relative \
+  --proto_path=. \
+  examples/processors/ledger-change-stats/proto/ledger_change_stats.proto
+
 echo "✓ Proto generation complete"

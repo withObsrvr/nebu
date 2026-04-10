@@ -50,6 +50,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 
 **Reference processors shipped in this repo (examples, not product):**
 - **Origins**: [`token-transfer`](./examples/processors/token-transfer), [`contract-events`](./examples/processors/contract-events), [`contract-invocation`](./examples/processors/contract-invocation)
+- **Example / educational origins**: [`transaction-stats`](./examples/processors/transaction-stats), [`ledger-change-stats`](./examples/processors/ledger-change-stats)
 - **Transforms**: [`usdc-filter`](./examples/processors/usdc-filter), [`amount-filter`](./examples/processors/amount-filter), [`dedup`](./examples/processors/dedup), [`time-window`](./examples/processors/time-window)
 - **Sinks**: [`json-file-sink`](./examples/processors/json-file-sink), [`nats-sink`](./examples/processors/nats-sink), [`postgres-sink`](./examples/processors/postgres-sink)
 
@@ -118,50 +119,25 @@ cat ledgers.xdr | token-transfer | jq 'select(.transfer != null)'
 
 ### As a Go Library
 
-```go
-package main
+Nebu can be embedded as a Go library on top of Stellar's ingest primitives. See these runnable examples:
 
-import (
-    "context"
-    "fmt"
-    "log"
+- [`examples/simple_origin/main.go`](./examples/simple_origin/main.go) — minimal origin + runtime wiring
+- [`examples/go-library/transaction-stats/main.go`](./examples/go-library/transaction-stats/main.go) — transaction statistics over an RPC-backed ledger range
+- [`examples/go-library/ledger-change-stats/main.go`](./examples/go-library/ledger-change-stats/main.go) — ledger change statistics over an RPC-backed ledger range
+- [`examples/go-library/README.md`](./examples/go-library/README.md) — how the Go examples relate to their standalone CLI processor forms
 
-    "github.com/stellar/go-stellar-sdk/xdr"
-    "github.com/withObsrvr/nebu/pkg/processor"
-    "github.com/withObsrvr/nebu/pkg/runtime"
-    "github.com/withObsrvr/nebu/pkg/source/rpc"
-)
+Run them with:
 
-// Simple processor that counts ledgers
-type Counter struct{ count int }
-
-func (c *Counter) Name() string         { return "counter" }
-func (c *Counter) Type() processor.Type { return processor.TypeOrigin }
-func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
-    c.count++
-    fmt.Printf("Processed ledger %d\n", ledger.LedgerSequence())
-}
-
-func main() {
-    // Connect to Stellar RPC
-    src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
-    if err != nil {
-        log.Fatalf("create ledger source: %v", err)
-    }
-    defer src.Close()
-
-    // Create your processor
-    counter := &Counter{}
-
-    // Run!
-    rt := runtime.NewRuntime()
-    if err := rt.RunOrigin(context.Background(), src, counter, 60200000, 60200009); err != nil {
-        log.Fatalf("run origin: %v", err)
-    }
-
-    fmt.Printf("Processed %d ledgers\n", counter.count)
-}
+```bash
+go run ./examples/simple_origin/main.go
+go run ./examples/go-library/transaction-stats/main.go
+go run ./examples/go-library/ledger-change-stats/main.go
 ```
+
+The same ideas are also packaged as example standalone Nebu processors:
+
+- [`examples/processors/transaction-stats`](./examples/processors/transaction-stats)
+- [`examples/processors/ledger-change-stats`](./examples/processors/ledger-change-stats)
 
 ## Getting Started
 

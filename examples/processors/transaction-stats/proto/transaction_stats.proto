@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package nebu.transaction_stats;
+
+option go_package = "github.com/withObsrvr/nebu/examples/processors/transaction-stats/proto;txstatspb";
+
+message TransactionStats {
+  uint32 start_ledger = 1;
+  uint32 end_ledger = 2;
+  uint64 successful_transactions = 3;
+  uint64 failed_transactions = 4;
+  uint64 total_transactions = 5;
+  uint64 operations_in_successful = 6;
+  uint64 operations_in_failed = 7;
+  uint64 total_operations = 8;
+}
