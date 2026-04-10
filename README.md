@@ -124,6 +124,7 @@ package main
 import (
     "context"
     "fmt"
+    "log"
 
     "github.com/stellar/go-stellar-sdk/xdr"
     "github.com/withObsrvr/nebu/pkg/processor"
@@ -143,7 +144,10 @@ func (c *Counter) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)
 
 func main() {
     // Connect to Stellar RPC
-    src, _ := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
+    src, err := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
+    if err != nil {
+        log.Fatalf("create ledger source: %v", err)
+    }
     defer src.Close()
 
     // Create your processor
@@ -151,7 +155,9 @@ func main() {
 
     // Run!
     rt := runtime.NewRuntime()
-    rt.RunOrigin(context.Background(), src, counter, 60200000, 60200009)
+    if err := rt.RunOrigin(context.Background(), src, counter, 60200000, 60200009); err != nil {
+        log.Fatalf("run origin: %v", err)
+    }
 
     fmt.Printf("Processed %d ledgers\n", counter.count)
 }
