@@ -162,8 +162,8 @@ Origins like `token-transfer` wire a progress hook that prints to stderr *only w
 ## Handoffs
 
 - **User wants a new processor** (their extraction/filter/sink logic doesn't exist yet) → stop and invoke `nebu-processor-builder` (planned; for now point them at `skills/nebu-processor-builder/` in the `nebu-processor-registry` repo).
-- **User wants a long-running production deployment** → nebu pipelines are the prototype; they graduate to [flowctl](../../docs/FLOWCTL_INTEGRATION.md) for managed scheduling, checkpointing, and restart.
-- **User wants observability beyond stderr** → see [`../../docs/HOOKS.md`](../../docs/HOOKS.md) for the runtime hooks interface (progress, metrics, tracing).
+- **User wants a long-running production deployment** → nebu pipelines are the prototype; they graduate to [flowctl](https://nebu.withobsrvr.com/FLOWCTL_INTEGRATION.md) for managed scheduling, checkpointing, and restart.
+- **User wants observability beyond stderr** → see [`HOOKS.md`](https://nebu.withobsrvr.com/HOOKS.md) for the runtime hooks interface (progress, metrics, tracing).
 - **User's pipeline fails with "XDR decode error"** — most common cause is piping into an origin that also has `--start-ledger` set. Drop one or the other.
 
 ## Output contract
@@ -183,4 +183,4 @@ Do not claim the pipeline works without actually running it or explicitly flaggi
 - **Maintainer:** OBSRVR
 - **License:** MIT
 - **Tracks nebu contract:** v0.6.2 and forward (via `--describe-json`)
-- **Source:** [github.com/withObsrvr/nebu/skills/pipeline-composer](https://github.com/withObsrvr/nebu)
+- **Source:** [github.com/withObsrvr/nebu/skills/pipeline-composer/SKILL.md](https://github.com/withObsrvr/nebu/blob/main/skills/pipeline-composer/SKILL.md)
