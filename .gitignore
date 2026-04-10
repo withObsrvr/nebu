@@ -41,6 +41,14 @@ etl.cast
 etl.gif
 demo/
 analysis/
+examples/processors/amount-filter/amount-filter
 examples/processors/contract-events/contract-events
+examples/processors/contract-invocation/contract-invocation
+examples/processors/dedup/dedup
+examples/processors/json-file-sink/json-file-sink
+examples/processors/nats-sink/nats-sink
+examples/processors/postgres-sink/postgres-sink
+examples/processors/time-window/time-window
 examples/processors/token-transfer/token-transfer
+examples/processors/usdc-filter/usdc-filter
 examples/processors/token-transfer/go.mod.backup
