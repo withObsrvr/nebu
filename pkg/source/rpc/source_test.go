@@ -84,24 +84,66 @@ func TestRPCLedgerSource_Unbounded(t *testing.T) {
 	defer src.Close()
 
 	ch := make(chan xdr.LedgerCloseMeta, 10)
-	ctx, cancel := context.WithCancel(context.Background())
+	// Overall test timeout — if the RPC stalls or the Stream impl fails
+	// to close ch after cancellation, this prevents the test (and CI)
+	// from hanging indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Capture Stream's return so we can assert the goroutine actually
+	// exited with the expected context error after cancel().
+	errCh := make(chan error, 1)
 	go func() {
-		_ = src.Stream(ctx, 60200000, 0, ch)
+		errCh <- src.Stream(ctx, 60200000, 0, ch)
 	}()
 
+	// Read up to 2 ledgers, then trigger cancellation. Using a select
+	// against ctx.Done() guarantees we can't get stuck on the channel
+	// read if the stream stalls.
 	count := 0
-	for range ch {
-		count++
-		if count == 2 {
-			cancel()
-			break
+readLoop:
+	for count < 2 {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				break readLoop
+			}
+			count++
+			if count == 2 {
+				cancel()
+			}
+		case <-ctx.Done():
+			break readLoop
 		}
 	}
 
-	for range ch {
-		count++
+	// Drain remaining ledgers until Stream closes ch. Bounded by a
+	// safety timeout so a broken Stream impl can't hang the test.
+	drainTimeout := time.After(5 * time.Second)
+drainLoop:
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				break drainLoop
+			}
+			count++
+		case <-drainTimeout:
+			t.Error("timed out draining channel after cancellation — Stream may not be closing ch")
+			break drainLoop
+		}
+	}
+
+	// Assert the Stream goroutine returned within a short window.
+	// After cancel(), Stream should return context.Canceled; if the
+	// overall ctx deadline fired first we accept DeadlineExceeded.
+	select {
+	case streamErr := <-errCh:
+		if streamErr != nil && streamErr != context.Canceled && streamErr != context.DeadlineExceeded {
+			t.Errorf("Stream returned unexpected error: %v", streamErr)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stream goroutine did not return after cancellation")
 	}
 
 	assert.GreaterOrEqual(t, count, 1, "unbounded stream should yield ledgers before cancellation")
@@ -114,6 +156,7 @@ func TestRPCLedgerSource_Cancellation(t *testing.T) {
 
 	ch := make(chan xdr.LedgerCloseMeta, 10)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Start streaming a larger range of recent ledgers
 	go func() {

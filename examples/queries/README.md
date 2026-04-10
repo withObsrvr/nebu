@@ -99,8 +99,11 @@ WHERE json_extract_string(transfer, '$.assetCode') = 'USDC'
 WHERE json_extract_string(transfer, '$.assetCode') = 'XLM'
 
 -- Any issued asset
+-- Note: nebu's protojson output sets EmitUnpopulated=true, so assetIssuer
+-- is present (as an empty string "") for native XLM, not NULL. Filter on
+-- non-empty instead of non-null.
 WHERE transfer IS NOT NULL
-  AND json_extract_string(transfer, '$.assetIssuer') IS NOT NULL
+  AND json_extract_string(transfer, '$.assetIssuer') <> ''
 ```
 
 ### Combine Multiple Filters
