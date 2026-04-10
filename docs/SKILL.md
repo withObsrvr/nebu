@@ -1,27 +1,60 @@
-# Nebu Skills
+# Nebu Skill
 
 **Canonical URL:** https://nebu.withobsrvr.com/SKILL.md
 
-**Building-block Stellar data pipelines for AI agents.**
+Bootstrap skill for installing Nebu, discovering installed processors, and composing a first working Stellar data pipeline.
 
-Nebu is a toolkit for composing Stellar ledger extraction pipelines from small, independently-runnable Unix processes. Every nebu binary supports `--describe-json` for runtime introspection, so agents can discover what's available at *this* version instead of relying on stale docs.
+## Use this skill when
 
-This page catalogs the Claude Code skills maintained alongside nebu. Each skill is a focused, installable instruction bundle that teaches an agent how to use one slice of the nebu ecosystem.
+The user wants to:
+- install Nebu
+- extract Stellar ledger data
+- filter or transform a Stellar event stream
+- write Stellar events to a file or external sink
+
+Do not use this skill when the user wants to:
+- build a brand-new processor
+- work with non-Stellar chains
+- sign or submit transactions
+
+## Core rule
+
+**Always inspect the installed version before proposing a command.**
+
+Never guess:
+- processor names
+- flags
+- schema paths
+- output shapes
+
+The installed version is the source of truth.
+
+## Execution loop
+
+1. Clarify the goal:
+   - what data?
+   - what ledger range?
+   - where should output go?
+2. Discover installed processors:
+   ```bash
+   nebu list
+   ```
+3. Inspect every candidate processor:
+   ```bash
+   <processor> --describe-json | jq .
+   ```
+4. Choose:
+   - one **origin**
+   - zero or more **transforms**
+   - zero or one **sink**
+5. Compose a **bounded** pipeline first.
+6. Return:
+   - exact command
+   - one-line explanation of each stage
+   - one verification command
+   - assumptions or unverified details
 
 ## Installation
-
-Nebu skills are standard Claude Code skills — drop them into `~/.claude/skills/`:
-
-```bash
-git clone --depth 1 https://github.com/withObsrvr/nebu /tmp/nebu-skills
-mkdir -p ~/.claude/skills
-cp -r /tmp/nebu-skills/skills/* ~/.claude/skills/
-rm -rf /tmp/nebu-skills
-```
-
-After install, agents using Claude Code can invoke any skill by name.
-
-You also need the `nebu` CLI on your `PATH`. Build from source:
 
 ```bash
 git clone https://github.com/withObsrvr/nebu && cd nebu
@@ -29,28 +62,78 @@ make build-cli build-processors
 export PATH="$PWD/bin:$PATH"
 ```
 
-## Catalog
+## Pipeline model
 
-| Skill | Status | What it does |
-|---|---|---|
-| [`nebu-pipeline-composer`](https://github.com/withObsrvr/nebu/blob/main/skills/pipeline-composer/SKILL.md) | **stable** | Compose multi-stage Stellar ledger pipelines (origin → transform → sink) from existing processors. Discovers the catalog via `nebu list` and the flags of each stage via `--describe-json`. |
-| `nebu-processor-builder` | planned | Scaffold new processors from scratch (origin/transform/sink) with proto-first structure and CLI helper wiring. |
-| `nebu-common-errors` | planned | Diagnose common nebu pipeline failures (XDR decode errors, schema drift, stdin auto-detect quirks). |
+Every pipeline has this shape:
 
-## Why these skills stay correct across releases
+```text
+origin -> transform -> transform -> sink
+```
 
-Most tool-wrapping skills rot on every release because they hardcode flag names and command syntax. Nebu skills defer to runtime discovery instead:
+- **origin** emits JSONL events
+- **transform** reads JSONL from stdin and writes JSONL to stdout
+- **sink** reads JSONL from stdin and writes elsewhere
 
-- `nebu list` — enumerate installed processors (in-tree + community registry)
-- `nebu describe <name>` — human-readable description
-- `<processor> --describe-json` — machine-readable envelope with the exact flags, schema, type, and version for *this* installed build
+## Minimal examples
 
-A skill that teaches the agent to always run describe first is durable across nebu releases. The `--describe-json` protocol is part of nebu's stable contract — see [`STABILITY.md`](https://nebu.withobsrvr.com/STABILITY.md).
+Inspect installed processors:
 
-## Foundation
+```bash
+nebu list
+token-transfer --describe-json | jq .
+json-file-sink --describe-json | jq .
+```
 
-Nebu and its skills are maintained by [OBSRVR](https://github.com/withObsrvr) as MIT-licensed open source.
+Extract token transfers from a bounded range:
 
-## Contributing
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200001
+```
 
-New skill ideas welcome. Open an issue at [github.com/withObsrvr/nebu/issues](https://github.com/withObsrvr/nebu/issues) or send a PR adding a `skills/<skill-name>/SKILL.md` alongside an entry in the catalog table above.
+Write results to a file:
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200010 \
+  | json-file-sink --out /tmp/nebu.jsonl
+```
+
+Inspect with standard Unix tooling:
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200010 | jq .
+```
+
+## Stop conditions
+
+Stop and ask for clarification if:
+- the data type is unclear
+- the ledger range is unclear
+- the sink or destination is unclear
+
+Stop and hand off if:
+- no installed processor can do the job
+- the user needs a new processor
+- the task is not about Stellar data extraction
+
+## Response contract
+
+When proposing a pipeline, include:
+1. the exact shell command
+2. a short explanation of each stage
+3. one verification command
+4. any assumptions
+
+## Stability
+
+Nebu stays agent-safe because its runtime contract is discoverable:
+- `nebu list`
+- `nebu describe <name>`
+- `<processor> --describe-json`
+
+`--describe-json` is part of Nebu's stable contract. See [`STABILITY.md`](https://nebu.withobsrvr.com/STABILITY.md).
+
+## Additional skills
+
+- [`nebu-pipeline-composer`](https://github.com/withObsrvr/nebu/blob/main/skills/pipeline-composer/SKILL.md) — detailed multi-stage pipeline composition
+- `nebu-processor-builder` — planned
+- `nebu-common-errors` — planned
