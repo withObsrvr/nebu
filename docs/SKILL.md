@@ -4,6 +4,8 @@
 
 Bootstrap skill for installing Nebu, discovering installed processors, and composing a first working Stellar data pipeline.
 
+Nebu is not a raw RPC wrapper. It is built on Stellar's supported indexing primitives — especially RPC-backed ledger access, ingest-based ledger processing, and XDR-native extraction — and exposes them as discoverable processors and pipelines.
+
 ## Use this skill when
 
 The user wants to:

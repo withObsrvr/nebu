@@ -1,8 +1,10 @@
 # nebu
 
-**A toolkit for building Stellar indexers.** Unix pipes meet a stable Go contract surface.
+**A toolkit for building Stellar indexers.** Nebu packages Stellar's modern indexing primitives — especially RPC-backed ledger access, ingest SDK processing, and XDR-native extraction — into a stable Go contract, standalone processors, and Unix-composable pipelines.
 
-nebu (pronounced "neh-boo") is two things in one repo:
+nebu (pronounced "neh-boo") is built on the supported building blocks Stellar provides for modern indexing. It turns those primitives into a practical toolkit for developers, operators, and agents.
+
+nebu is two things in one repo:
 
 1. A small, **stable Go contract** ([`pkg/processor`](./pkg/processor) and [`pkg/source`](./pkg/source)) that anyone can implement to write a Stellar processor — origin, transform, or sink. External processors live in their own Go modules and depend only on this contract; they get a CLI, a JSON-schema-emitting `--describe-json` protocol, and runtime observability hooks for free.
 2. A **CLI and a set of reference processors** for users who just want to query live Stellar data, pipe events through `jq` / `duckdb`, and chain pipelines without writing any Go.
