@@ -130,7 +130,7 @@ $ token-transfer | amount-filter --min 100000000 --asset USDC > usdc-whales.json
 $ nebu fetch 60200000 60200100 | \
   token-transfer | \
   amount-filter --min 10000000 | \
-  dedup --key tx_hash | \
+  dedup --key meta.txHash | \
   json-file-sink --out large-transfers.jsonl
 ```
 
@@ -243,16 +243,18 @@ protoc \
 **CLI tests:**
 ```bash
 # Test basic filtering
-echo '{"amount":"50000000"}
-{"amount":"5000000"}
-{"amount":"75000000"}' | \
+printf '%s\n' \
+  '{"transfer":{"amount":"50000000","assetCode":"USDC"}}' \
+  '{"transfer":{"amount":"5000000","assetCode":"USDC"}}' \
+  '{"transfer":{"amount":"75000000","assetCode":"USDC"}}' | \
   amount-filter --min 10000000
 
 # Expected: 2 events (5M filtered out)
 
 # Test asset filtering
-echo '{"amount":"50000000","asset":{"code":"USDC"}}
-{"amount":"50000000","asset":{"code":"XLM"}}' | \
+printf '%s\n' \
+  '{"transfer":{"amount":"50000000","assetCode":"USDC"}}' \
+  '{"transfer":{"amount":"50000000","assetCode":"XLM"}}' | \
   amount-filter --asset USDC
 
 # Expected: 1 event (XLM filtered out)

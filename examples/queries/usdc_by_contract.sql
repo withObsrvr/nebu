@@ -18,10 +18,10 @@ SELECT
   CAST(json_extract_string(transfer, '$.amount') AS BIGINT) as amount,
 
   -- Extract asset info
-  json_extract_string(transfer, '$.asset.issuedAsset.assetCode') as asset_code,
-  json_extract_string(transfer, '$.asset.issuedAsset.issuer') as issuer
+  json_extract_string(transfer, '$.assetCode') as asset_code,
+  json_extract_string(transfer, '$.assetIssuer') as issuer
 
 FROM read_json_auto('/dev/stdin', format='newline_delimited')
 WHERE transfer IS NOT NULL
-  AND json_extract_string(transfer, '$.asset.issuedAsset.assetCode') = 'USDC'
+  AND json_extract_string(transfer, '$.assetCode') = 'USDC'
   AND json_extract_string(meta, '$.contractAddress') = 'CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA';  -- Replace with your contract

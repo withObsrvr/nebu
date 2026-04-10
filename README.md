@@ -491,7 +491,7 @@ token-transfer --start-ledger 60200000 --follow | \
 token-transfer --start-ledger 60200000 --follow | \
   tee >(nats-sink --subject "stellar.live") | \
   tee >(json-file-sink --out archive.jsonl) | \
-  jq 'select(.transfer.amount > 1000000)'
+  jq 'select(.transfer != null and (.transfer.amount | tonumber) > 1000000)'
 ```
 
 ## Design Principles
@@ -875,39 +875,47 @@ processors:
 Browse community-contributed processors at the [nebu Community Processor Registry](https://github.com/withObsrvr/nebu-processor-registry).
 
 The community registry is a directory of processors built by the community:
-- Each processor lives in its own GitHub repository
-- Submissions are validated automatically (builds, tests, documentation)
-- Processors are maintained by their authors, not the nebu core team
+- processors are discovered via the external registry automatically
+- `nebu list` shows both built-in and community processors
+- `nebu install <name>` works for community processors too, as long as their published Go module installs cleanly
+- processors are maintained by their authors, not the nebu core team
 
-**Discovering community processors:**
+**Fastest way to use community processors:**
 ```bash
-# Browse at: https://github.com/withObsrvr/nebu-processor-registry
-# View processor list: https://github.com/withObsrvr/nebu-processor-registry/blob/main/PROCESSORS.md
+# Install nebu CLI
+go install github.com/withObsrvr/nebu/cmd/nebu@latest
+export PATH="$HOME/go/bin:$PATH"
+
+# Browse everything available (built-in + community)
+nebu list
+
+# Install a community processor
+nebu install account-filter
+
+# Use it in a pipeline
+token-transfer --start-ledger 60200000 --end-ledger 60200001 | \
+  account-filter --account GABC... | jq
 ```
 
-**Installing community processors (currently manual):**
+**If you want to browse or build directly from the registry repo:**
 ```bash
-# Clone and build from processor's repository
-git clone https://github.com/user/awesome-processor
-cd awesome-processor
-go build -o $GOPATH/bin/awesome-processor ./cmd
+# Clone the registry metadata + processor source repo
+git clone https://github.com/withObsrvr/nebu-processor-registry
+cd nebu-processor-registry
 
-# Use like any other processor
-awesome-processor --start-ledger 60200000 --end-ledger 60200100 | jq
+# Build a processor from the cloned repo
+cd processors/account-filter
+go install ./cmd/account-filter
+
+# Then use the installed binary
+account-filter --help
 ```
+
+**Important:** cloning the registry repo alone does not install the `nebu` CLI. End users who just want data should usually install `nebu` first, then use `nebu list` / `nebu install`.
 
 **Contributing your processor:**
 
 See the [Contributing Guide](https://github.com/withObsrvr/nebu-processor-registry/blob/main/CONTRIBUTING.md) for submission guidelines.
-
-### Future: External Processors
-
-The registry will support installing directly from git repos:
-
-```bash
-# Future: install community processors with one command
-nebu install awesome-processor  # Clones from git, builds, installs
-```
 
 ## Roadmap
 

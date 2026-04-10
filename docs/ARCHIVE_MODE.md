@@ -175,7 +175,7 @@ export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/
 nebu fetch 60200000 60300000 | \
   token-transfer -q | \
   jq -c 'select(.transfer != null)' | \
-  jq -c 'select(.transfer.asset.code == "USDC")' | \
+  jq -c 'select(.transfer.assetCode == "USDC")' | \
   gzip > usdc-transfers.jsonl.gz
 ```
 

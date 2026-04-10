@@ -93,14 +93,17 @@ WHERE inSuccessfulTx = false  -- Only failed transactions
 **token-transfer:**
 ```sql
 -- USDC
-WHERE json_extract_string(transfer, '$.asset.issuedAsset.assetCode') = 'USDC'
+WHERE json_extract_string(transfer, '$.assetCode') = 'USDC'
 
 -- Native XLM
-WHERE json_extract_string(transfer, '$.asset.native') = 'true'
+WHERE json_extract_string(transfer, '$.assetCode') = 'XLM'
 
 -- Any issued asset
+-- Note: nebu's protojson output sets EmitUnpopulated=true, so assetIssuer
+-- is present (as an empty string "") for native XLM, not NULL. Filter on
+-- non-empty instead of non-null.
 WHERE transfer IS NOT NULL
-  AND json_extract(transfer, '$.asset.issuedAsset') IS NOT NULL
+  AND json_extract_string(transfer, '$.assetIssuer') <> ''
 ```
 
 ### Combine Multiple Filters
@@ -109,7 +112,7 @@ WHERE transfer IS NOT NULL
 ```sql
 -- USDC from specific contract with minimum amount
 WHERE transfer IS NOT NULL
-  AND json_extract_string(transfer, '$.asset.issuedAsset.assetCode') = 'USDC'
+  AND json_extract_string(transfer, '$.assetCode') = 'USDC'
   AND json_extract_string(meta, '$.contractAddress') = 'CXXXXX...'
   AND CAST(json_extract_string(transfer, '$.amount') AS BIGINT) >= 10000000
 ```
@@ -136,7 +139,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001 | \
     SELECT *
     FROM read_json_auto('/dev/stdin')
     WHERE transfer IS NOT NULL
-      AND json_extract_string(transfer, '\$.asset.issuedAsset.assetCode') = '$ASSET'
+      AND json_extract_string(transfer, '\$.assetCode') = '$ASSET'
       AND json_extract_string(meta, '\$.contractAddress') = '$CONTRACT'
   "
 ```

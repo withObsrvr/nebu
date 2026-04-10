@@ -198,7 +198,7 @@ contract-events \
     --rpc-url "$RPC_URL" \
     | postgres-sink \
         --table contract_events \
-        --database-url "$DATABASE_URL" \
+        --dsn "$DATABASE_URL" \
         --batch-size "$BATCH_SIZE"
 ```
 
@@ -375,12 +375,12 @@ SELECT COUNT(*) FROM contract_events;
 
 -- View recent events
 SELECT
-  ledger_sequence,
-  contract_id,
+  (data->>'ledgerSequence')::bigint AS ledger_sequence,
+  data->>'contractId' AS contract_id,
   event_type,
-  ledger_closed_at
+  to_timestamp((data->>'timestamp')::bigint) AS ledger_closed_at
 FROM contract_events
-ORDER BY ledger_sequence DESC
+ORDER BY (data->>'ledgerSequence')::bigint DESC
 LIMIT 10;
 
 -- Exit
@@ -452,10 +452,10 @@ Edit `scripts/start-indexer.sh` to use them:
 ```bash
 # Run multiple pipelines in parallel
 token-transfer --follow --rpc-url "$RPC_URL" \
-    | postgres-sink --table token_transfers --database-url "$DATABASE_URL" &
+    | postgres-sink --table token_transfers --dsn "$DATABASE_URL" &
 
 contract-events --follow --rpc-url "$RPC_URL" \
-    | postgres-sink --table contract_events --database-url "$DATABASE_URL" &
+    | postgres-sink --table contract_events --dsn "$DATABASE_URL" &
 
 wait  # Wait for all background processes
 ```
@@ -792,7 +792,9 @@ fly logs
 
 2. **Recent activity:**
    ```sql
-   SELECT MAX(ledger_sequence), MAX(ledger_closed_at)
+   SELECT
+     MAX((data->>'ledgerSequence')::bigint),
+     MAX(to_timestamp((data->>'timestamp')::bigint))
    FROM contract_events;
    ```
 

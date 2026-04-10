@@ -125,9 +125,8 @@ while [ $CURRENT_START -lt $END_LEDGER ]; do
         --rpc-url "$RPC_URL" \
         | postgres-sink \
             --table contract_events \
-            --database-url "$DATABASE_URL" \
+            --dsn "$DATABASE_URL" \
             --batch-size "$BATCH_SIZE" \
-            --upsert-key "ledger_sequence,event_index" \
         || {
             echo "ERROR: Chunk $CHUNK_NUM failed (ledgers $CURRENT_START-$CHUNK_END)"
             echo "You can resume from ledger $CURRENT_START"
@@ -162,7 +161,7 @@ echo "✓ Total events in database: $EVENT_COUNT"
 
 # Show ledger range
 LEDGER_RANGE=$(psql "$DATABASE_URL" -t -c \
-    "SELECT MIN(ledger_sequence), MAX(ledger_sequence) FROM contract_events" \
+    "SELECT MIN((data->>'ledgerSequence')::bigint), MAX((data->>'ledgerSequence')::bigint) FROM contract_events" \
     | tr -d ' ')
 echo "✓ Ledger range: $LEDGER_RANGE"
 
