@@ -1,0 +1,44 @@
+name: stellar/ledger-change-stats
+version: 0.1.0
+type: origin
+
+display_name: Stellar Ledger Change Statistics Processor
+description: |
+  Example origin processor that emits one summary event per ledger with counts
+  of created, updated, and deleted ledger entry changes plus fee-, transaction-,
+  and operation-caused change counts.
+
+proto:
+  input: xdr.LedgerCloseMeta
+  output: ledger_change_stats.LedgerChangeStats
+
+requires:
+  stellar_protocol: ">=23"
+  network: "public, testnet"
+
+events:
+  - per_ledger_summary: One event per ledger processed
+
+usage:
+  go: |
+    import (
+        "context"
+        "github.com/stellar/go-stellar-sdk/network"
+        ledger_change_stats "github.com/withObsrvr/nebu/examples/processors/ledger-change-stats"
+        "github.com/withObsrvr/nebu/pkg/runtime"
+        "github.com/withObsrvr/nebu/pkg/source/rpc"
+    )
+
+    src, _ := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
+    origin := ledger_change_stats.NewOrigin(network.PublicNetworkPassphrase)
+    rt := runtime.NewRuntime()
+    rt.RunOrigin(context.Background(), src, origin, 60200000, 60200005)
+
+maintainer:
+  name: OBSRVR
+  url: https://withobsrvr.com
+  contact: support@withobsrvr.com
+
+repository: https://github.com/withObsrvr/nebu
+
+license: MIT

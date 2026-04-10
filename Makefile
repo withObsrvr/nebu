@@ -69,6 +69,8 @@ build-processors:
 	go build -ldflags "$(LDFLAGS)" -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/json-file-sink
 	cd examples/processors/nats-sink && go build -ldflags "$(LDFLAGS)" -o ../../../bin/nats-sink ./cmd/nats-sink
 	go build -ldflags "$(LDFLAGS)" -o bin/postgres-sink ./examples/processors/postgres-sink/cmd/postgres-sink
+	go build -ldflags "$(LDFLAGS)" -o bin/transaction-stats ./examples/processors/transaction-stats/cmd/transaction-stats
+	go build -ldflags "$(LDFLAGS)" -o bin/ledger-change-stats ./examples/processors/ledger-change-stats/cmd/ledger-change-stats
 	@echo "✓ All processors built in ./bin/"
 
 # Run integration tests
