@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/stellar/go-stellar-sdk/ingest/sac"
 	"github.com/stellar/go-stellar-sdk/strkey"
 	"github.com/stellar/go-stellar-sdk/xdr"
 )
@@ -203,4 +204,31 @@ func ExtractArguments(args []xdr.ScVal) []string {
 	}
 
 	return result
+}
+
+func EncodeContractID(contractID *xdr.ContractId) (string, error) {
+	if contractID == nil {
+		return "", nil
+	}
+	return strkey.Encode(strkey.VersionByteContract, contractID[:])
+}
+
+func DescribeContractDataKey(contractData xdr.ContractDataEntry, passphrase string) string {
+	ledgerEntry := xdr.LedgerEntry{}
+	if err := ledgerEntry.Data.SetContractData(&contractData); err != nil {
+		return ConvertScValToString(contractData.Key)
+	}
+
+	if asset, ok := sac.AssetFromContractData(ledgerEntry, passphrase); ok {
+		payload, err := json.Marshal(map[string]string{
+			"kind":      "sac_asset_info",
+			"canonical": asset.StringCanonical(),
+			"display":   asset.String(),
+		})
+		if err == nil {
+			return string(payload)
+		}
+	}
+
+	return ConvertScValToString(contractData.Key)
 }

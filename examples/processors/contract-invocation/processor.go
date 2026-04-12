@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stellar/go-stellar-sdk/ingest"
-	"github.com/stellar/go-stellar-sdk/strkey"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/withObsrvr/nebu/pkg/processor"
 
@@ -133,15 +132,9 @@ func (o *Origin) processContractInvocation(
 		invokingAccount = tx.Envelope.SourceAccount().ToAccountId()
 	}
 
-	// Get contract ID if available
-	var contractID string
-	if function := invokeHostFunction.HostFunction; function.Type == xdr.HostFunctionTypeHostFunctionTypeInvokeContract {
-		contractIDBytes := function.MustInvokeContract().ContractAddress.ContractId
-		var err error
-		contractID, err = strkey.Encode(strkey.VersionByteContract, contractIDBytes[:])
-		if err != nil {
-			return nil, fmt.Errorf("error encoding contract ID: %w", err)
-		}
+	contractID, err := o.extractContractID(tx, invokeHostFunction)
+	if err != nil {
+		return nil, err
 	}
 
 	// Determine if invocation was successful
@@ -217,8 +210,7 @@ func (o *Origin) extractDiagnosticEvents(tx ingest.LedgerTransaction) []*cipb.Di
 			continue
 		}
 
-		// Convert contract ID
-		contractID, err := strkey.Encode(strkey.VersionByteContract, diagEvent.Event.ContractId[:])
+		contractID, err := EncodeContractID(diagEvent.Event.ContractId)
 		if err != nil {
 			continue
 		}
@@ -297,10 +289,8 @@ func (o *Origin) processAuthorizationTree(
 	if invocation.Function.Type == xdr.SorobanAuthorizedFunctionTypeSorobanAuthorizedFunctionTypeContractFn {
 		contractFn := invocation.Function.ContractFn
 
-		// Get contract ID
-		contractIDBytes := contractFn.ContractAddress.ContractId
 		var err error
-		contractID, err = strkey.Encode(strkey.VersionByteContract, contractIDBytes[:])
+		contractID, err = EncodeContractID(contractFn.ContractAddress.ContractId)
 		if err != nil {
 			return
 		}
@@ -402,19 +392,12 @@ func (o *Origin) extractStateChangeFromContractData(
 	oldValueRaw, newValueRaw xdr.ScVal,
 	operation string,
 ) *cipb.StateChange {
-	// Extract contract ID
-	contractIDBytes := contractData.Contract.ContractId
-	if contractIDBytes == nil {
+	contractID, err := EncodeContractID(contractData.Contract.ContractId)
+	if err != nil || contractID == "" {
 		return nil
 	}
 
-	contractID, err := strkey.Encode(strkey.VersionByteContract, contractIDBytes[:])
-	if err != nil {
-		return nil
-	}
-
-	// Extract key
-	key := ConvertScValToString(contractData.Key)
+	key := DescribeContractDataKey(contractData, o.passphrase)
 
 	// Decode values
 	var oldValue, newValue string
@@ -435,7 +418,18 @@ func (o *Origin) extractStateChangeFromContractData(
 }
 
 func (o *Origin) extractTtlExtensions(tx ingest.LedgerTransaction) []*cipb.TtlExtension {
-	// TTL extensions are not currently extracted in this simplified version
-	// This is a placeholder for future implementation
+	// TTL extensions are not currently extracted in this simplified version.
 	return nil
+}
+
+func (o *Origin) extractContractID(tx ingest.LedgerTransaction, invokeHostFunction xdr.InvokeHostFunctionOp) (string, error) {
+	if function := invokeHostFunction.HostFunction; function.Type == xdr.HostFunctionTypeHostFunctionTypeInvokeContract {
+		return EncodeContractID(function.MustInvokeContract().ContractAddress.ContractId)
+	}
+
+	if contractID, ok := tx.ContractIdFromTxEnvelope(); ok && contractID != "" {
+		return contractID, nil
+	}
+
+	return "", nil
 }
