@@ -9,6 +9,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/ingest"
 	"github.com/stellar/go-stellar-sdk/strkey"
+	contractevents "github.com/stellar/go-stellar-sdk/support/contractevents"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/withObsrvr/nebu/pkg/processor"
 )
@@ -181,8 +182,8 @@ func (p *ContractEventsOriginProto) buildContractEvent(
 		eventType = ContractEventType_CONTRACT
 	}
 
-	// Detect specific event type from topics
-	detectedEventType := detectEventTypeFromTopics(event.Body.V0.Topics)
+	// Detect specific event type using SDK SAC parsing first, then fall back to topic inspection.
+	detectedEventType := detectEventType(event, p.networkPassphrase)
 
 	// Build contract event protobuf
 	contractEvent := &ContractEvent{
@@ -231,7 +232,7 @@ func (p *ContractEventsOriginProto) buildContractEvent(
 					diagEventType = ContractEventType_DIAGNOSTIC
 				}
 
-				detectedType := detectEventTypeFromTopics(diagEvent.Event.Body.V0.Topics)
+				detectedType := detectEventType(diagEvent.Event, p.networkPassphrase)
 
 				diagEvents = append(diagEvents, &DiagnosticEvent{
 					ContractId:               diagContractID,
@@ -249,13 +250,37 @@ func (p *ContractEventsOriginProto) buildContractEvent(
 	return contractEvent, nil
 }
 
-// detectEventTypeFromTopics attempts to determine the event type from topics
+// detectEventType uses the Stellar SDK's SAC parser when possible, then falls
+// back to the first symbolic topic for generic contracts.
+func detectEventType(event xdr.ContractEvent, networkPassphrase string) string {
+	if sacEvent, err := contractevents.NewStellarAssetContractEvent(&event, networkPassphrase); err == nil {
+		switch sacEvent.GetType() {
+		case contractevents.EventTypeTransfer:
+			return "transfer"
+		case contractevents.EventTypeMint:
+			return "mint"
+		case contractevents.EventTypeBurn:
+			return "burn"
+		case contractevents.EventTypeClawback:
+			return "clawback"
+		case contractevents.EventTypeIncrAllow:
+			return "increase_allowance"
+		case contractevents.EventTypeDecrAllow:
+			return "decrease_allowance"
+		case contractevents.EventTypeSetAuthorized:
+			return "set_authorized"
+		case contractevents.EventTypeSetAdmin:
+			return "set_admin"
+		}
+	}
+
+	return detectEventTypeFromTopics(event.Body.V0.Topics)
+}
+
 func detectEventTypeFromTopics(topics []xdr.ScVal) string {
-	// Check topics for common event type patterns
 	for _, topic := range topics {
 		if topic.Type == xdr.ScValTypeScvSymbol {
 			sym := string(topic.MustSym())
-			// Return the first symbol as the event type
 			switch sym {
 			case "transfer", "Transfer":
 				return "transfer"
@@ -263,6 +288,8 @@ func detectEventTypeFromTopics(topics []xdr.ScVal) string {
 				return "mint"
 			case "burn", "Burn":
 				return "burn"
+			case "clawback", "Clawback":
+				return "clawback"
 			case "swap", "Swap":
 				return "swap"
 			case "sync", "Sync":

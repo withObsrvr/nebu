@@ -1,7 +1,7 @@
 // Package main provides a standalone CLI for the time-window transform processor.
 //
-// This processor filters events based on time ranges using ledger sequence timestamps.
-// Stellar ledgers close approximately every 5 seconds.
+// This processor filters events based on time ranges using actual event timestamps.
+// It prefers meta.closedAtUnix emitted by origin processors.
 //
 // Usage:
 //
@@ -33,13 +33,10 @@ var (
 	endTime      int64
 )
 
-const stellarGenesisUnix = 1436467200 // Stellar genesis timestamp (July 1, 2015)
-const ledgerCloseTime = 5             // Approximate seconds per ledger
-
 func main() {
 	config := cli.TransformConfig{
 		Name:        "time-window",
-		Description: "Filter events by time range using ledger sequence",
+		Description: "Filter events by time range using ledger timestamps",
 		Version:     version,
 	}
 
@@ -53,22 +50,19 @@ func addFlags(cmd *cobra.Command) {
 }
 
 // filterByTimeWindow filters events based on time ranges.
-// Uses ledger_sequence to estimate event time (ledgers close ~every 5 seconds).
+// Requires meta.closedAtUnix so filtering uses real ledger close time.
 func filterByTimeWindow(event map[string]interface{}) map[string]interface{} {
-	// Get meta object (protojson format)
 	meta, ok := event["meta"].(map[string]interface{})
 	if !ok {
-		return nil // No meta, filter out
+		return nil
 	}
 
-	// Get ledger sequence from meta
-	ledgerSeq, ok := meta["ledgerSequence"].(float64)
+	closedAtUnix, ok := meta["closedAtUnix"].(float64)
 	if !ok {
-		return nil // No ledgerSequence, filter out
+		return nil
 	}
 
-	// Estimate event time: genesis + (ledger * 5 seconds)
-	eventTime := stellarGenesisUnix + (int64(ledgerSeq) * ledgerCloseTime)
+	eventTime := int64(closedAtUnix)
 
 	// Check --last duration
 	if lastDuration != "" {
