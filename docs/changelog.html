@@ -144,6 +144,22 @@
       <ul class="space-y-3 text-secondary text-sm leading-relaxed">
         <li>
           <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Reference hooks:</strong> added
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/tree/main/examples/hooks"><code>examples/hooks/</code></a>
+          with three drop-in <code class="text-on-surface">runtime.Hooks</code> implementations —
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/rate_limit.go"><code>rate_limit.go</code></a>
+          (token-bucket, stdlib only),
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/metrics.go"><code>metrics.go</code></a>
+          (Prometheus counters + histograms), and
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/tracing.go"><code>tracing.go</code></a>
+          (OpenTelemetry spans). Each follows the same drop-in-file pattern as the existing
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/blob/main/examples/processors/token-transfer/cmd/token-transfer/progress.go"><code>progress.go</code></a>.
+          Smoke-tested end-to-end via
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/tree/main/examples/hooks/cmd/hooks-demo"><code>hooks-demo</code></a>
+          against ledgers 62080000-62080010.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
           <strong class="text-on-surface">Docs:</strong> archive-mode examples now default to the public
           <code class="text-tertiary">aws-public-blockchain/v1.1/stellar/ledgers/pubnet</code> S3 bucket
           (region <code class="text-tertiary">us-east-2</code>). No AWS account required — the Stellar SDK's

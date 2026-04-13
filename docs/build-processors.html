@@ -416,31 +416,61 @@ maintainer:
     <section id="hooks" class="mb-16">
       <h2 class="text-on-surface font-bold text-2xl mb-4">## 08_HOOKS</h2>
       <p class="text-secondary mb-6">
-        The runtime exposes extension points for observability and agent gating. You opt in per hook — nebu ships no-op defaults for everything.
+        The runtime exposes six lifecycle callbacks — <span class="text-tertiary">OnStart</span>, <span class="text-tertiary">BeforeLedger</span>, <span class="text-tertiary">AfterLedger</span>, <span class="text-tertiary">OnWarning</span>, <span class="text-tertiary">OnFatal</span>, <span class="text-tertiary">OnEnd</span>. Register any subset via <span class="text-tertiary">Runtime.Use(Hooks{...})</span> or <span class="text-tertiary">OriginConfig.Hooks</span>; nil fields are no-ops. See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md" class="text-tertiary hover:underline">docs/HOOKS.md</a> for lifecycle, firing order, and abort semantics.
       </p>
 
-      <div class="space-y-4">
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-secondary w-44 shrink-0">Metrics</span>
-          <span>Register a <span class="text-tertiary">MetricSink</span> for Prometheus / OTel / custom.</span>
+      <div class="bg-surface-container-low p-5 border-l-2 border-tertiary mb-6">
+        <div class="text-[0.6875rem] uppercase text-tertiary mb-2 tracking-widest">[ REFERENCE IMPLEMENTATIONS · 4 FILES, DROP-IN ]</div>
+        <p class="text-secondary text-sm mb-4">
+          Each file is self-contained. Copy into your processor's <span class="text-on-surface">cmd/&lt;name&gt;/</span> directory, rename <span class="text-on-surface">package hooks</span> to your package, and wire it into your <span class="text-on-surface">Hooks</span> slice. No framework, no abstract factory.
+        </p>
+        <div class="space-y-3 text-sm">
+          <div>
+            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/processors/token-transfer/cmd/token-transfer/progress.go" class="text-on-surface font-bold hover:underline">progress.go</a>
+            <span class="text-secondary"> — live stderr progress bar, TTY-aware, 108 lines, stdlib only</span>
+          </div>
+          <div>
+            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/rate_limit.go" class="text-on-surface font-bold hover:underline">rate_limit.go</a>
+            <span class="text-secondary"> — token-bucket throttle via <span class="text-tertiary">BeforeLedger</span>, stdlib only</span>
+          </div>
+          <div>
+            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/metrics.go" class="text-on-surface font-bold hover:underline">metrics.go</a>
+            <span class="text-secondary"> — Prometheus counters + histograms (<code>nebu_ledgers_processed_total</code>, <code>nebu_ledger_duration_seconds</code>, <code>nebu_warnings_total</code>, <code>nebu_fatals_total</code>, <code>nebu_pipeline_duration_seconds</code>)</span>
+          </div>
+          <div>
+            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/tracing.go" class="text-on-surface font-bold hover:underline">tracing.go</a>
+            <span class="text-secondary"> — OpenTelemetry parent <code>nebu.pipeline</code> span with one <code>nebu.ledger</code> child per ledger; warnings as span events, fatals as span error records</span>
+          </div>
         </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-secondary w-44 shrink-0">Tracing</span>
-          <span>Spans around <span class="text-tertiary">ProcessLedger</span> / <span class="text-tertiary">ProcessEvent</span> via an <span class="text-tertiary">otel.TracerProvider</span>.</span>
-        </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-secondary w-44 shrink-0">Progress</span>
-          <span>A <span class="text-tertiary">Reporter</span> interface for progress bars, health endpoints, flowctl control-plane.</span>
-        </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-secondary w-44 shrink-0">Agent gates</span>
-          <span>Prompt-approval hooks for tools that want human-in-the-loop on destructive sinks.</span>
-        </div>
+        <p class="text-secondary text-sm mt-4">
+          Smoke test: <a href="https://github.com/withObsrvr/nebu/tree/main/examples/hooks/cmd/hooks-demo" class="text-tertiary hover:underline">hooks-demo</a> wires all three into a real RPC run. <span class="text-tertiary">go run ./examples/hooks/cmd/hooks-demo</span>.
+        </p>
       </div>
 
-      <p class="text-secondary text-sm mt-6">
-        Full reference in <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md" class="text-tertiary hover:underline">docs/HOOKS.md</a>.
-      </p>
+      <p class="text-secondary mb-3 text-sm">Common patterns the six callbacks enable:</p>
+
+      <div class="space-y-4 text-sm">
+        <div class="flex flex-col md:flex-row md:gap-8">
+          <span class="font-bold text-on-surface w-44 shrink-0">Progress</span>
+          <span class="text-secondary"><span class="text-tertiary">OnStart</span> + <span class="text-tertiary">AfterLedger</span> + <span class="text-tertiary">OnEnd</span> — live stderr output, health-check endpoints, flowctl control-plane reporting.</span>
+        </div>
+        <div class="flex flex-col md:flex-row md:gap-8">
+          <span class="font-bold text-on-surface w-44 shrink-0">Metrics</span>
+          <span class="text-secondary"><span class="text-tertiary">AfterLedger</span> + <span class="text-tertiary">OnWarning</span> + <span class="text-tertiary">OnFatal</span> + <span class="text-tertiary">OnEnd</span> — Prometheus / OTel / StatsD counters and histograms.</span>
+        </div>
+        <div class="flex flex-col md:flex-row md:gap-8">
+          <span class="font-bold text-on-surface w-44 shrink-0">Tracing</span>
+          <span class="text-secondary"><span class="text-tertiary">OnStart</span> + <span class="text-tertiary">BeforeLedger</span> + <span class="text-tertiary">AfterLedger</span> + <span class="text-tertiary">OnEnd</span> — OTel parent + per-ledger child spans, span events on warnings, span errors on fatals.</span>
+        </div>
+        <div class="flex flex-col md:flex-row md:gap-8">
+          <span class="font-bold text-on-surface w-44 shrink-0">Rate limiting</span>
+          <span class="text-secondary"><span class="text-tertiary">BeforeLedger</span> — token bucket or explicit sleep between ledgers for back-pressure against downstream sinks.</span>
+        </div>
+        <div class="flex flex-col md:flex-row md:gap-8">
+          <span class="font-bold text-on-surface w-44 shrink-0">Agent gates</span>
+          <span class="text-secondary"><span class="text-tertiary">BeforeLedger</span> error-abort for human-in-the-loop approval on destructive sinks. <span class="text-secondary opacity-70">[ pattern · use rate_limit.go as a starting point ]</span></span>
+        </div>
+      </div>
     </section>
 
     <!-- STABILITY -->
