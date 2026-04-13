@@ -1,602 +1,687 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html class="dark" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>nebu - Unix Pipes for Stellar Blockchain Data</title>
-    <meta name="description" content="Query live Stellar data with Unix pipes. No databases, no frameworks. Index blockchain data with tools you already know.">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        nebu: {
-                            dark: '#0B0E14',
-                            card: '#151923',
-                            border: '#2A2F3E',
-                            primary: '#A855F7', // Purple
-                            secondary: '#EC4899', // Pink
-                            accent: '#22D3EE', // Cyan
-                        }
-                    },
-                    fontFamily: {
-                        mono: ['"Fira Code"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    animation: {
-                        'blob': 'blob 7s infinite',
-                        'cursor': 'cursor .75s step-end infinite',
-                    },
-                    keyframes: {
-                        blob: {
-                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
-                        },
-                        cursor: {
-                            '0%, 100%': { opacity: '1' },
-                            '50%': { opacity: '0' },
-                        }
-                    }
-                }
-            }
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEBU // THE SOVEREIGN CONSOLE FOR STELLAR</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-bright": "#3a3939",
+          "surface-tint": "#ffb59c",
+          "tertiary": "#4dd9e4",
+          "tertiary-container": "#00b5c0",
+          "on-tertiary": "#00363a",
+          "on-tertiary-container": "#004145",
+          "outline": "#7a6a6a",
+          "outline-variant": "#3d3535",
+          "error": "#ffb4ab",
+          "surface-container-highest": "#353534",
+          "surface-container": "#201f1f",
+          "error-container": "#93000a",
+          "secondary-container": "#454747",
+          "surface-container-high": "#2a2a2a",
+          "primary": "#ffb59c",
+          "surface-container-low": "#1c1b1b",
+          "on-secondary-container": "#b5b5b5",
+          "on-primary": "#5c1a00",
+          "primary-container": "#ff7f50",
+          "on-primary-container": "#6c2000",
+          "on-surface": "#e5e2e1",
+          "on-background": "#e5e2e1",
+          "on-error-container": "#ffdad6",
+          "secondary": "#c6c6c6",
+          "surface-variant": "#353534",
+          "surface-container-lowest": "#0e0e0e",
+          "surface": "#131313",
+          "background": "#131313",
+          /* Semantic aliases — use these for new work */
+          "ember":  "#ff7f50",  /* primary hot accent — live/action */
+          "signal": "#4dd9e4",  /* secondary cool accent — meta/info */
+          "coal":   "#131313",
+          "ash":    "#c6c6c6",
+          "ink":    "#e5e2e1"
+        },
+        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
+        fontFamily: {
+          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
+          headline: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
+          body:     ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
+          label:    ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
         }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .font-mono { font-family: 'Fira Code', monospace; }
-        .glass-panel {
-            background: rgba(21, 25, 35, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-    </style>
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="assets/nebu.css"/>
 </head>
-<body class="bg-nebu-dark text-slate-300 antialiased selection:bg-nebu-primary selection:text-white overflow-x-hidden">
+<body class="bg-background text-on-surface selection:bg-primary-container selection:text-background">
 
-    <!-- Background Glow Effects -->
-    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div class="absolute top-0 left-1/4 w-96 h-96 bg-nebu-primary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50 animate-blob"></div>
-        <div class="absolute top-0 right-1/4 w-96 h-96 bg-nebu-secondary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50 animate-blob animation-delay-2000"></div>
-        <div class="absolute -bottom-32 left-1/2 w-96 h-96 bg-nebu-accent/10 rounded-full mix-blend-screen filter blur-[128px] opacity-50 animate-blob animation-delay-4000"></div>
+<!-- TopAppBar -->
+<header class="bg-[#131313] flex justify-between items-center px-6 py-4 w-full z-50 sticky top-0">
+  <div class="text-xl font-bold text-[#e5e2e1] uppercase tracking-tighter flex items-center gap-3">
+    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
+    <!-- Network badge: mainnet=coral (live), testnet=teal (meta/dev) -->
+    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
+  </div>
+
+  <!-- Desktop nav -->
+  <nav class="hidden md:flex items-center gap-6 uppercase tracking-tighter">
+    <a class="text-[#ff7f50] font-bold hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+
+  <!-- Mobile toggle -->
+  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
+          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
+    [ MENU ]
+  </button>
+
+  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+</header>
+
+<!-- Mobile drawer -->
+<div id="mobile-menu" aria-hidden="true"
+     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
+  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
+    <a class="text-[#ff7f50] font-bold py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+</div>
+
+<main class="max-w-6xl mx-auto px-6 pt-12 pb-32">
+
+  <!-- Hero -->
+  <section class="mb-20">
+    <div class="mb-8 text-[#ff7f50] opacity-50">
+      &lt;-- VESSEL_ONLINE // STELLAR_MAINNET --&gt;
+    </div>
+    <h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-8 text-[#e5e2e1]">
+      # NEBU<span class="text-primary-container cursor-blink"></span>
+    </h1>
+    <p class="text-xl md:text-2xl text-secondary max-w-3xl leading-relaxed mb-4">
+      A toolkit for building Stellar indexers.
+    </p>
+    <p class="text-lg text-secondary max-w-3xl leading-relaxed mb-12">
+      A stable Go contract, standalone processors, and Unix-composable pipelines.
+      From on-chain truth to your applications in two minutes — no orchestrator, no YAML, no daemon.
+    </p>
+
+    <!-- Tabbed install block: GO / CURL / DOCKER -->
+    <div class="bg-surface-container-low border-l-4 border-primary-container mb-12" id="install">
+      <div class="flex flex-wrap items-end border-b border-outline-variant">
+        <button type="button" data-install-tab="go"
+                class="install-tab is-active px-5 py-3 text-sm uppercase tracking-tight font-bold text-primary-container border-b-2 border-primary-container -mb-px">
+          [ GO ]
+        </button>
+        <button type="button" data-install-tab="curl"
+                class="install-tab px-5 py-3 text-sm uppercase tracking-tight text-secondary hover:text-on-surface border-b-2 border-transparent -mb-px">
+          [ CURL ]
+        </button>
+        <button type="button" data-install-tab="docker"
+                class="install-tab px-5 py-3 text-sm uppercase tracking-tight text-secondary hover:text-on-surface border-b-2 border-transparent -mb-px">
+          [ DOCKER ]
+        </button>
+        <div class="ml-auto px-5 py-3 text-[0.6875rem] uppercase text-secondary hidden md:block">QUICK_INSTALL</div>
+      </div>
+
+      <div class="p-6 md:p-8">
+        <!-- GO -->
+        <div data-install-panel="go">
+          <div class="copy-block">
+            <button class="copy-btn" data-copy-target="install-go" type="button">[ COPY ]</button>
+            <pre id="install-go" class="text-primary-container text-lg break-all whitespace-pre-wrap">go install github.com/withObsrvr/nebu/cmd/nebu@latest
+export PATH="$HOME/go/bin:$PATH"</pre>
+          </div>
+          <div class="mt-4 text-secondary text-sm">
+            Canonical path. Requires Go &gt;= 1.22.
+            <span class="text-tertiary">Then:</span> <span class="text-on-surface">nebu install token-transfer</span>
+          </div>
+        </div>
+
+        <!-- CURL -->
+        <div data-install-panel="curl" class="hidden">
+          <div class="copy-block">
+            <button class="copy-btn" data-copy-target="install-curl" type="button">[ COPY ]</button>
+            <pre id="install-curl" class="text-primary-container text-lg break-all whitespace-pre-wrap">curl -sSL https://nebu.withobsrvr.com/install.sh | sh</pre>
+          </div>
+          <div class="mt-4 text-secondary text-sm">
+            Grabs a pre-built binary from the latest GitHub release. No Go toolchain required.
+            <span class="text-tertiary">Reads the script before piping to sh if that's your policy.</span>
+          </div>
+        </div>
+
+        <!-- DOCKER -->
+        <div data-install-panel="docker" class="hidden">
+          <div class="copy-block">
+            <button class="copy-btn" data-copy-target="install-docker" type="button">[ COPY ]</button>
+            <pre id="install-docker" class="text-primary-container text-lg break-all whitespace-pre-wrap">docker run --rm withobsrvr/nebu:latest \
+  token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
+          </div>
+          <div class="mt-4 text-secondary text-sm">
+            Preview events before installing anything locally.
+            <span class="text-tertiary">Ephemeral — good for tire-kicking, not for pipelines.</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Navbar -->
-    <nav class="fixed w-full z-50 transition-all duration-300" id="navbar">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="#" class="text-2xl font-bold tracking-tighter text-white flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary"></span>
-                nebu
-            </a>
-            <div class="hidden md:flex gap-8 text-sm font-medium">
-                <a href="#features" class="hover:text-white transition-colors">Features</a>
-                <a href="#architecture" class="hover:text-white transition-colors">Architecture</a>
-                <a href="/quickstart.html" class="hover:text-white transition-colors">Quickstart</a>
-                <a href="/build-processors.html" class="hover:text-white transition-colors">Build Processors</a>
-                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
-            </div>
-            <a href="https://github.com/withObsrvr/nebu" class="px-4 py-2 rounded-full glass-panel hover:bg-white/10 text-white text-sm font-semibold transition-all">
-                Star on GitHub
-            </a>
-        </div>
-    </nav>
+    <div class="flex flex-wrap gap-6">
+      <a href="#quickstart" class="bg-primary-container text-background px-8 py-3 font-bold text-lg hover:bg-surface-bright hover:text-on-surface transition-colors">
+        [ QUICKSTART ]
+      </a>
+      <a href="man.html" class="border border-outline text-on-surface px-8 py-3 font-bold text-lg hover:bg-primary-container hover:text-background transition-colors">
+        [ MAN PAGE ]
+      </a>
+      <a href="https://github.com/withObsrvr/nebu" class="border border-outline text-on-surface px-8 py-3 font-bold text-lg hover:bg-primary-container hover:text-background transition-colors">
+        [ GITHUB ]
+      </a>
+    </div>
+  </section>
 
-    <!-- Hero Section -->
-    <section class="relative z-10 pt-32 pb-20 md:pt-48 md:pb-32 px-6">
-        <div class="max-w-5xl mx-auto text-center">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-nebu-card border border-nebu-border mb-8 text-xs font-mono text-nebu-accent/80">
-                <span class="flex h-2 w-2 relative">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-nebu-accent opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-nebu-accent"></span>
-                </span>
-                v0.6.3 is live
-            </div>
-            
-            <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6 leading-tight">
-                Query live <span class="text-transparent bg-clip-text bg-gradient-to-r from-nebu-primary via-nebu-secondary to-orange-500">Stellar data</span><br> with one command.
-            </h1>
-            
-            <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-                Unix pipes for blockchain indexing. No complex infrastructure required.
-            </p>
+  <div class="text-secondary mb-12 overflow-hidden">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  </div>
 
-            <!-- CTA Buttons -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <a href="/quickstart.html" class="px-8 py-4 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary text-white font-semibold text-lg hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-105">
-                    Read Quickstart
-                </a>
-                <a href="/build-processors.html" class="px-8 py-4 rounded-full glass-panel text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 border border-nebu-border hover:border-nebu-primary/50 flex items-center gap-2 group">
-                    <span>Build Processors</span>
-                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </a>
-            </div>
-        </div>
+  <!-- Bento grid -->
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
 
-        <!-- Terminal Demo -->
-        <div class="max-w-4xl mx-auto mt-8 relative">
-            <!-- Terminal Header -->
-            <div class="bg-[#1e2330] rounded-t-xl p-3 flex items-center gap-2 border-b border-white/5">
-                <div class="flex gap-2">
-                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <div class="ml-4 text-xs text-slate-500 font-mono">user@obsrvr:~</div>
-            </div>
-            
-            <!-- Terminal Body -->
-            <div class="bg-[#0D1117] rounded-b-xl p-6 font-mono text-sm md:text-base border border-t-0 border-white/5 shadow-2xl overflow-hidden relative">
-                <!-- Glowing line on left -->
-                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-nebu-primary to-transparent opacity-50"></div>
-
-                <div class="flex flex-col gap-2">
-                    <!-- Command -->
-                    <div class="flex gap-2 text-slate-300">
-                        <span class="text-nebu-secondary">❯</span>
-                        <span>nebu fetch 60200000 --follow <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> nats-sink</span>
-                    </div>
-
-                    <!-- Output Stream -->
-                    <div class="mt-2 text-xs md:text-sm space-y-1 opacity-90">
-                        <div class="text-slate-400"># Streaming live events to NATS...</div>
-                        <div>
-                            <span class="text-slate-500">{</span>
-                            <span class="text-nebu-accent">"type"</span>: <span class="text-green-400">"transfer"</span>,
-                            <span class="text-nebu-accent">"asset"</span>: <span class="text-green-400">"USDC"</span>,
-                            <span class="text-nebu-accent">"amount"</span>: <span class="text-orange-400">100.00</span>
-                            <span class="text-slate-500">}</span>
-                        </div>
-                        <div>
-                            <span class="text-slate-500">{</span>
-                            <span class="text-nebu-accent">"type"</span>: <span class="text-green-400">"swap"</span>,
-                            <span class="text-nebu-accent">"pair"</span>: <span class="text-green-400">"XLM/USDC"</span>,
-                            <span class="text-nebu-accent">"price"</span>: <span class="text-orange-400">0.114</span>
-                            <span class="text-slate-500">}</span>
-                        </div>
-                        <div class="animate-pulse flex items-center gap-1 text-slate-500">
-                            <span class="w-2 h-4 bg-nebu-primary animate-cursor"></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- ABOUT -->
+    <section class="md:col-span-8 bg-surface-container-low p-8 border-t-2 border-outline-variant" id="about">
+      <h2 class="text-3xl font-bold mb-6 text-on-surface">## ABOUT</h2>
+      <div class="space-y-6 text-secondary leading-relaxed">
+        <p>&gt; "The GUI is a filter. The pipe is a lens."</p>
+        <p>
+          nebu (pronounced "neh-boo") is built on the supported building blocks Stellar provides for modern indexing —
+          RPC-backed ledger access, the ingest SDK, XDR-native extraction — and packages them into a stable Go contract,
+          standalone processor binaries, and Unix-composable pipelines.
+        </p>
+        <p>
+          Named after the Nebuchadnezzar from The Matrix. nebu is the vessel that carries data
+          from the on-chain truth to your applications.
+        </p>
+        <p class="pt-4">
+          * One repo, two products. <br/>
+          * A stable contract in <span class="text-primary-container">pkg/processor</span>. <br/>
+          * A CLI and reference processors for everyone else.
+        </p>
+      </div>
     </section>
 
-    <!-- Installation -->
-    <section id="installation" class="relative z-10 py-24 px-6 border-t border-white/5">
-        <div class="max-w-4xl mx-auto">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Installation</h2>
-                <p class="text-slate-400 max-w-2xl mx-auto">The canonical quickstart lives on this site. Start with Go for the full local workflow, then install processors on demand.</p>
-            </div>
-
-            <!-- Install Command -->
-            <div class="max-w-2xl mx-auto mb-8 group relative" data-install-box>
-                <div class="absolute -inset-1 bg-gradient-to-r from-nebu-primary to-nebu-secondary rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-                <div class="relative bg-nebu-dark border border-nebu-border rounded-lg p-4">
-                    <div class="flex flex-wrap justify-center gap-2 mb-4" role="tablist" aria-label="Install method selector">
-                        <button type="button" class="install-tab px-4 py-2 rounded-full text-sm font-semibold bg-white text-nebu-dark" data-install-tab data-command="go install github.com/withObsrvr/nebu/cmd/nebu@latest" data-description='Best if you already have Go 1.23+. Installs the CLI to your Go bin directory.' aria-selected="true">
-                            Go install
-                        </button>
-                        <button type="button" class="install-tab px-4 py-2 rounded-full text-sm font-semibold glass-panel text-white hover:bg-white/10" data-install-tab data-command="curl -fsSL https://raw.githubusercontent.com/withObsrvr/nebu/main/scripts/install.sh | sh" data-description='Downloads the latest release binary to ~/.local/bin without requiring a Go toolchain.' aria-selected="false">
-                            curl | sh
-                        </button>
-                    </div>
-                    <div class="flex items-center justify-between font-mono text-sm">
-                        <span class="text-nebu-accent">$ <span class="text-slate-300" data-install-command>go install github.com/withObsrvr/nebu/cmd/nebu@latest</span></span>
-                        <button type="button" class="ml-4 text-slate-500 hover:text-white transition-colors" title="Copy" data-install-copy>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                        </button>
-                    </div>
-                    <p class="mt-4 text-center text-slate-400 text-sm" data-install-description>Best if you already have Go 1.23+. Installs the CLI to your Go bin directory.</p>
-                </div>
-                <div class="install-copy-feedback absolute -top-8 right-0 text-xs text-nebu-primary opacity-0 transition-opacity">Copied!</div>
-            </div>
-
-            <div class="text-center text-slate-400 text-sm mb-8">
-                <p class="mb-4">After installing the CLI, install processors on demand with <code class="bg-white/10 px-2 py-1 rounded text-slate-300">nebu install &lt;processor&gt;</code>.</p>
-                <p>If you use the release installer, add <code class="bg-white/10 px-2 py-1 rounded text-slate-300">~/.local/bin</code> to your PATH if needed.</p>
-            </div>
-
-            <!-- Documentation CTA -->
-            <div class="text-center">
-                <a href="/quickstart.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-panel hover:bg-white/10 text-white font-semibold transition-all duration-300 border border-nebu-border hover:border-nebu-accent/50 group">
-                    <svg class="w-5 h-5 text-nebu-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    <span>Open Canonical Quickstart</span>
-                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </a>
-            </div>
-        </div>
+    <!-- STATS: verifiable facts, not benchmarks -->
+    <section class="md:col-span-4 bg-primary-container p-8 text-background flex flex-col justify-between">
+      <h3 class="font-bold text-[0.6875rem] uppercase mb-4">[ VESSEL_LOG ]</h3>
+      <a href="processors.html" class="group">
+        <div class="text-4xl font-bold mb-2 tracking-tighter group-hover:underline">13</div>
+        <div class="text-sm uppercase opacity-80">REFERENCE_PROCESSORS</div>
+      </a>
+      <a href="schemas.html" class="mt-8 group">
+        <div class="text-4xl font-bold mb-2 tracking-tighter group-hover:underline">5</div>
+        <div class="text-sm uppercase opacity-80">DOCUMENTED_SCHEMAS</div>
+      </a>
+      <a href="changelog.html#v0-5-0" class="mt-8 group">
+        <div class="text-4xl font-bold mb-2 tracking-tighter group-hover:underline">v0.5.0</div>
+        <div class="text-sm uppercase opacity-80">CONTRACT_STABLE_SINCE</div>
+      </a>
     </section>
 
-    <!-- Value Prop / Features -->
-    <section id="features" class="relative z-10 py-24 bg-nebu-dark/50">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="grid md:grid-cols-3 gap-8">
-                
-                <!-- Card 1 -->
-                <div class="glass-panel p-8 rounded-2xl hover:border-nebu-primary/30 transition-all duration-300 group">
-                    <div class="w-12 h-12 bg-nebu-primary/10 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                        <svg class="w-6 h-6 text-nebu-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-3">Blazing Fast</h3>
-                    <p class="text-slate-400 leading-relaxed">
-                        Written in Go. Decouples fetching from processing. Backfill 5 years of history in hours, not months, by parallelizing <code class="bg-white/10 px-1 rounded text-white">fetch</code> workers.
-                    </p>
-                </div>
-
-                <!-- Card 2 -->
-                <div class="glass-panel p-8 rounded-2xl hover:border-nebu-secondary/30 transition-all duration-300 group">
-                    <div class="w-12 h-12 bg-nebu-secondary/10 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                        <svg class="w-6 h-6 text-nebu-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-3">The Unix Way</h3>
-                    <p class="text-slate-400 leading-relaxed">
-                        No heavy databases required. nebu respects <code class="bg-white/10 px-1 rounded text-white">stdin</code> and <code class="bg-white/10 px-1 rounded text-white">stdout</code>. Pipe directly into <span class="text-white font-semibold">DuckDB</span> for instant SQL analytics, <span class="text-white font-semibold">jq</span> for filtering or any tool that you want.
-                    </p>
-                </div>
-
-                <!-- Card 3 -->
-                <div class="glass-panel p-8 rounded-2xl hover:border-nebu-accent/30 transition-all duration-300 group">
-                    <div class="w-12 h-12 bg-nebu-accent/10 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                        <svg class="w-6 h-6 text-nebu-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-3">SaaS Ready (NATS)</h3>
-                    <p class="text-slate-400 leading-relaxed">
-                        Bridge the gap between CLI and Cloud. Use <code class="bg-white/10 px-1 rounded text-white">nats-sink</code> to turn your local pipeline into a distributed, real-time firehose for your API.
-                    </p>
-                </div>
-
-            </div>
-        </div>
+    <!-- PIPELINE ASCII -->
+    <section class="md:col-span-12 bg-surface-container p-8" id="architecture">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## ARCHITECTURE</h2>
+      <div class="ascii-pipe text-secondary text-sm md:text-base overflow-x-auto">
+<span class="text-on-surface">STELLAR_RPC</span>                         <span class="text-on-surface">GCS/S3 ARCHIVE</span>
+<span class="text-tertiary">(--mode rpc, default)</span>               <span class="text-tertiary">(--mode archive)</span>
+<span class="text-tertiary">recent ledgers · live tail</span>          <span class="text-tertiary">full history · bulk backfill</span>
+    │                                   │
+    └───────────────┬───────────────────┘
+                    │  LedgerCloseMeta (XDR)
+                    ▼
+              <span class="text-primary-container">[ ORIGIN ]</span>         token-transfer · contract-events · contract-invocation
+                    │  <span class="text-tertiary">typed events (JSON, _schema=nebu.*.v1)</span>
+                    ▼
+              <span class="text-primary-container">[ TRANSFORM ]</span>      usdc-filter · amount-filter · dedup · time-window
+                    │  <span class="text-tertiary">filtered events (meta preserved)</span>
+                    ▼
+              <span class="text-primary-container">[ SINK ]</span>           json-file-sink · nats-sink · postgres-sink · duckdb · jq
+</div>
+      <p class="mt-8 text-secondary">
+        Two ledger sources, one contract. Use <span class="text-tertiary">--mode rpc</span> for live tailing and recent-range backfills.
+        Use <span class="text-tertiary">--mode archive</span> against a GCS or S3 ledger archive to read deep history without RPC rate limits —
+        the same XDR, the same processors, the same JSON on the way out.
+      </p>
+      <p class="mt-4 text-secondary">
+        Everything downstream of <span class="text-primary-container">[ ORIGIN ]</span> communicates via Unix pipes
+        (stdin/stdout, newline-delimited JSON) — trivial to compose with <span class="text-primary-container">jq</span>,
+        <span class="text-primary-container">duckdb</span>, or anything that reads a stream.
+      </p>
     </section>
 
-    <!-- Architecture Visual -->
-    <section id="architecture" class="py-24 px-6 border-t border-white/5">
-        <div class="max-w-5xl mx-auto">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16">The Pipeline Architecture</h2>
-            
-            <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0 font-mono text-sm">
-                
-                <!-- Source -->
-                <div class="glass-panel p-6 rounded-xl w-full md:w-64 text-center relative group">
-                    <div class="text-nebu-accent mb-2 font-bold">SOURCE</div>
-                    <div class="bg-black/50 p-2 rounded border border-white/10 mb-2">nebu fetch</div>
-                    <div class="text-slate-500 text-xs">Pulls XDR from RPC/GCS</div>
-                    <!-- Connector Line -->
-                    <div class="hidden md:block absolute -right-8 top-1/2 w-8 h-0.5 bg-gradient-to-r from-nebu-border to-white/20"></div>
-                </div>
-
-                <div class="hidden md:block text-slate-500 px-4">|</div>
-
-                <!-- Processor -->
-                <div class="glass-panel p-6 rounded-xl w-full md:w-64 text-center relative group shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)] border-nebu-primary/50">
-                    <div class="text-nebu-primary mb-2 font-bold">PROCESSOR</div>
-                    <div class="bg-black/50 p-2 rounded border border-white/10 mb-2">token-transfer</div>
-                    <div class="text-slate-500 text-xs">Parses XDR -> JSON</div>
-                    <!-- Connector Line -->
-                    <div class="hidden md:block absolute -right-8 top-1/2 w-8 h-0.5 bg-gradient-to-r from-nebu-border to-white/20"></div>
-                </div>
-
-                <div class="hidden md:block text-slate-500 px-4">|</div>
-
-                <!-- Sink -->
-                <div class="glass-panel p-6 rounded-xl w-full md:w-64 text-center relative group">
-                    <div class="text-nebu-secondary mb-2 font-bold">SINK</div>
-                    <div class="bg-black/50 p-2 rounded border border-white/10 mb-2">nats-sink</div>
-                    <div class="text-slate-500 text-xs">Publishes to Subject</div>
-                </div>
-
-            </div>
-
-            <div class="mt-12 text-center">
-                <code class="bg-[#1e2330] px-4 py-3 rounded-lg border border-white/10 text-slate-300">
-                    <span class="text-nebu-primary">|</span> Pipe anything. <span class="text-nebu-primary">|</span> Replace any component. <span class="text-nebu-primary">|</span> Build what you need. <span class="text-nebu-primary">|</span>
-                </code>
-            </div>
+    <!-- FEATURES -->
+    <section class="md:col-span-12 bg-surface-container-low p-8 border-t border-outline-variant" id="features">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## FEATURES</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">01_STABLE_CONTRACT</div>
+          <p class="text-secondary text-sm">
+            <span class="text-on-surface">pkg/processor</span> and <span class="text-on-surface">pkg/source</span> are committed-stable,
+            enforced by CI against API snapshots in <span class="text-on-surface">.api/</span>.
+            Build your own processor, ship it as its own binary.
+          </p>
         </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">02_UNIX_PIPES</div>
+          <p class="text-secondary text-sm">
+            No daemon. No orchestrator. Origin | Transform | Sink, composed with the same pipe you've used since 1973.
+            Pipe to <span class="text-on-surface">jq</span>, to <span class="text-on-surface">duckdb</span>, to <span class="text-on-surface">tee</span>.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">03_ARCHIVE_MODE</div>
+          <p class="text-secondary text-sm">
+            Fetch raw XDR directly from GCS or S3 at 100–500 ledgers/sec — bypassing RPC rate limits entirely.
+            Backfill Stellar's full history into a data lakehouse without a single custom worker.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">04_DESCRIBE_JSON</div>
+          <p class="text-secondary text-sm">
+            Every processor emits a JSON-schema-valid <span class="text-on-surface">--describe-json</span> manifest.
+            Agents and tools can discover flags, inputs, outputs, and schema IDs without reading source.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">05_SCHEMA_VERSIONING</div>
+          <p class="text-secondary text-sm">
+            Every event carries <span class="text-on-surface">_schema</span> and <span class="text-on-surface">_nebu_version</span>.
+            Field rename? Bump the version. Your downstream queries never break silently.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">06_COMMUNITY_REGISTRY</div>
+          <p class="text-secondary text-sm">
+            Register any Git repo as a processor source via <span class="text-on-surface">description.yml</span>.
+            <span class="text-on-surface">nebu install your-processor</span> just works.
+          </p>
+        </div>
+      </div>
     </section>
 
-    <!-- Getting Started -->
-    <section id="getting-started" class="relative z-10 py-24 px-6 border-t border-white/5">
-        <div class="max-w-6xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Getting Started</h2>
-                <p class="text-slate-400 max-w-2xl mx-auto">Common commands to get you up and running with nebu</p>
+    <!-- QUICKSTART -->
+    <section class="md:col-span-12 bg-surface-container p-8" id="quickstart">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## QUICKSTART</h2>
+      <div class="text-secondary space-y-8">
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_01</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">INSTALL_VESSEL</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-01" type="button">[ COPY ]</button>
+              <pre id="qs-01">go install github.com/withObsrvr/nebu/cmd/nebu@latest
+export PATH="$HOME/go/bin:$PATH"</pre>
             </div>
-
-            <div class="space-y-8">
-
-                <!-- Command 6: Fetch XDR -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Fetch raw ledgers</h3>
-                            <p class="text-sm text-slate-400">Separate fetch from processing</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> nebu fetch 60200000 60200100 > ledgers.xdr<br>
-                                    <span class="text-nebu-accent">$</span> cat ledgers.xdr <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> jq
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 7: Archive Mode -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Historical archives</h3>
-                            <p class="text-sm text-slate-400">GCS/S3 for data lakehouse</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> nebu fetch --mode archive \<br>
-                                    <span class="ml-4">--bucket-path <span class="text-green-400">"my-bucket/stellar/ledgers"</span> \</span><br>
-                                    <span class="ml-4">60200000 60300000 <span class="text-slate-500">|</span> gzip > historical.xdr.gz</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 8: Auth -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Premium RPC</h3>
-                            <p class="text-sm text-slate-400">Use authenticated endpoints</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> <span class="text-orange-400">export</span> NEBU_RPC_AUTH=<span class="text-green-400">"Api-Key YOUR_API_KEY"</span><br>
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 \<br>
-                                    <span class="ml-4">--rpc-url https://rpc-pubnet.nodeswithobsrvr.co</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 9: Pipeline -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-secondary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Complete pipeline</h3>
-                            <p class="text-sm text-slate-400">Extract → filter → dedupe → store</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --follow <span class="text-slate-500">|</span> \<br>
-                                    <span class="ml-4">jq -c <span class="text-green-400">'select(.transfer.assetCode == "USDC")'</span> <span class="text-slate-500">|</span> \</span><br>
-                                    <span class="ml-4">dedup --key meta.txHash <span class="text-slate-500">|</span> \</span><br>
-                                    <span class="ml-4">json-file-sink --out usdc-transfers.jsonl</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 10: Install -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-accent/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Manage processors</h3>
-                            <p class="text-sm text-slate-400">List and install components</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> nebu list<br>
-                                    <span class="text-nebu-accent">$</span> nebu install token-transfer<br>
-                                    <span class="text-nebu-accent">$</span> nebu install json-file-sink
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Command 1: Extract -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Extract token transfers</h3>
-                            <p class="text-sm text-slate-400">Stream events from Stellar ledgers</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300">
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 2: Filter -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Filter with jq</h3>
-                            <p class="text-sm text-slate-400">USDC transfers only</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \<br>
-                                    <span class="ml-4">jq <span class="text-green-400">'select(.transfer.assetCode == "USDC")'</span></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 3: Stream -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-primary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Stream continuously</h3>
-                            <p class="text-sm text-slate-400">Like <code class="bg-white/10 px-1 rounded">tail -f</code></p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300">
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --follow
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 4: Multiple Outputs -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-secondary/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">Multiple destinations</h3>
-                            <p class="text-sm text-slate-400">Fan-out with <code class="bg-white/10 px-1 rounded">tee</code></p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \<br>
-                                    <span class="ml-4">tee >(nats-sink --subject <span class="text-green-400">"stellar.transfers"</span> --jetstream) <span class="text-slate-500">|</span> \</span><br>
-                                    <span class="ml-4">tee >(json-file-sink --out transfers.jsonl) <span class="text-slate-500">|</span> \</span><br>
-                                    <span class="ml-4">jq -r <span class="text-green-400">'"Ledger \(.meta.ledgerSequence): \(.transfer.amount)"'</span></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Command 5: SQL Analytics -->
-                <div class="glass-panel p-6 rounded-xl hover:border-nebu-accent/30 transition-all group">
-                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                        <div class="flex-shrink-0 w-full md:w-48">
-                            <h3 class="text-white font-semibold mb-2">SQL analytics</h3>
-                            <p class="text-sm text-slate-400">Aggregate with DuckDB</p>
-                        </div>
-                        <div class="flex-grow">
-                            <div class="bg-[#0D1117] rounded-lg p-4 font-mono text-sm border border-white/5 overflow-x-auto">
-                                <div class="text-slate-300 whitespace-nowrap">
-                                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \<br>
-                                    <span class="ml-4">duckdb -c <span class="text-green-400">"</span></span><br>
-                                    <span class="ml-8 text-orange-400">SELECT</span><br>
-                                    <span class="ml-10">json_extract_string(transfer, <span class="text-green-400">'$.assetCode'</span>) <span class="text-orange-400">as</span> asset,</span><br>
-                                    <span class="ml-10"><span class="text-orange-400">COUNT</span>(*) <span class="text-orange-400">as</span> count,</span><br>
-                                    <span class="ml-10"><span class="text-orange-400">SUM</span>(<span class="text-orange-400">CAST</span>(json_extract_string(transfer, <span class="text-green-400">'$.amount'</span>) <span class="text-orange-400">AS DOUBLE</span>)) <span class="text-orange-400">as</span> volume</span><br>
-                                    <span class="ml-8"><span class="text-orange-400">FROM</span> read_json(<span class="text-green-400">'/dev/stdin'</span>)</span><br>
-                                    <span class="ml-8"><span class="text-orange-400">WHERE</span> transfer <span class="text-orange-400">IS NOT NULL</span></span><br>
-                                    <span class="ml-8"><span class="text-orange-400">GROUP BY</span> asset</span><br>
-                                    <span class="ml-8"><span class="text-orange-400">ORDER BY</span> volume <span class="text-orange-400">DESC</span></span><br>
-                                    <span class="ml-4"><span class="text-green-400">"</span></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- CTA -->
-            <div class="mt-12 text-center">
-                <a href="https://github.com/withObsrvr/nebu#getting-started" class="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-panel hover:bg-white/10 text-white font-semibold transition-all group">
-                    <span>View Full Documentation</span>
-                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                </a>
-            </div>
+          </div>
         </div>
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_02</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">DISCOVER_AND_INSTALL</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-02" type="button">[ COPY ]</button>
+              <pre id="qs-02">nebu list
+nebu install token-transfer</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_03</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">STREAM_EVENTS</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-03" type="button">[ COPY ]</button>
+              <pre id="qs-03">token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_04</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">COMPOSE_A_PIPELINE</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-04" type="button">[ COPY ]</button>
+              <pre id="qs-04">token-transfer --start-ledger 60200000 --follow \
+  | jq -c 'select(.transfer.assetCode == "USDC")' \
+  | dedup --key meta.txHash \
+  | json-file-sink --out usdc.jsonl</pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="border-t border-white/5 py-12 bg-black/20">
-        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div class="flex items-center gap-2">
-                <span class="font-bold text-xl tracking-tight">nebu</span>
-                <span class="text-slate-600 text-sm">© 2025 Built by OBSRVR</span>
+    <!-- COOKBOOK — named recipes, scannable grid -->
+    <section class="md:col-span-12 bg-surface-container-low p-8 border-t border-outline-variant" id="cookbook">
+      <div class="flex flex-wrap items-baseline justify-between mb-8 gap-2">
+        <h2 class="text-3xl font-bold text-on-surface">## COOKBOOK</h2>
+        <span class="text-[0.6875rem] uppercase text-tertiary">[ NAMED_RECIPES ]</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <!-- 01 -->
+        <div class="bg-surface-container p-5 flex flex-col">
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK_01 ]</div>
+          <div class="text-on-surface font-bold mb-2">HISTORICAL_ARCHIVES</div>
+          <p class="text-secondary text-sm mb-4 flex-1">
+            Read deep history from the public <span class="text-tertiary">aws-public-blockchain</span> S3 archive — no AWS account, no RPC rate limits.
+          </p>
+          <div class="bg-background border-l-2 border-primary-container">
+            <div class="code-head">
+              <span class="code-head__lang">bash</span>
+              <button class="copy-btn copy-btn--inline" data-copy-target="cb-01" type="button">[ COPY ]</button>
             </div>
-            <div class="flex gap-6 text-sm text-slate-400">
-                <a href="#" class="hover:text-white transition-colors">Documentation</a>
-                <a href="https://lab.stellar.org/" class="hover:text-white transition-colors">Stellar Lab</a>
-                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
-            </div>
+            <pre id="cb-01" class="overflow-x-auto p-3 text-xs">nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62080100 | gzip &gt; historical.xdr.gz</pre>
+          </div>
         </div>
-    </footer>
 
-    <script>
-        function initInstallBoxes() {
-            document.querySelectorAll('[data-install-box]').forEach((box) => {
-                const tabs = box.querySelectorAll('[data-install-tab]');
-                const commandEl = box.querySelector('[data-install-command]');
-                const descriptionEl = box.querySelector('[data-install-description]');
-                const pathEl = box.querySelector('[data-install-path]');
-                const copyButton = box.querySelector('[data-install-copy]');
-                const feedback = box.querySelector('.install-copy-feedback');
+        <!-- 02 -->
+        <div class="bg-surface-container p-5 flex flex-col">
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK_02 ]</div>
+          <div class="text-on-surface font-bold mb-2">PREMIUM_RPC</div>
+          <p class="text-secondary text-sm mb-4 flex-1">
+            Use authenticated RPC endpoints via <span class="text-tertiary">NEBU_RPC_AUTH</span> for higher throughput and private lanes.
+          </p>
+          <div class="bg-background border-l-2 border-primary-container">
+            <div class="code-head">
+              <span class="code-head__lang">bash</span>
+              <button class="copy-btn copy-btn--inline" data-copy-target="cb-02" type="button">[ COPY ]</button>
+            </div>
+            <pre id="cb-02" class="overflow-x-auto p-3 text-xs">export NEBU_RPC_AUTH="Api-Key YOUR_KEY"
+token-transfer \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co \
+  --start-ledger 60200000 --end-ledger 60200100</pre>
+          </div>
+        </div>
 
-                const applyTab = (tab) => {
-                    const command = tab.dataset.command;
-                    const description = tab.dataset.description;
-                    if (commandEl) commandEl.textContent = command;
-                    if (descriptionEl) descriptionEl.textContent = description;
-                    if (pathEl) {
-                        pathEl.textContent = command.includes('curl -fsSL')
-                            ? 'export PATH="$HOME/.local/bin:$PATH"'
-                            : 'export PATH="$HOME/go/bin:$PATH"';
-                    }
+        <!-- 03 -->
+        <div class="bg-surface-container p-5 flex flex-col">
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK_03 ]</div>
+          <div class="text-on-surface font-bold mb-2">COMPLETE_PIPELINE</div>
+          <p class="text-secondary text-sm mb-4 flex-1">
+            Extract → filter → dedupe → store, composed with only the shell's pipe.
+          </p>
+          <div class="bg-background border-l-2 border-primary-container">
+            <div class="code-head">
+              <span class="code-head__lang">bash</span>
+              <button class="copy-btn copy-btn--inline" data-copy-target="cb-03" type="button">[ COPY ]</button>
+            </div>
+            <pre id="cb-03" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --follow \
+  | jq -c 'select(.transfer.assetCode == "USDC")' \
+  | dedup --key meta.txHash \
+  | json-file-sink --out usdc.jsonl</pre>
+          </div>
+        </div>
 
-                    tabs.forEach((btn) => {
-                        const active = btn === tab;
-                        btn.setAttribute('aria-selected', active ? 'true' : 'false');
-                        btn.classList.toggle('bg-white', active);
-                        btn.classList.toggle('text-nebu-dark', active);
-                        btn.classList.toggle('glass-panel', !active);
-                        btn.classList.toggle('text-white', !active);
-                    });
-                };
+        <!-- 04 -->
+        <div class="bg-surface-container p-5 flex flex-col">
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK_04 ]</div>
+          <div class="text-on-surface font-bold mb-2">FAN_OUT_WITH_TEE</div>
+          <p class="text-secondary text-sm mb-4 flex-1">
+            One stream, many sinks. Live NATS for consumers, a JSONL archive on disk, a human-readable tail in the terminal.
+          </p>
+          <div class="bg-background border-l-2 border-primary-container">
+            <div class="code-head">
+              <span class="code-head__lang">bash</span>
+              <button class="copy-btn copy-btn--inline" data-copy-target="cb-04" type="button">[ COPY ]</button>
+            </div>
+            <pre id="cb-04" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --follow \
+  | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
+  | tee &gt;(json-file-sink --out archive.jsonl) \
+  | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre>
+          </div>
+        </div>
 
-                tabs.forEach((tab) => {
-                    tab.addEventListener('click', () => applyTab(tab));
-                });
+        <!-- 05 -->
+        <div class="bg-surface-container p-5 flex flex-col">
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK_05 ]</div>
+          <div class="text-on-surface font-bold mb-2">DUCKDB_ANALYTICS</div>
+          <p class="text-secondary text-sm mb-4 flex-1">
+            SQL aggregations directly over the stream. No database setup, no schema, no ETL job.
+          </p>
+          <div class="bg-background border-l-2 border-primary-container">
+            <div class="code-head">
+              <span class="code-head__lang">bash</span>
+              <button class="copy-btn copy-btn--inline" data-copy-target="cb-05" type="button">[ COPY ]</button>
+            </div>
+            <pre id="cb-05" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | duckdb -c "
+      SELECT json_extract_string(transfer,'\$.assetCode') AS asset,
+             COUNT(*) AS n
+      FROM read_json('/dev/stdin')
+      WHERE transfer IS NOT NULL
+      GROUP BY asset ORDER BY n DESC"</pre>
+          </div>
+        </div>
 
-                if (copyButton && commandEl) {
-                    copyButton.addEventListener('click', () => {
-                        navigator.clipboard.writeText(commandEl.textContent).then(() => {
-                            if (!feedback) return;
-                            feedback.classList.remove('opacity-0');
-                            feedback.classList.add('opacity-100', 'translate-y-2');
-                            setTimeout(() => {
-                                feedback.classList.remove('opacity-100', 'translate-y-2');
-                                feedback.classList.add('opacity-0');
-                            }, 2000);
-                        });
-                    });
-                }
+        <!-- 06 -->
+        <div class="bg-surface-container p-5 flex flex-col">
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK_06 ]</div>
+          <div class="text-on-surface font-bold mb-2">FETCH_ONCE_PROCESS_MANY</div>
+          <p class="text-secondary text-sm mb-4 flex-1">
+            Capture raw XDR once, replay through any number of processors. Great for backfills and schema diffs.
+          </p>
+          <div class="bg-background border-l-2 border-primary-container">
+            <div class="code-head">
+              <span class="code-head__lang">bash</span>
+              <button class="copy-btn copy-btn--inline" data-copy-target="cb-06" type="button">[ COPY ]</button>
+            </div>
+            <pre id="cb-06" class="overflow-x-auto p-3 text-xs">nebu fetch 60200000 60200100 &gt; ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.transfer)'
+cat ledgers.xdr | contract-events | grep -i swap</pre>
+          </div>
+        </div>
 
-                if (tabs.length > 0) applyTab(tabs[0]);
-            });
-        }
+      </div>
 
-        initInstallBoxes();
+      <p class="mt-8 text-secondary text-sm">
+        <span class="text-tertiary">See also:</span>
+        <a href="man.html#examples" class="text-tertiary hover:underline">nebu(1) &#8250; EXAMPLES</a>
+        for the exhaustive reference, and
+        <a href="https://github.com/withObsrvr/nebu/blob/main/docs/DUCKDB_COOKBOOK.md" class="text-tertiary hover:underline">docs/DUCKDB_COOKBOOK.md</a>
+        for deeper SQL recipes.
+      </p>
+    </section>
 
-        // Simple scroll effect for navbar
-        window.addEventListener('scroll', () => {
-            const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                nav.classList.add('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
-            } else {
-                nav.classList.remove('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
-            }
-        });
-    </script>
+    <!-- INFO callout — teal semantic: nebu meta-fact, not a live action -->
+    <section class="md:col-span-12 bg-surface-container-low p-6 border-l-4 border-tertiary">
+      <div class="flex items-start gap-4">
+        <span class="text-tertiary font-bold text-[0.6875rem] uppercase tracking-widest shrink-0 mt-1">[ INFO ]</span>
+        <p class="text-secondary leading-relaxed">
+          <span class="text-on-surface">Separate fetch from process.</span>
+          <span class="text-tertiary">nebu fetch</span> writes raw <span class="text-tertiary">LedgerCloseMeta</span> XDR to stdout — capture a ledger range once,
+          replay it through any number of processors. Great for backfills, regression tests, and
+          comparing two schema versions over the same ledgers.
+        </p>
+      </div>
+    </section>
+
+    <!-- SAMPLE EVENT -->
+    <section class="md:col-span-7 bg-surface-container-low p-8 border-t border-outline-variant">
+      <h2 class="text-3xl font-bold mb-6 text-on-surface">## SAMPLE_EVENT</h2>
+      <div class="text-[0.6875rem] uppercase text-secondary mb-3">[ STDOUT // NDJSON ]</div>
+      <div class="copy-block">
+        <button class="copy-btn" data-copy-target="sample-event" type="button">[ COPY ]</button>
+        <pre id="sample-event" class="text-sm text-secondary overflow-x-auto leading-relaxed"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.token_transfer.v1"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.7"</span>,
+  <span class="text-tertiary">"meta"</span>: {
+    <span class="text-tertiary">"ledgerSequence"</span>: <span class="text-on-surface">60200000</span>,
+    <span class="text-tertiary">"closedAtUnix"</span>:   <span class="text-on-surface">"1765158311"</span>,
+    <span class="text-tertiary">"txHash"</span>:         <span class="text-on-surface">"abc..."</span>,
+    <span class="text-tertiary">"contractAddress"</span>: <span class="text-on-surface">"CA..."</span>
+  },
+  <span class="text-primary-container">"transfer"</span>: {
+    <span class="text-primary-container">"from"</span>:      <span class="text-on-surface">"GA..."</span>,
+    <span class="text-primary-container">"to"</span>:        <span class="text-on-surface">"GB..."</span>,
+    <span class="text-primary-container">"assetCode"</span>: <span class="text-on-surface">"USDC"</span>,
+    <span class="text-primary-container">"amount"</span>:    <span class="text-on-surface">"1000000"</span>
+  }
+<span class="text-on-surface">}</span>
+<span class="text-tertiary opacity-70">// teal = nebu meta · coral = payload data</span></pre>
+      </div>
+    </section>
+
+    <!-- PROCESSORS -->
+    <section class="md:col-span-5 bg-surface-container-low p-8 border-t border-outline-variant" id="processors">
+      <h2 class="text-3xl font-bold mb-6 text-on-surface">## REGISTRY</h2>
+      <div class="text-[0.6875rem] uppercase text-secondary mb-4">[ nebu list ]</div>
+      <div class="text-sm space-y-1">
+        <div><span class="text-primary-container">token-transfer</span><span class="text-secondary"> · origin   · transfers/mints/burns</span></div>
+        <div><span class="text-primary-container">contract-events</span><span class="text-secondary"> · origin   · Soroban diagnostic events</span></div>
+        <div><span class="text-primary-container">contract-invocation</span><span class="text-secondary"> · origin · Soroban invocations</span></div>
+        <div><span class="text-primary-container">transaction-stats</span><span class="text-secondary"> · origin · per-ledger tx metrics</span></div>
+        <div><span class="text-primary-container">ledger-change-stats</span><span class="text-secondary"> · origin · ledger entry deltas</span></div>
+        <div class="text-secondary opacity-60 py-1">--------------------------------</div>
+        <div><span class="text-primary-container">usdc-filter</span><span class="text-secondary">      · transform · asset filter</span></div>
+        <div><span class="text-primary-container">amount-filter</span><span class="text-secondary">    · transform · threshold filter</span></div>
+        <div><span class="text-primary-container">dedup</span><span class="text-secondary">            · transform · keyed dedup</span></div>
+        <div><span class="text-primary-container">time-window</span><span class="text-secondary">      · transform · windowing</span></div>
+        <div class="text-secondary opacity-60 py-1">--------------------------------</div>
+        <div><span class="text-primary-container">json-file-sink</span><span class="text-secondary">   · sink      · jsonl writer</span></div>
+        <div><span class="text-primary-container">nats-sink</span><span class="text-secondary">        · sink      · NATS / JetStream</span></div>
+        <div><span class="text-primary-container">postgres-sink</span><span class="text-secondary">    · sink      · PG upserts</span></div>
+      </div>
+    </section>
+
+    <!-- TWO WAYS IN -->
+    <section class="md:col-span-12 bg-surface-container p-8">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## TWO_WAYS_IN</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+        <div>
+          <div class="text-primary-container font-bold text-lg mb-4">[ I WANT TO QUERY STELLAR DATA ]</div>
+          <p class="text-secondary mb-6">
+            Install the CLI, pick a processor, pipe events through <span class="text-on-surface">jq</span> or
+            <span class="text-on-surface">duckdb</span>. You're done. No Go required.
+          </p>
+          <a href="#quickstart" class="inline-block border border-outline text-on-surface px-6 py-2 font-bold hover:bg-primary-container hover:text-background transition-colors">
+            [ QUICKSTART &rarr; ]
+          </a>
+        </div>
+        <div>
+          <div class="text-primary-container font-bold text-lg mb-4">[ I WANT TO BUILD A PROCESSOR ]</div>
+          <p class="text-secondary mb-6">
+            The contract is just <span class="text-on-surface">Processor</span>, <span class="text-on-surface">Origin</span>,
+            <span class="text-on-surface">Transform</span>, <span class="text-on-surface">Sink</span>,
+            <span class="text-on-surface">Emitter[T]</span>, and <span class="text-on-surface">Reporter</span>.
+            Implement, ship as a binary, register via <span class="text-on-surface">description.yml</span>.
+          </p>
+          <a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md"
+             class="inline-block border border-outline text-on-surface px-6 py-2 font-bold hover:bg-primary-container hover:text-background transition-colors">
+            [ BUILD_GUIDE &rarr; ]
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEBU vs FLOWCTL -->
+    <section class="md:col-span-12 bg-surface-container-low p-8 border-t border-outline-variant">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## NEBU vs FLOWCTL</h2>
+      <div class="text-sm md:text-base">
+        <div class="grid grid-cols-12 gap-4 text-secondary mb-2 pb-2 border-b border-outline-variant">
+          <div class="col-span-4 text-on-surface font-bold">USE_CASE</div>
+          <div class="col-span-4 text-on-surface font-bold">NEBU</div>
+          <div class="col-span-4 text-on-surface font-bold">FLOWCTL</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">prototyping / ad-hoc</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+          <div class="col-span-4 text-secondary">overkill</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">single-machine pipes</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+          <div class="col-span-4 text-secondary">possible but heavy</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">production orchestration</div>
+          <div class="col-span-4 text-secondary">out of scope</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">multi-language processors</div>
+          <div class="col-span-4 text-secondary">Go only</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2">
+          <div class="col-span-4 text-secondary">distributed / DAG</div>
+          <div class="col-span-4 text-secondary">no</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AGENTS — teal: introspection/describe-json is the "meta voice", not live action.
+         Contrast: #131313 on #00b5c0 ≈ 8:1 (AAA). -->
+    <section class="md:col-span-12 bg-tertiary-container p-8 text-background">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div class="font-bold text-[0.6875rem] uppercase mb-2">[ AGENT_FRIENDLY // INTROSPECTION ]</div>
+          <h2 class="text-3xl md:text-4xl font-bold tracking-tighter">
+            Every processor is agent-legible.
+          </h2>
+          <p class="mt-4 max-w-2xl">
+            <span class="font-bold">--describe-json</span> emits flags, inputs, outputs, and schema IDs.
+            Runtime hooks expose metrics, tracing, progress, and agent gates.
+            The contract is small enough for an LLM to hold in its head.
+          </p>
+        </div>
+        <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md"
+           class="shrink-0 border-2 border-background px-6 py-3 font-bold hover:bg-background hover:text-tertiary-container transition-colors">
+          [ HOOKS.MD &rarr; ]
+        </a>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<!-- Fixed footer -->
+<footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
+  <div class="flex gap-4">
+    <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="schemas.html" class="hover:text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="changelog.html" class="hover:text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
+  </div>
+</footer>
+
+<script src="assets/nebu.js"></script>
 </body>
 </html>

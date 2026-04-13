@@ -4,11 +4,28 @@ All notable changes to nebu are documented here. For full release artifacts, see
 
 ## Unreleased
 
+- Documentation: archive-mode examples now default to the public `aws-public-blockchain/v1.1/stellar/ledgers/pubnet` S3 bucket (region `us-east-2`). No AWS account is required — the Stellar SDK's S3 datastore falls back to `AnonymousCredentials` automatically when no credentials are present. Verified end-to-end: fetching ledgers 62080000-62080010 anonymously and piping through `token-transfer` produces 8,713 well-formed events. `docs/ARCHIVE_MODE.md`, `docs/BACKFILL_STRATEGIES.md`, and the website cookbook/man/quickstart pages updated. No code changes.
+- Website: full redesign rolled out to `docs/` (GitHub Pages). New pages — `man.html`, `processors.html`, `schemas.html`, `changelog.html` — plus shared `assets/nebu.css` and `assets/nebu.js`. Install script moved to `docs/install.sh` so `curl -sSL https://nebu.withobsrvr.com/install.sh | sh` resolves.
+
+## v0.6.7
+
 - Updated AWS SDK v2 dependencies across the root module and all reference processor modules to address the EventStream decoder DoS advisory:
   - `github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream` → `v1.7.8`
   - `github.com/aws/aws-sdk-go-v2/service/s3` → `v1.99.0`
-- This also pulled related AWS SDK internals forward (`aws-sdk-go-v2`, `smithy-go`, and related service internals) via `go mod tidy`.
-- Verified that `google.golang.org/grpc` is already at `v1.80.0`, which is newer than the fix version for the `:path` authorization-bypass advisory (`v1.79.3`).
+- Pulled related AWS SDK internals forward (`aws-sdk-go-v2`, `smithy-go`) via `go mod tidy`.
+- Verified that `google.golang.org/grpc` is already at `v1.80.0`, newer than the fix version for the `:path` authorization-bypass advisory (`v1.79.3`).
+
+## v0.6.6
+
+- Removed an unused command and cleaned up documentation (#24).
+
+## v0.6.5
+
+- Updated library dependencies.
+
+## v0.6.4
+
+- Documentation updates (#19).
 
 ## v0.6.3
 

@@ -74,7 +74,9 @@ fi
 
 # Configure nebu for archive mode
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=500
 export NEBU_NUM_WORKERS=20
 
@@ -177,7 +179,9 @@ mkdir -p "$LOG_DIR"
 
 # Configure nebu for archive mode
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=500
 export NEBU_NUM_WORKERS=20
 
@@ -294,7 +298,9 @@ PARALLEL_JOBS=4
 DATA_LAKE="s3://my-data-lake"
 
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=500
 export NEBU_NUM_WORKERS=20
 
@@ -497,7 +503,9 @@ if [ -f "$CHECKPOINT_FILE" ]; then
 fi
 
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=500
 export NEBU_NUM_WORKERS=20
 

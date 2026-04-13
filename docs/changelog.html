@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEBU // CHANGELOG</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-bright": "#3a3939",
+          "tertiary": "#4dd9e4",
+          "tertiary-container": "#00b5c0",
+          "on-tertiary": "#00363a",
+          "on-tertiary-container": "#004145",
+          "outline": "#7a6a6a",
+          "outline-variant": "#3d3535",
+          "error": "#ffb4ab",
+          "surface-container-highest": "#353534",
+          "surface-container": "#201f1f",
+          "surface-container-high": "#2a2a2a",
+          "primary": "#ffb59c",
+          "surface-container-low": "#1c1b1b",
+          "on-primary": "#5c1a00",
+          "primary-container": "#ff7f50",
+          "on-primary-container": "#6c2000",
+          "on-surface": "#e5e2e1",
+          "on-background": "#e5e2e1",
+          "secondary": "#c6c6c6",
+          "surface": "#131313",
+          "background": "#131313"
+        },
+        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
+        fontFamily: {
+          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
+        }
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="assets/nebu.css"/>
+</head>
+<body class="bg-background text-on-surface">
+
+<header class="bg-[#131313] text-[#ff7f50] uppercase tracking-tighter flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50">
+  <div class="text-xl font-bold text-[#e5e2e1] flex items-center gap-3">
+    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
+    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
+  </div>
+  <nav class="hidden md:flex gap-8 items-center">
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
+          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
+    [ MENU ]
+  </button>
+  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+</header>
+
+<div id="mobile-menu" aria-hidden="true"
+     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
+  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+</div>
+
+<div class="max-w-7xl mx-auto px-6 lg:flex lg:gap-10 lg:items-start">
+
+  <aside class="hidden lg:block lg:w-48 shrink-0 py-12">
+    <nav aria-label="On this page" class="sticky top-24 text-sm">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ VERSIONS ]</div>
+      <ul>
+        <li><a href="#unreleased" data-toc="unreleased" class="toc-link">UNRELEASED</a></li>
+        <li><a href="#v0-6-7"     data-toc="v0-6-7"     class="toc-link">v0.6.7</a></li>
+        <li><a href="#v0-6-6"     data-toc="v0-6-6"     class="toc-link">v0.6.6</a></li>
+        <li><a href="#v0-6-5"     data-toc="v0-6-5"     class="toc-link">v0.6.5</a></li>
+        <li><a href="#v0-6-4"     data-toc="v0-6-4"     class="toc-link">v0.6.4</a></li>
+        <li><a href="#v0-6-3"     data-toc="v0-6-3"     class="toc-link">v0.6.3</a></li>
+        <li><a href="#v0-6-2"     data-toc="v0-6-2"     class="toc-link">v0.6.2</a></li>
+        <li><a href="#v0-6-0"     data-toc="v0-6-0"     class="toc-link">v0.6.0</a></li>
+        <li><a href="#v0-5-0"     data-toc="v0-5-0"     class="toc-link">v0.5.0</a></li>
+      </ul>
+      <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
+        release · log<br/>
+        <span class="text-tertiary">rev 2026-04-13</span>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 lg:max-w-3xl py-12 pb-32">
+
+    <div class="text-[0.8125rem] text-secondary mb-6 uppercase tracking-tight">
+      ROOT / DOCS / <span class="text-primary-container">CHANGELOG</span>
+    </div>
+
+    <section class="mb-12">
+      <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-6 text-on-surface"># CHANGELOG</h1>
+      <p class="text-xl text-secondary max-w-2xl leading-relaxed">
+        Notable changes to nebu, per release.
+      </p>
+      <p class="text-base text-secondary max-w-2xl leading-relaxed mt-3">
+        Full release artifacts — binaries, container images, checksums — live on
+        <a href="https://github.com/withObsrvr/nebu/releases" class="text-tertiary hover:underline">GitHub Releases</a>.
+      </p>
+    </section>
+
+    <!-- Mobile TOC -->
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
+      <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+        <a class="text-tertiary hover:underline" href="#unreleased">#UNRELEASED</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-7">#v0.6.7</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-6">#v0.6.6</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-5">#v0.6.5</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-4">#v0.6.4</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-3">#v0.6.3</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-2">#v0.6.2</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-0">#v0.6.0</a>
+        <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
+      </div>
+    </nav>
+
+    <!-- UNRELEASED -->
+    <section id="unreleased" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## UNRELEASED</h2>
+        <span class="text-[0.6875rem] uppercase text-tertiary tracking-widest">[ MAIN · HEAD ]</span>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Docs:</strong> archive-mode examples now default to the public
+          <code class="text-tertiary">aws-public-blockchain/v1.1/stellar/ledgers/pubnet</code> S3 bucket
+          (region <code class="text-tertiary">us-east-2</code>). No AWS account required — the Stellar SDK's
+          S3 datastore falls back to <code class="text-on-surface">AnonymousCredentials</code> when no credentials
+          are present. Verified end-to-end: fetching 10 ledgers anonymously and piping through
+          <code class="text-on-surface">token-transfer</code> produces 8,713 well-formed events.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Website:</strong> full redesign rolled out to <code class="text-on-surface">docs/</code>.
+          New pages — <a class="text-tertiary hover:underline" href="man.html">man(1)</a>,
+          <a class="text-tertiary hover:underline" href="processors.html">processors</a>,
+          <a class="text-tertiary hover:underline" href="schemas.html">schemas</a>, this changelog — plus shared
+          <code class="text-on-surface">assets/nebu.css</code> and <code class="text-on-surface">assets/nebu.js</code>.
+          Install script mirrored to <code class="text-on-surface">docs/install.sh</code> so
+          <code class="text-tertiary">curl -sSL https://nebu.withobsrvr.com/install.sh | sh</code> resolves.
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.7 -->
+    <section id="v0-6-7" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.7</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-[0.6875rem] uppercase text-error tracking-widest">[ SECURITY ]</span>
+          <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.7"
+             class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+        </div>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Updated AWS SDK v2 dependencies across the root module and all reference processor modules to address the EventStream decoder DoS advisory:
+          <ul class="mt-2 ml-4 space-y-1">
+            <li><span class="text-tertiary">&rarr;</span> <code class="text-on-surface">github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream</code> → <code class="text-tertiary">v1.7.8</code></li>
+            <li><span class="text-tertiary">&rarr;</span> <code class="text-on-surface">github.com/aws/aws-sdk-go-v2/service/s3</code> → <code class="text-tertiary">v1.99.0</code></li>
+          </ul>
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Pulled related AWS SDK internals forward (<code class="text-on-surface">aws-sdk-go-v2</code>, <code class="text-on-surface">smithy-go</code>) via <code class="text-tertiary">go mod tidy</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Verified <code class="text-on-surface">google.golang.org/grpc</code> is at <code class="text-tertiary">v1.80.0</code>, newer than the fix version for the <code class="text-on-surface">:path</code> authorization-bypass advisory (<code class="text-tertiary">v1.79.3</code>).
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.6 -->
+    <section id="v0-6-6" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.6</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.6"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Removed an unused command and cleaned up documentation (#24).
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.5 -->
+    <section id="v0-6-5" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.5</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.5"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Updated library dependencies.
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.4 -->
+    <section id="v0-6-4" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.4</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.4"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Documentation updates (#19).
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.3 -->
+    <section id="v0-6-3" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.3</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.3"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Fixed <code class="text-on-surface">_nebu_version</code> in event envelopes for processors installed via <code class="text-tertiary">go install</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Pinned all reference processors to <code class="text-on-surface">github.com/withObsrvr/nebu v0.6.2</code>, so runtime build-info fallback now reports the real version instead of <code class="text-on-surface">dev</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          No other code changes in this release.
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.2 -->
+    <section id="v0-6-2" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.2</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.2"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Unblocked <code class="text-tertiary">go install</code> for in-tree processors.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          <code class="text-tertiary">nebu --version</code> now reads runtime build info when ldflags are absent.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          <code class="text-tertiary">nebu install</code> now includes captured <code class="text-on-surface">go install</code> output in failures.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Fixed <code class="text-on-surface">usdc-filter</code> to read the correct <code class="text-on-surface">transfer.assetCode</code> field.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Added Claude Code skill docs and worked pipeline examples.
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.6.0 -->
+    <section id="v0-6-0" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.0</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-[0.6875rem] uppercase text-primary-container tracking-widest">[ MINOR ]</span>
+          <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.0"
+             class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+        </div>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Added runtime hooks via <code class="text-tertiary">Runtime.Use(Hooks{...})</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Added deterministic fatal-priority preemption.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Added CI enforcement for stable API snapshots.
+        </li>
+      </ul>
+    </section>
+
+    <!-- v0.5.0 -->
+    <section id="v0-5-0" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.5.0</h2>
+        <div class="flex items-center gap-3">
+          <span class="text-[0.6875rem] uppercase text-primary-container tracking-widest">[ MINOR · CONTRACT ]</span>
+          <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.5.0"
+             class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+        </div>
+      </div>
+
+      <div class="bg-surface-container-low p-4 border-l-2 border-tertiary mb-4 text-sm">
+        <span class="text-tertiary font-bold">[ CONTRACT ]</span>
+        <span class="text-secondary">
+          This release declared the stable contract surface. From this version on, breaking changes to
+          <code class="text-on-surface">pkg/processor</code> / <code class="text-on-surface">pkg/source</code> require a major bump and a deprecation window.
+        </span>
+      </div>
+
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          Declared the stable contract surface: <code class="text-on-surface">pkg/processor</code>, <code class="text-on-surface">pkg/source</code>, <code class="text-on-surface">registry.yaml</code> v1, and <code class="text-tertiary">--describe-json</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Formalized transform and sink interfaces.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Split <code class="text-on-surface">pkg/source</code> into a dep-free interface package with concrete implementations elsewhere.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          Added the registry specification.
+        </li>
+      </ul>
+    </section>
+
+    <!-- OLDER -->
+    <section class="mb-16">
+      <div class="bg-surface-container-low p-6 border-l-2 border-outline">
+        <div class="text-[0.6875rem] uppercase text-secondary mb-2 tracking-widest">[ OLDER ]</div>
+        <p class="text-secondary text-sm">
+          Full release history including <span class="text-on-surface">v0.4.x</span>, <span class="text-on-surface">v0.3.x</span>, and earlier lives in the
+          <a href="https://github.com/withObsrvr/nebu/blob/main/CHANGELOG.md" class="text-tertiary hover:underline">CHANGELOG.md</a> in the repo and on
+          <a href="https://github.com/withObsrvr/nebu/releases" class="text-tertiary hover:underline">GitHub Releases</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- LEGEND -->
+    <section class="mb-16">
+      <h2 class="text-xl font-bold text-on-surface mb-4">## LEGEND</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="bg-surface-container-low p-3">
+          <span class="text-[0.6875rem] uppercase text-primary-container tracking-widest">[ MINOR ]</span>
+          <span class="text-secondary ml-2">— added features, backwards-compatible.</span>
+        </div>
+        <div class="bg-surface-container-low p-3">
+          <span class="text-[0.6875rem] uppercase text-primary-container tracking-widest">[ MAJOR ]</span>
+          <span class="text-secondary ml-2">— breaking changes to the stable contract.</span>
+        </div>
+        <div class="bg-surface-container-low p-3">
+          <span class="text-[0.6875rem] uppercase text-tertiary tracking-widest">[ CONTRACT ]</span>
+          <span class="text-secondary ml-2">— touches <code class="text-on-surface">pkg/processor</code> or <code class="text-on-surface">pkg/source</code>.</span>
+        </div>
+        <div class="bg-surface-container-low p-3">
+          <span class="text-[0.6875rem] uppercase text-error tracking-widest">[ SECURITY ]</span>
+          <span class="text-secondary ml-2">— advisory fix. Upgrade promptly.</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="text-secondary opacity-30 select-none py-8 overflow-hidden">
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    </div>
+
+    <div class="flex justify-between items-baseline border-t border-outline-variant pt-2 mt-12 text-secondary text-sm">
+      <span>OBSRVR</span>
+      <span class="hidden md:inline">2026-04-13</span>
+      <span>NEBU(7)</span>
+    </div>
+
+  </main>
+</div>
+
+<footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
+  <div class="flex gap-4">
+    <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="schemas.html" class="hover:text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="changelog.html" class="text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
+  </div>
+</footer>
+
+<script src="assets/nebu.js"></script>
+</body>
+</html>
