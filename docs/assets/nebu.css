@@ -1,0 +1,120 @@
+/* =============================================================================
+ * nebu.css — shared styles for the terminal-brutalist design system.
+ * Loaded after the Tailwind CDN + tailwind-config inline script.
+ * =========================================================================== */
+
+/* ---- Base -------------------------------------------------------------- */
+
+html, body {
+  background-color: #131313;
+  color: #e5e2e1;
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: "liga" 0, "calt" 0;
+  line-height: 1.6;
+}
+
+/* Clear the fixed footer on every viewport */
+body { padding-bottom: 3rem; }
+
+::selection { background-color: #ff7f50; color: #131313; }
+
+/* ---- Scrollbar --------------------------------------------------------- */
+
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: #131313; }
+::-webkit-scrollbar-thumb { background: #ff7f50; }
+
+/* ---- Icons ------------------------------------------------------------- */
+
+.material-symbols-outlined {
+  font-size: 1.25rem;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ---- Navigation --------------------------------------------------------- */
+
+/* Smooth in-page jumps, with offset for sticky header */
+html                  { scroll-behavior: smooth; }
+section[id]           { scroll-margin-top: 5rem; }
+
+/* Sticky sidebar TOC */
+.toc-link {
+  display: block;
+  padding: 0.25rem 0 0.25rem 0.625rem;
+  color: #c6c6c6;
+  border-left: 2px solid transparent;
+  line-height: 1.4;
+}
+.toc-link:hover { color: #4dd9e4; }
+.toc-link.is-active {
+  color: #4dd9e4;
+  border-left-color: #4dd9e4;
+  background: rgba(77, 217, 228, 0.05);
+}
+
+/* Mobile drawer */
+.drawer-hidden { transform: translateY(-100%); }
+
+/* ---- Code blocks ------------------------------------------------------- */
+
+pre { white-space: pre; }
+
+/* Header bar above a <pre>: language label + copy button */
+.code-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2a2a2a;
+  padding: 0.125rem 0.75rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.code-head__lang { color: #4dd9e4; }
+
+/* Copy button — absolute variant (inside a `.copy-block` container) */
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  padding: 0.125rem 0.375rem;
+  color: #c6c6c6;
+  background: transparent;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.copy-btn:hover,
+.copy-btn.is-copied { color: #131313; background: #ff7f50; }
+
+/* Inline variant: sits in a code-head bar, never overlaps code */
+.copy-btn--inline {
+  position: static;
+  top: auto;
+  right: auto;
+}
+
+/* ---- Go syntax highlighting (minimal, used in build-processors.html) -- */
+
+.tok-kw   { color: #ff7f50; }
+.tok-str  { color: #e5e2e1; }
+.tok-com  { color: #7a6a6a; font-style: italic; }
+.tok-type { color: #4dd9e4; }
+.tok-fn   { color: #ffb59c; }
+
+/* ---- Flourishes -------------------------------------------------------- */
+
+/* Blinking cursor (hero on landing page) */
+.cursor-blink::after {
+  content: '_';
+  animation: blink 1s step-start infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ASCII pipeline diagrams keep a tight line-height */
+.ascii-pipe {
+  white-space: pre;
+  line-height: 1.25;
+}

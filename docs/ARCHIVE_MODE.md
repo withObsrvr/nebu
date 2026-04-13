@@ -44,27 +44,59 @@ Archive mode uses Stellar SDK's `BufferedStorageBackend` to read ledger data fro
 
 ## Configuration
 
-### Command-Line Flags
+### Default: the public AWS Stellar archive
+
+The simplest setup — **no AWS account required**. AWS maintains a public S3 bucket
+with Stellar pubnet ledgers in Galexie format; the SDK falls back to anonymous
+access automatically when no AWS credentials are present.
 
 ```bash
 nebu fetch --mode archive \
-  --datastore-type GCS \
-  --bucket-path "obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet" \
-  --buffer-size 100 \
-  --num-workers 10 \
-  60000000 60100000
+  --datastore-type S3 \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62080100
 ```
 
-### Environment Variables
+- **Bucket:** `s3://aws-public-blockchain/v1.1/stellar/ledgers/pubnet/`
+- **Region:** `us-east-2`
+- **Network:** pubnet only (testnet data in this bucket uses a different,
+  non-Galexie layout and is not supported by `nebu fetch`)
+- **Schema:** `zstd` compression, 1 ledger per file, 64,000 files per partition
+- **Source of truth:**
+  <https://aws-public-blockchain.s3.us-east-2.amazonaws.com/index.html#v1.1/stellar/ledgers/>
+
+### Environment variables (any archive)
 
 ```bash
 export NEBU_MODE=archive
-export NEBU_DATASTORE_TYPE=GCS
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=200
 export NEBU_NUM_WORKERS=20
 
-nebu fetch 60000000 60100000 > ledgers.xdr
+nebu fetch 62080000 62080100 > ledgers.xdr
+```
+
+### Alternative: GCS or a private S3 bucket
+
+Archive mode also works with any Galexie-format GCS or S3 bucket — e.g. an
+internal mirror or a partner-hosted archive:
+
+```bash
+# Private S3 bucket (uses AWS SDK default credential chain)
+nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "my-org-stellar-archive/landing/ledgers/pubnet" \
+  --region us-west-2 \
+  62080000 62080100
+
+# GCS bucket (uses Application Default Credentials)
+nebu fetch --mode archive \
+  --datastore-type GCS \
+  --bucket-path "my-gcs-bucket/landing/ledgers/pubnet" \
+  62080000 62080100
 ```
 
 ### Configuration Options
@@ -80,36 +112,39 @@ nebu fetch 60000000 60100000 > ledgers.xdr
 
 ## Quick Start Examples
 
-### Example 1: Fetch from GCS (Mainnet)
+### Example 1: Public AWS Stellar archive (pubnet, no credentials)
+
+The fastest way to get started — `aws-public-blockchain` is a public S3 bucket
+maintained by AWS. The Stellar SDK's S3 client detects the missing credential
+chain and switches to `AnonymousCredentials` automatically.
 
 ```bash
-# Using OBSRVR's public mainnet bucket
-nebu fetch --mode archive \
-  --datastore-type GCS \
-  --bucket-path "obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet" \
-  59785581 59785583 > ledgers.xdr
-
-# Output: Fetched ledgers 59785581-59785583 from GCS
-```
-
-### Example 2: Fetch from GCS (Testnet)
-
-```bash
-# Using OBSRVR's public testnet bucket
-nebu fetch --mode archive \
-  --datastore-type GCS \
-  --bucket-path "obsrvr-stellar-ledger-data-testnet-data/landing/ledgers/testnet" \
-  30000 40000 > testnet-ledgers.xdr
-```
-
-### Example 3: Fetch from S3
-
-```bash
-# Using AWS S3 bucket
 nebu fetch --mode archive \
   --datastore-type S3 \
-  --bucket-path "my-s3-bucket/stellar/ledgers/mainnet" \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62080010 > ledgers.xdr
+```
+
+### Example 2: A private (or internal) S3 archive
+
+```bash
+# Uses the standard AWS credential chain (env vars, ~/.aws/credentials, IAM role).
+nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "my-org-archive/stellar/ledgers/pubnet" \
   --region us-west-2 \
+  60000000 60100000 > ledgers.xdr
+```
+
+### Example 3: A GCS archive
+
+```bash
+# Uses Application Default Credentials (gcloud auth application-default login,
+# or GOOGLE_APPLICATION_CREDENTIALS).
+nebu fetch --mode archive \
+  --datastore-type GCS \
+  --bucket-path "my-gcs-archive/landing/ledgers/pubnet" \
   60000000 60100000 > ledgers.xdr
 ```
 
@@ -118,13 +153,14 @@ nebu fetch --mode archive \
 ```bash
 # Set once
 export NEBU_MODE=archive
-export NEBU_DATASTORE_TYPE=GCS
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 
 # Use multiple times
-nebu fetch 60000000 60100000 > batch1.xdr
-nebu fetch 60100001 60200000 > batch2.xdr
-nebu fetch 60200001 60300000 > batch3.xdr
+nebu fetch 62000000 62100000 > batch1.xdr
+nebu fetch 62100001 62200000 > batch2.xdr
+nebu fetch 62200001 62300000 > batch3.xdr
 ```
 
 ## Real-World Use Cases
@@ -138,8 +174,9 @@ Fetch historical ledgers, compress them, and store in S3 for data lakehouse:
 # backfill_bronze_layer.sh
 
 export NEBU_MODE=archive
-export NEBU_DATASTORE_TYPE=GCS
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=500
 export NEBU_NUM_WORKERS=20
 
@@ -169,7 +206,9 @@ Fetch from archive and process through token-transfer pipeline:
 
 ```bash
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 
 # Fetch, process, filter, and store
 nebu fetch 60200000 60300000 | \
@@ -188,7 +227,9 @@ Process multiple ledger ranges in parallel:
 # parallel_process.sh
 
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 
 # Generate ledger ranges
 seq 60000000 100000 61000000 | \
@@ -203,7 +244,9 @@ Fetch from archive and load into DuckDB for analytics:
 
 ```bash
 export NEBU_MODE=archive
-export NEBU_BUCKET_PATH="obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 
 # Fetch and process into JSONL
 nebu fetch 60200000 60300000 | \
@@ -317,9 +360,10 @@ gcloud auth application-default login
 # Or use service account
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
 
-# Then use archive mode normally
+# Then use archive mode against your GCS bucket
 nebu fetch --mode archive \
-  --bucket-path "obsrvr-stellar-ledger-data-pubnet-data/landing/ledgers/pubnet" \
+  --datastore-type GCS \
+  --bucket-path "my-gcs-archive/landing/ledgers/pubnet" \
   60000000 60100000
 ```
 
@@ -329,7 +373,28 @@ The DataStore automatically uses Google Cloud SDK's credential chain.
 
 ### S3 Authentication
 
-**Method 1: AWS CLI Credentials (Recommended)**
+**Method 1: Anonymous (no credentials) — public buckets**
+
+For public buckets like `aws-public-blockchain`, no setup is required. The AWS
+SDK attempts its default credential chain first; if nothing is found, it
+automatically falls back to anonymous (`AnonymousCredentials`) access.
+
+```bash
+# Works with no AWS_* env vars set, no ~/.aws/credentials, no IAM role
+nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62080100
+```
+
+The process logs `No default AWS credentials found, configuring S3 client for
+anonymous access` when this path is taken.
+
+**Method 2: AWS CLI Credentials**
+
+For a private bucket (an internal archive, a partner-hosted mirror), use the
+standard AWS credential chain:
 
 ```bash
 # Configure AWS CLI
@@ -338,26 +403,24 @@ aws configure
 # Or use environment variables
 export AWS_ACCESS_KEY_ID="your-access-key"
 export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-west-2"
 
-# Then use archive mode
 nebu fetch --mode archive \
   --datastore-type S3 \
-  --bucket-path "my-s3-bucket/stellar/ledgers" \
+  --bucket-path "my-org-archive/stellar/ledgers/pubnet" \
   --region us-west-2 \
-  60000000 60100000
+  62080000 62080100
 ```
 
-**Method 2: IAM Roles (EC2/ECS)**
+**Method 3: IAM Roles (EC2/ECS)**
 
-When running on EC2 or ECS, use IAM roles - no credentials needed:
+When running on EC2 or ECS, use IAM roles — no credentials needed:
 
 ```bash
-# Just specify bucket path, credentials come from instance role
 nebu fetch --mode archive \
   --datastore-type S3 \
-  --bucket-path "my-s3-bucket/stellar/ledgers" \
-  60000000 60100000
+  --bucket-path "my-org-archive/stellar/ledgers/pubnet" \
+  --region us-west-2 \
+  62080000 62080100
 ```
 
 ## Troubleshooting

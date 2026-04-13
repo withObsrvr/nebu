@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEBU // SCHEMAS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-bright": "#3a3939",
+          "tertiary": "#4dd9e4",
+          "tertiary-container": "#00b5c0",
+          "on-tertiary": "#00363a",
+          "on-tertiary-container": "#004145",
+          "outline": "#7a6a6a",
+          "outline-variant": "#3d3535",
+          "error": "#ffb4ab",
+          "surface-container-highest": "#353534",
+          "surface-container": "#201f1f",
+          "surface-container-high": "#2a2a2a",
+          "primary": "#ffb59c",
+          "surface-container-low": "#1c1b1b",
+          "on-primary": "#5c1a00",
+          "primary-container": "#ff7f50",
+          "on-primary-container": "#6c2000",
+          "on-surface": "#e5e2e1",
+          "on-background": "#e5e2e1",
+          "secondary": "#c6c6c6",
+          "surface": "#131313",
+          "background": "#131313"
+        },
+        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
+        fontFamily: {
+          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
+        }
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="assets/nebu.css"/>
+</head>
+<body class="bg-background text-on-surface">
+
+<header class="bg-[#131313] text-[#ff7f50] uppercase tracking-tighter flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50">
+  <div class="text-xl font-bold text-[#e5e2e1] flex items-center gap-3">
+    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
+    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
+  </div>
+  <nav class="hidden md:flex gap-8 items-center">
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
+          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
+    [ MENU ]
+  </button>
+  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+</header>
+
+<div id="mobile-menu" aria-hidden="true"
+     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
+  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+</div>
+
+<div class="max-w-7xl mx-auto px-6 lg:flex lg:gap-10 lg:items-start">
+
+  <aside class="hidden lg:block lg:w-56 shrink-0 py-12">
+    <nav aria-label="On this page" class="sticky top-24 text-sm">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ ON_THIS_PAGE ]</div>
+      <ul>
+        <li><a href="#policy"    data-toc="policy"    class="toc-link">POLICY</a></li>
+        <li><a href="#envelope"  data-toc="envelope"  class="toc-link">ENVELOPE</a></li>
+        <li><a href="#registry"  data-toc="registry"  class="toc-link">REGISTRY</a></li>
+        <li><a href="#nebu-token-transfer-v1"        data-toc="nebu-token-transfer-v1"        class="toc-link">nebu.token_transfer.v1</a></li>
+        <li><a href="#nebu-contract-events-v1"       data-toc="nebu-contract-events-v1"       class="toc-link">nebu.contract_events.v1</a></li>
+        <li><a href="#nebu-contract-invocation-v1"   data-toc="nebu-contract-invocation-v1"   class="toc-link">nebu.contract_invocation.v1</a></li>
+        <li><a href="#nebu-transaction-stats-v1"     data-toc="nebu-transaction-stats-v1"     class="toc-link">nebu.transaction_stats.v1</a></li>
+        <li><a href="#nebu-ledger-change-stats-v1"   data-toc="nebu-ledger-change-stats-v1"   class="toc-link">nebu.ledger_change_stats.v1</a></li>
+        <li><a href="#naming"    data-toc="naming"    class="toc-link">NAMING</a></li>
+      </ul>
+      <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
+        index · schemas<br/>
+        <span class="text-tertiary">rev 2026-04-13</span>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 lg:max-w-4xl py-12 pb-32">
+
+    <div class="text-[0.8125rem] text-secondary mb-6 uppercase tracking-tight">
+      ROOT / DOCS / <span class="text-primary-container">SCHEMAS</span>
+    </div>
+
+    <section class="mb-12">
+      <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-6 text-on-surface"># SCHEMAS</h1>
+      <p class="text-xl text-secondary max-w-2xl leading-relaxed">
+        Every event nebu emits carries a self-describing <span class="text-tertiary">_schema</span> identifier. This is the index.
+      </p>
+      <p class="text-base text-secondary max-w-2xl leading-relaxed mt-3">
+        Schemas are versioned independently from the CLI. A processor at <span class="text-on-surface">v0.9</span> can still emit
+        <span class="text-tertiary">nebu.token_transfer.v1</span> — and should, until the shape of the data actually changes.
+      </p>
+    </section>
+
+    <!-- Mobile TOC -->
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
+      <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        <a class="text-tertiary hover:underline" href="#policy">#POLICY</a>
+        <a class="text-tertiary hover:underline" href="#envelope">#ENVELOPE</a>
+        <a class="text-tertiary hover:underline" href="#registry">#REGISTRY</a>
+        <a class="text-tertiary hover:underline" href="#naming">#NAMING</a>
+      </div>
+    </nav>
+
+    <!-- POLICY -->
+    <section id="policy" class="mb-16">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">## VERSIONING_POLICY</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-surface-container-low p-5 border-l-2 border-primary-container">
+          <div class="text-primary-container font-bold mb-2">BREAKING → BUMP</div>
+          <p class="text-secondary text-sm mb-3">These increment the version (<span class="text-on-surface">v1</span> → <span class="text-on-surface">v2</span>):</p>
+          <ul class="text-sm text-secondary space-y-1">
+            <li>· rename a field</li>
+            <li>· remove a field</li>
+            <li>· change a field's type</li>
+            <li>· change an enum value</li>
+            <li>· flatten or restructure nested objects</li>
+          </ul>
+        </div>
+        <div class="bg-surface-container-low p-5 border-l-2 border-tertiary">
+          <div class="text-tertiary font-bold mb-2">NON-BREAKING → KEEP</div>
+          <p class="text-secondary text-sm mb-3">These do not bump the version:</p>
+          <ul class="text-sm text-secondary space-y-1">
+            <li>· add a new field</li>
+            <li>· add a new optional field</li>
+            <li>· add a new event type under the same schema</li>
+            <li>· expand the set of enum values</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-secondary text-sm mt-6">
+        When a breaking change ships, old and new versions can both exist in a pipeline. Filter by <span class="text-tertiary">_schema</span> if you need to keep the old behavior.
+      </p>
+    </section>
+
+    <!-- ENVELOPE -->
+    <section id="envelope" class="mb-16">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">## ENVELOPE</h2>
+      <p class="text-secondary mb-6">
+        Every event has the same two metadata fields at the top level, regardless of which processor emitted it:
+      </p>
+      <div class="bg-surface-container-low border-l-2 border-tertiary">
+        <div class="code-head">
+          <span class="code-head__lang">json</span>
+          <span class="text-secondary">ENVELOPE</span>
+        </div>
+        <pre class="overflow-x-auto p-4 text-xs"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"&lt;namespace&gt;.&lt;name&gt;.v&lt;N&gt;"</span>,  <span class="tok-com">// identifier — required</span>
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.7"</span>,                     <span class="tok-com">// producing nebu CLI — required</span>
+  <span class="text-tertiary">"meta"</span>:           <span class="text-on-surface">{ /* common ledger metadata */ }</span>,
+  ...<span class="text-primary-container">payload</span>...
+<span class="text-on-surface">}</span></pre>
+      </div>
+      <p class="text-secondary text-sm mt-4">
+        <span class="text-tertiary">meta</span> typically contains <span class="text-on-surface">ledgerSequence</span>, <span class="text-on-surface">closedAtUnix</span>, <span class="text-on-surface">txHash</span>, <span class="text-on-surface">transactionIndex</span>, and <span class="text-on-surface">contractAddress</span> (when applicable). Exact fields are defined per schema below.
+      </p>
+    </section>
+
+    <!-- REGISTRY -->
+    <section id="registry" class="mb-8">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">## REGISTRY</h2>
+      <p class="text-secondary text-sm">
+        Schemas emitted by reference processors. Community processors add their own under different namespaces — browse the
+        <a href="https://github.com/withObsrvr/nebu-processor-registry" class="text-tertiary hover:underline">community registry</a>.
+      </p>
+    </section>
+
+    <!-- token_transfer.v1 -->
+    <section id="nebu-token-transfer-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+        <code class="text-xl text-on-surface font-bold">nebu.token_transfer.v1</code>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ STABLE · since v0.3.0 ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        One event per classic or Soroban token transfer observation. Emitted by
+        <a href="processors.html#token-transfer" class="text-tertiary hover:underline">token-transfer</a>.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ EVENT TYPES ]</div>
+          <div class="text-secondary">transfer · mint · burn · clawback · fee</div>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ PAYLOAD KEY ]</div>
+          <code class="text-on-surface">transfer</code>
+        </div>
+      </div>
+
+      <div class="bg-background border-l-2 border-tertiary">
+        <div class="code-head">
+          <span class="code-head__lang">json · shape</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="sc-tt" type="button">[ COPY ]</button>
+        </div>
+        <pre id="sc-tt" class="overflow-x-auto p-3 text-xs"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.token_transfer.v1"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.7"</span>,
+  <span class="text-tertiary">"meta"</span>: {
+    <span class="text-tertiary">"ledgerSequence"</span>:   <span class="text-on-surface">60200000</span>,
+    <span class="text-tertiary">"closedAtUnix"</span>:     <span class="text-on-surface">"1765158311"</span>,
+    <span class="text-tertiary">"txHash"</span>:           <span class="text-on-surface">"abc..."</span>,
+    <span class="text-tertiary">"transactionIndex"</span>: <span class="text-on-surface">1</span>,
+    <span class="text-tertiary">"contractAddress"</span>:  <span class="text-on-surface">"CA..."</span>
+  },
+  <span class="text-primary-container">"transfer"</span>: {
+    <span class="text-primary-container">"type"</span>:        <span class="text-on-surface">"transfer"</span>,
+    <span class="text-primary-container">"from"</span>:        <span class="text-on-surface">"GA..."</span>,
+    <span class="text-primary-container">"to"</span>:          <span class="text-on-surface">"GB..."</span>,
+    <span class="text-primary-container">"assetCode"</span>:   <span class="text-on-surface">"USDC"</span>,
+    <span class="text-primary-container">"assetIssuer"</span>: <span class="text-on-surface">"GA5Z..."</span>,
+    <span class="text-primary-container">"amount"</span>:      <span class="text-on-surface">"1000000"</span>
+  }
+<span class="text-on-surface">}</span></pre>
+      </div>
+      <p class="text-secondary text-xs mt-3">
+        Full field reference:
+        <a href="https://github.com/withObsrvr/nebu/blob/main/examples/processors/token-transfer/SCHEMA.md" class="text-tertiary hover:underline">SCHEMA.md</a>.
+      </p>
+    </section>
+
+    <!-- contract_events.v1 -->
+    <section id="nebu-contract-events-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+        <code class="text-xl text-on-surface font-bold">nebu.contract_events.v1</code>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ STABLE ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        One event per Soroban diagnostic event emission. Raw XDR SCVals in <span class="text-tertiary">topics</span> and <span class="text-tertiary">data</span>.
+      </p>
+      <div class="bg-background border-l-2 border-tertiary">
+        <div class="code-head">
+          <span class="code-head__lang">json · shape</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="sc-ce" type="button">[ COPY ]</button>
+        </div>
+        <pre id="sc-ce" class="overflow-x-auto p-3 text-xs"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.contract_events.v1"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.7"</span>,
+  <span class="text-tertiary">"meta"</span>:           <span class="text-on-surface">{ ... }</span>,
+  <span class="text-primary-container">"event"</span>: {
+    <span class="text-primary-container">"contractAddress"</span>: <span class="text-on-surface">"CAQ..."</span>,
+    <span class="text-primary-container">"type"</span>:            <span class="text-on-surface">"contract"</span>,
+    <span class="text-primary-container">"topics"</span>:          <span class="text-on-surface">[ "transfer", "GA...", "GB..." ]</span>,
+    <span class="text-primary-container">"data"</span>:            <span class="text-on-surface">{ "i128": "1000000" }</span>
+  }
+<span class="text-on-surface">}</span></pre>
+      </div>
+    </section>
+
+    <!-- contract_invocation.v1 -->
+    <section id="nebu-contract-invocation-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+        <code class="text-xl text-on-surface font-bold">nebu.contract_invocation.v1</code>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ STABLE ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        One event per Soroban <span class="text-on-surface">InvokeHostFunction</span> operation, with function name, arguments, success flag, and nested sub-invocations.
+      </p>
+      <div class="bg-background border-l-2 border-tertiary">
+        <div class="code-head">
+          <span class="code-head__lang">json · shape</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="sc-ci" type="button">[ COPY ]</button>
+        </div>
+        <pre id="sc-ci" class="overflow-x-auto p-3 text-xs"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.contract_invocation.v1"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.7"</span>,
+  <span class="text-tertiary">"meta"</span>:           <span class="text-on-surface">{ ... }</span>,
+  <span class="text-primary-container">"invocation"</span>: {
+    <span class="text-primary-container">"contractAddress"</span>: <span class="text-on-surface">"CAQ..."</span>,
+    <span class="text-primary-container">"function"</span>:        <span class="text-on-surface">"swap"</span>,
+    <span class="text-primary-container">"args"</span>:            <span class="text-on-surface">[ ... ]</span>,
+    <span class="text-primary-container">"success"</span>:         <span class="text-on-surface">true</span>,
+    <span class="text-primary-container">"subInvocations"</span>:  <span class="text-on-surface">[ /* recursive */ ]</span>
+  }
+<span class="text-on-surface">}</span></pre>
+      </div>
+    </section>
+
+    <!-- transaction_stats.v1 -->
+    <section id="nebu-transaction-stats-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+        <code class="text-xl text-on-surface font-bold">nebu.transaction_stats.v1</code>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ EXAMPLE ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        One event per ledger close, summarizing transaction activity. Emitted by the educational
+        <a href="processors.html#transaction-stats" class="text-tertiary hover:underline">transaction-stats</a> processor.
+      </p>
+      <div class="bg-background border-l-2 border-tertiary">
+        <div class="code-head">
+          <span class="code-head__lang">json · shape</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="sc-ts" type="button">[ COPY ]</button>
+        </div>
+        <pre id="sc-ts" class="overflow-x-auto p-3 text-xs"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.transaction_stats.v1"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.7"</span>,
+  <span class="text-tertiary">"meta"</span>:           <span class="text-on-surface">{ "ledgerSequence": 60200000, "closedAtUnix": "..." }</span>,
+  <span class="text-primary-container">"stats"</span>: {
+    <span class="text-primary-container">"txTotal"</span>:    <span class="text-on-surface">42</span>,
+    <span class="text-primary-container">"txSuccess"</span>:  <span class="text-on-surface">41</span>,
+    <span class="text-primary-container">"txFailed"</span>:   <span class="text-on-surface">1</span>,
+    <span class="text-primary-container">"opsTotal"</span>:   <span class="text-on-surface">87</span>,
+    <span class="text-primary-container">"feeCharged"</span>: <span class="text-on-surface">"4200000"</span>
+  }
+<span class="text-on-surface">}</span></pre>
+      </div>
+    </section>
+
+    <!-- ledger_change_stats.v1 -->
+    <section id="nebu-ledger-change-stats-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+        <code class="text-xl text-on-surface font-bold">nebu.ledger_change_stats.v1</code>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ EXAMPLE ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        One event per ledger close, counting ledger entry changes by entry type.
+      </p>
+      <div class="bg-background border-l-2 border-tertiary">
+        <div class="code-head">
+          <span class="code-head__lang">json · shape</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="sc-lc" type="button">[ COPY ]</button>
+        </div>
+        <pre id="sc-lc" class="overflow-x-auto p-3 text-xs"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>: <span class="text-on-surface">"nebu.ledger_change_stats.v1"</span>,
+  <span class="text-tertiary">"meta"</span>:    <span class="text-on-surface">{ "ledgerSequence": 60200000 }</span>,
+  <span class="text-primary-container">"changes"</span>: {
+    <span class="text-primary-container">"accounts"</span>:    <span class="text-on-surface">{ "created": 3, "updated": 120, "removed": 0 }</span>,
+    <span class="text-primary-container">"trustlines"</span>:  <span class="text-on-surface">{ "created": 2, "updated": 40, "removed": 1 }</span>,
+    <span class="text-primary-container">"data"</span>:        <span class="text-on-surface">{ "created": 0, "updated": 5, "removed": 0 }</span>,
+    <span class="text-primary-container">"contractData"</span>: <span class="text-on-surface">{ "created": 8, "updated": 23, "removed": 0 }</span>
+  }
+<span class="text-on-surface">}</span></pre>
+      </div>
+    </section>
+
+    <!-- NAMING -->
+    <section id="naming" class="mb-16">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">## NAMING</h2>
+      <p class="text-secondary mb-4">
+        Schema identifiers are three segments joined with dots:
+      </p>
+      <div class="bg-surface-container-low p-4 border-l-2 border-tertiary mb-4">
+        <code class="text-lg">
+          <span class="text-tertiary">&lt;namespace&gt;</span>.<span class="text-on-surface">&lt;name&gt;</span>.<span class="text-primary-container">v&lt;N&gt;</span>
+        </code>
+      </div>
+      <div class="space-y-2 text-sm">
+        <p>
+          <span class="text-tertiary font-bold">namespace</span>
+          — <span class="text-on-surface">nebu</span> for reference processors, your org/handle for community ones (e.g. <span class="text-on-surface">blend</span>, <span class="text-on-surface">soroswap</span>).
+        </p>
+        <p>
+          <span class="text-on-surface font-bold">name</span>
+          — snake_case description of the event family. Singular noun preferred.
+        </p>
+        <p>
+          <span class="text-primary-container font-bold">version</span>
+          — integer after <span class="text-primary-container">v</span>. Starts at <span class="text-primary-container">v1</span>. Bump on breaking changes only.
+        </p>
+      </div>
+      <p class="text-secondary text-sm mt-6">
+        Don't reuse a version for a different payload shape. Downstream consumers use <span class="text-tertiary">_schema</span> as a cache key.
+      </p>
+    </section>
+
+    <div class="text-secondary opacity-30 select-none py-8 overflow-hidden">
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    </div>
+
+    <div class="flex justify-between items-baseline border-t border-outline-variant pt-2 mt-12 text-secondary text-sm">
+      <span>OBSRVR</span>
+      <span class="hidden md:inline">2026-04-13</span>
+      <span>NEBU(7)</span>
+    </div>
+
+  </main>
+</div>
+
+<footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
+  <div class="flex gap-4">
+    <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="schemas.html" class="text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="changelog.html" class="hover:text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
+  </div>
+</footer>
+
+<script src="assets/nebu.js"></script>
+</body>
+</html>

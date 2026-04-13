@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEBU // PROCESSORS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-bright": "#3a3939",
+          "tertiary": "#4dd9e4",
+          "tertiary-container": "#00b5c0",
+          "on-tertiary": "#00363a",
+          "on-tertiary-container": "#004145",
+          "outline": "#7a6a6a",
+          "outline-variant": "#3d3535",
+          "error": "#ffb4ab",
+          "surface-container-highest": "#353534",
+          "surface-container": "#201f1f",
+          "surface-container-high": "#2a2a2a",
+          "primary": "#ffb59c",
+          "surface-container-low": "#1c1b1b",
+          "on-primary": "#5c1a00",
+          "primary-container": "#ff7f50",
+          "on-primary-container": "#6c2000",
+          "on-surface": "#e5e2e1",
+          "on-background": "#e5e2e1",
+          "secondary": "#c6c6c6",
+          "surface": "#131313",
+          "background": "#131313"
+        },
+        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
+        fontFamily: {
+          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
+        }
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="assets/nebu.css"/>
+</head>
+<body class="bg-background text-on-surface">
+
+<header class="bg-[#131313] text-[#ff7f50] uppercase tracking-tighter flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50">
+  <div class="text-xl font-bold text-[#e5e2e1] flex items-center gap-3">
+    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
+    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
+  </div>
+  <nav class="hidden md:flex gap-8 items-center">
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
+          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
+    [ MENU ]
+  </button>
+  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+</header>
+
+<div id="mobile-menu" aria-hidden="true"
+     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
+  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="build-processors.html">[ BUILD ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+</div>
+
+<div class="max-w-7xl mx-auto px-6 lg:flex lg:gap-10 lg:items-start">
+
+  <aside class="hidden lg:block lg:w-56 shrink-0 py-12">
+    <nav aria-label="On this page" class="sticky top-24 text-sm">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ ON_THIS_PAGE ]</div>
+
+      <div class="text-[0.6875rem] uppercase text-secondary mt-2 mb-1">ORIGINS</div>
+      <ul class="mb-4">
+        <li><a href="#token-transfer"        data-toc="token-transfer"        class="toc-link">token-transfer</a></li>
+        <li><a href="#contract-events"       data-toc="contract-events"       class="toc-link">contract-events</a></li>
+        <li><a href="#contract-invocation"   data-toc="contract-invocation"   class="toc-link">contract-invocation</a></li>
+        <li><a href="#contract-invocation-extractor" data-toc="contract-invocation-extractor" class="toc-link">contract-invocation-extractor</a></li>
+        <li><a href="#transaction-stats"     data-toc="transaction-stats"     class="toc-link">transaction-stats</a></li>
+        <li><a href="#ledger-change-stats"   data-toc="ledger-change-stats"   class="toc-link">ledger-change-stats</a></li>
+      </ul>
+
+      <div class="text-[0.6875rem] uppercase text-secondary mb-1">TRANSFORMS</div>
+      <ul class="mb-4">
+        <li><a href="#usdc-filter"   data-toc="usdc-filter"   class="toc-link">usdc-filter</a></li>
+        <li><a href="#amount-filter" data-toc="amount-filter" class="toc-link">amount-filter</a></li>
+        <li><a href="#dedup"         data-toc="dedup"         class="toc-link">dedup</a></li>
+        <li><a href="#time-window"   data-toc="time-window"   class="toc-link">time-window</a></li>
+      </ul>
+
+      <div class="text-[0.6875rem] uppercase text-secondary mb-1">SINKS</div>
+      <ul>
+        <li><a href="#json-file-sink" data-toc="json-file-sink" class="toc-link">json-file-sink</a></li>
+        <li><a href="#nats-sink"      data-toc="nats-sink"      class="toc-link">nats-sink</a></li>
+        <li><a href="#postgres-sink"  data-toc="postgres-sink"  class="toc-link">postgres-sink</a></li>
+      </ul>
+
+      <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
+        catalog · reference<br/>
+        <span class="text-tertiary">rev 2026-04-13</span>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 lg:max-w-4xl py-12 pb-32">
+
+    <div class="text-[0.8125rem] text-secondary mb-6 uppercase tracking-tight">
+      ROOT / DOCS / <span class="text-primary-container">PROCESSORS</span>
+    </div>
+
+    <section class="mb-12">
+      <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-6 text-on-surface"># PROCESSORS</h1>
+      <p class="text-xl text-secondary max-w-2xl leading-relaxed">
+        Reference processors shipped in this repo. Exemplars — build your own against the
+        <a href="build-processors.html" class="text-tertiary hover:underline">stable contract</a>.
+      </p>
+      <p class="text-sm text-secondary max-w-2xl mt-4">
+        <span class="text-tertiary">[ NOTE ]</span> these are not "the real nebu" — the real nebu is the contract in
+        <span class="text-on-surface">pkg/processor</span>. Anyone can ship a processor as its own module and register it.
+        Browse community-contributed processors at the
+        <a href="https://github.com/withObsrvr/nebu-processor-registry" class="text-tertiary hover:underline">community registry</a>.
+      </p>
+    </section>
+
+    <!-- Mobile TOC -->
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
+      <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+        <a class="text-tertiary hover:underline" href="#origins">#ORIGINS</a>
+        <a class="text-tertiary hover:underline" href="#transforms">#TRANSFORMS</a>
+        <a class="text-tertiary hover:underline" href="#sinks">#SINKS</a>
+      </div>
+    </nav>
+
+    <!-- =================================================================
+         ORIGINS
+         ================================================================= -->
+    <section id="origins" class="mb-8">
+      <h2 class="text-2xl font-bold text-on-surface mb-2">## ORIGINS</h2>
+      <p class="text-secondary text-sm">
+        Consume ledger XDR, emit typed events as NDJSON. Accept <span class="text-primary-container">--start-ledger</span>, optional <span class="text-primary-container">--end-ledger</span> or <span class="text-primary-container">--follow</span>, plus the standard env chain (<span class="text-tertiary">NEBU_RPC_URL</span>, <span class="text-tertiary">NEBU_NETWORK</span>, <span class="text-tertiary">NEBU_RPC_AUTH</span>).
+      </p>
+    </section>
+
+    <!-- token-transfer -->
+    <section id="token-transfer" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">token-transfer</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Stream token transfer events from Stellar ledgers. Wraps Stellar's official <span class="text-on-surface">token_transfer.EventsProcessor</span> to emit structured events for transfers, mints, burns, clawbacks, and fees.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ EMITS ]</div>
+          <code class="text-on-surface">nebu.token_transfer.v1</code>
+          <div class="text-secondary mt-1">events: transfer · mint · burn · clawback · fee</div>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ REQUIRES ]</div>
+          <div class="text-secondary">stellar protocol &gt;= 23</div>
+          <div class="text-secondary">mainnet or testnet</div>
+        </div>
+      </div>
+
+      <div class="bg-background border-l-2 border-primary-container mb-3">
+        <div class="code-head">
+          <span class="code-head__lang">bash · install &amp; run</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-tt" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-tt" class="overflow-x-auto p-3 text-xs">nebu install token-transfer
+token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
+      </div>
+
+      <div class="text-xs text-secondary">
+        <a href="https://github.com/withObsrvr/nebu/tree/main/examples/processors/token-transfer" class="text-tertiary hover:underline">source</a>
+        ·
+        <a href="schemas.html#nebu-token-transfer-v1" class="text-tertiary hover:underline">schema</a>
+      </div>
+    </section>
+
+    <!-- contract-events -->
+    <section id="contract-events" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">contract-events</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Soroban diagnostic events emitted by smart contracts during execution. Per-contract filtering via the payload's <span class="text-on-surface">contractAddress</span> field.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ EMITS ]</div>
+          <code class="text-on-surface">nebu.contract_events.v1</code>
+          <div class="text-secondary mt-1">one event per diagnostic emission</div>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ USE FOR ]</div>
+          <div class="text-secondary">AMM swaps · oracle updates · custom protocol telemetry</div>
+        </div>
+      </div>
+
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-ce" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-ce" class="overflow-x-auto p-3 text-xs">nebu install contract-events
+contract-events --start-ledger 60200000 --follow \
+  | jq 'select(.event.contractAddress == "CAQ...")'</pre>
+      </div>
+    </section>
+
+    <!-- contract-invocation -->
+    <section id="contract-invocation" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">contract-invocation</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Surface every Soroban contract invocation with its function name, arguments, and sub-invocation tree. One event per <span class="text-on-surface">InvokeHostFunction</span> operation.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ EMITS ]</div>
+          <code class="text-on-surface">nebu.contract_invocation.v1</code>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ USE FOR ]</div>
+          <div class="text-secondary">call tracing · function popularity · auth tree inspection</div>
+        </div>
+      </div>
+
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-ci" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-ci" class="overflow-x-auto p-3 text-xs">nebu install contract-invocation
+contract-invocation --start-ledger 60200000 --end-ledger 60200100 | jq .function</pre>
+      </div>
+    </section>
+
+    <!-- contract-invocation-extractor -->
+    <section id="contract-invocation-extractor" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">contract-invocation-extractor</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Project-specific contract invocations — extracts named functions with typed arguments based on a user-supplied contract spec. Useful when you know the protocol and want strongly-typed events instead of raw XDR SCVals.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ EMITS ]</div>
+          <code class="text-on-surface">nebu.contract_invocation.extracted.v1</code>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ USE FOR ]</div>
+          <div class="text-secondary">protocol-aware indexers (Blend, Soroswap, etc.)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- transaction-stats -->
+    <section id="transaction-stats" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">transaction-stats</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN · EDUCATIONAL ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Per-ledger transaction metrics — count, success/fail split, operation counts, fee charged. Reference implementation for anyone writing their own stats processor.
+      </p>
+
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-ts" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-ts" class="overflow-x-auto p-3 text-xs">nebu install transaction-stats
+transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
+  | duckdb -c "SELECT AVG(tx_count) FROM read_json('/dev/stdin')"</pre>
+      </div>
+    </section>
+
+    <!-- ledger-change-stats -->
+    <section id="ledger-change-stats" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">ledger-change-stats</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN · EDUCATIONAL ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Per-ledger counts of account creations, trustline additions/removals, data entries — a tour of the <span class="text-on-surface">LedgerEntryChanges</span> surface.
+      </p>
+    </section>
+
+    <!-- =================================================================
+         TRANSFORMS
+         ================================================================= -->
+    <section id="transforms" class="mb-8 mt-16">
+      <h2 class="text-2xl font-bold text-on-surface mb-2">## TRANSFORMS</h2>
+      <p class="text-secondary text-sm">
+        Read NDJSON from stdin, emit NDJSON to stdout. Pass through <span class="text-tertiary">_schema</span> and <span class="text-tertiary">_nebu_version</span> unchanged.
+      </p>
+    </section>
+
+    <!-- usdc-filter -->
+    <section id="usdc-filter" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">usdc-filter</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Keep only events where <span class="text-on-surface">transfer.assetCode</span> is <span class="text-on-surface">USDC</span> and the issuer matches Circle's canonical issuer. Sugar over a jq predicate.
+      </p>
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-uf" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-uf" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --end-ledger 60200100 | usdc-filter</pre>
+      </div>
+    </section>
+
+    <!-- amount-filter -->
+    <section id="amount-filter" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">amount-filter</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Drop events below a minimum or above a maximum amount threshold. Flags: <span class="text-tertiary">--min</span>, <span class="text-tertiary">--max</span>, <span class="text-tertiary">--field</span> (dot path, default <span class="text-on-surface">transfer.amount</span>).
+      </p>
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-af" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-af" class="overflow-x-auto p-3 text-xs">token-transfer --follow --start-ledger 60200000 | amount-filter --min 1000000</pre>
+      </div>
+    </section>
+
+    <!-- dedup -->
+    <section id="dedup" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">dedup</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Keyed deduplication over a sliding window. Flags: <span class="text-tertiary">--key</span> (dot path into the event), <span class="text-tertiary">--window</span> (number of events or duration).
+      </p>
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-dd" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-dd" class="overflow-x-auto p-3 text-xs">token-transfer --follow --start-ledger 60200000 | dedup --key meta.txHash</pre>
+      </div>
+    </section>
+
+    <!-- time-window -->
+    <section id="time-window" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">time-window</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Bucket events into fixed-duration windows and emit one aggregate per window close. Flags: <span class="text-tertiary">--window</span>, <span class="text-tertiary">--group-by</span>, <span class="text-tertiary">--agg</span> (count/sum/avg).
+      </p>
+    </section>
+
+    <!-- =================================================================
+         SINKS
+         ================================================================= -->
+    <section id="sinks" class="mb-8 mt-16">
+      <h2 class="text-2xl font-bold text-on-surface mb-2">## SINKS</h2>
+      <p class="text-secondary text-sm">
+        Read NDJSON from stdin, produce side effects. Sinks are terminal — nothing reads from their stdout.
+      </p>
+    </section>
+
+    <!-- json-file-sink -->
+    <section id="json-file-sink" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">json-file-sink</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ SINK ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Append each event as a JSON line to a file. The simplest sink — useful for archiving and offline analysis.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ FLAGS ]</div>
+          <div><code class="text-tertiary">--out</code> <span class="text-secondary">path to the .jsonl file</span></div>
+          <div><code class="text-tertiary">--append</code> <span class="text-secondary">keep existing file (default: false)</span></div>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ USE WITH ]</div>
+          <div class="text-secondary">duckdb <span class="text-tertiary">read_json_auto()</span></div>
+          <div class="text-secondary">cloud sync tools (rclone, restic)</div>
+        </div>
+      </div>
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-jfs" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-jfs" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | json-file-sink --out events.jsonl</pre>
+      </div>
+    </section>
+
+    <!-- nats-sink -->
+    <section id="nats-sink" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">nats-sink</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ SINK ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Publish each event to a NATS subject, with optional JetStream persistence. Bridges a local pipeline into a distributed real-time firehose for your API.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ FLAGS ]</div>
+          <div><code class="text-tertiary">--url</code> <span class="text-secondary">nats:// URL (default $NATS_URL)</span></div>
+          <div><code class="text-tertiary">--subject</code> <span class="text-secondary">target subject</span></div>
+          <div><code class="text-tertiary">--jetstream</code> <span class="text-secondary">persist to a stream</span></div>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ USE WITH ]</div>
+          <div class="text-secondary">WebSocket gateways</div>
+          <div class="text-secondary">serverless consumers</div>
+        </div>
+      </div>
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-ns" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-ns" class="overflow-x-auto p-3 text-xs">token-transfer --follow --start-ledger 60200000 \
+  | nats-sink --subject "stellar.transfers" --jetstream</pre>
+      </div>
+    </section>
+
+    <!-- postgres-sink -->
+    <section id="postgres-sink" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h3 class="text-xl font-bold text-on-surface">postgres-sink</h3>
+        <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ SINK ]</span>
+      </div>
+      <p class="text-secondary text-sm mb-4">
+        Upsert events into a Postgres table. Uses <span class="text-tertiary">COPY</span> for batched writes, falls back to row-by-row <span class="text-tertiary">INSERT ... ON CONFLICT</span> for streaming.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs mb-4">
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ FLAGS ]</div>
+          <div><code class="text-tertiary">--dsn</code> <span class="text-secondary">postgres://... (or $DATABASE_URL)</span></div>
+          <div><code class="text-tertiary">--table</code> <span class="text-secondary">target table (auto-created if missing)</span></div>
+          <div><code class="text-tertiary">--on-conflict</code> <span class="text-secondary">primary key for upserts</span></div>
+        </div>
+        <div>
+          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ SCHEMA ]</div>
+          <div class="text-secondary">one row per event; payload is a JSONB column.</div>
+        </div>
+      </div>
+      <div class="bg-background border-l-2 border-primary-container">
+        <div class="code-head">
+          <span class="code-head__lang">bash</span>
+          <button class="copy-btn copy-btn--inline" data-copy-target="pr-ps" type="button">[ COPY ]</button>
+        </div>
+        <pre id="pr-ps" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | postgres-sink --table transfers --on-conflict meta.txHash</pre>
+      </div>
+    </section>
+
+    <!-- FOOTER CTA -->
+    <section class="mb-12 bg-surface-container-low p-6 border-l-4 border-tertiary">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ EXTEND ]</div>
+      <h2 class="text-2xl font-bold text-on-surface mb-3">Your processor belongs here.</h2>
+      <p class="text-secondary mb-4">
+        Build against <span class="text-tertiary">pkg/processor</span>, ship as a module, drop a <span class="text-tertiary">description.yml</span> in any Git repo, and <span class="text-on-surface">nebu install your-processor</span> just works. Submit it to the community registry to see it appear in <span class="text-on-surface">nebu list</span> for everyone.
+      </p>
+      <div class="flex gap-4 flex-wrap">
+        <a href="build-processors.html" class="inline-block border border-outline text-on-surface px-6 py-2 font-bold hover:bg-primary-container hover:text-background transition-colors">
+          [ BUILD_GUIDE &rarr; ]
+        </a>
+        <a href="https://github.com/withObsrvr/nebu-processor-registry" class="inline-block border border-outline text-on-surface px-6 py-2 font-bold hover:bg-tertiary-container hover:text-background transition-colors">
+          [ REGISTRY &rarr; ]
+        </a>
+      </div>
+    </section>
+
+    <div class="text-secondary opacity-30 select-none py-8 overflow-hidden">
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    </div>
+
+    <div class="flex justify-between items-baseline border-t border-outline-variant pt-2 mt-12 text-secondary text-sm">
+      <span>OBSRVR</span>
+      <span class="hidden md:inline">2026-04-13</span>
+      <span>NEBU(7)</span>
+    </div>
+
+  </main>
+</div>
+
+<footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
+  <div class="flex gap-4">
+    <a href="processors.html" class="text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="schemas.html" class="hover:text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="changelog.html" class="hover:text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
+  </div>
+</footer>
+
+<script src="assets/nebu.js"></script>
+</body>
+</html>

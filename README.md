@@ -23,7 +23,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Latest release:** [v0.6.3](https://github.com/withObsrvr/nebu/releases/tag/v0.6.3)
+- **Latest release:** [v0.6.7](https://github.com/withObsrvr/nebu/releases/tag/v0.6.7)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
 **Reference processors shipped in this repo (examples, not product):**
@@ -170,12 +170,14 @@ nebu fetch 60200000 60200100 > ledgers.xdr
 cat ledgers.xdr | token-transfer | jq
 ```
 
-**Fetch from historical archives (GCS/S3) for data lakehouse:**
+**Fetch from historical archives (public AWS S3 bucket, no credentials):**
 
 ```bash
 nebu fetch --mode archive \
-  --bucket-path "my-bucket/stellar/ledgers" \
-  60200000 60300000 | gzip > historical.xdr.gz
+  --datastore-type S3 \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62081000 | gzip > historical.xdr.gz
 ```
 
 **Use premium RPC endpoints with authentication:**
@@ -626,31 +628,39 @@ cat ledgers.xdr | token-transfer | duckdb -c "SELECT COUNT(*) FROM read_json('/d
 For historical data and data lakehouse building, use archive mode to fetch ledgers directly from cloud storage:
 
 ```bash
-# Fetch from GCS bucket
-nebu fetch --mode archive \
-  --datastore-type GCS \
-  --bucket-path "my-bucket/stellar/ledgers" \
-  60200000 60300000 > ledgers.xdr
-
-# Fetch from S3 bucket
+# Default: public AWS Stellar archive (pubnet, no AWS account required)
 nebu fetch --mode archive \
   --datastore-type S3 \
-  --bucket-path "my-s3-bucket/path/to/ledgers" \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62081000 > ledgers.xdr
+
+# Private S3 bucket (uses standard AWS credential chain)
+nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "my-org-archive/stellar/ledgers/pubnet" \
   --region us-west-2 \
+  60200000 60300000 > ledgers.xdr
+
+# GCS bucket (uses Application Default Credentials)
+nebu fetch --mode archive \
+  --datastore-type GCS \
+  --bucket-path "my-gcs-archive/landing/ledgers/pubnet" \
   60200000 60300000 > ledgers.xdr
 
 # Use environment variables for configuration
 export NEBU_MODE=archive
-export NEBU_DATASTORE_TYPE=GCS
-export NEBU_BUCKET_PATH="obsrvr-stellar-data/ledgers/mainnet"
+export NEBU_DATASTORE_TYPE=S3
+export NEBU_BUCKET_PATH="aws-public-blockchain/v1.1/stellar/ledgers/pubnet"
+export NEBU_REGION=us-east-2
 export NEBU_BUFFER_SIZE=200
 export NEBU_NUM_WORKERS=20
 
 # Fetch and compress for data lake
-nebu fetch 1000000 2000000 | gzip > historical.xdr.gz
+nebu fetch 62000000 62100000 | gzip > historical.xdr.gz
 
 # Pipe to processors (same as RPC mode)
-nebu fetch 60200000 60200100 | token-transfer | jq -c 'select(.transfer)'
+nebu fetch 62080000 62080100 | token-transfer | jq -c 'select(.transfer)'
 ```
 
 **Archive Mode Benefits:**

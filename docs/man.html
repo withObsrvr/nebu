@@ -54,42 +54,7 @@
     }
   }
 </script>
-<style>
-  html, body {
-    background-color: #131313;
-    color: #e5e2e1;
-    font-family: 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
-    font-feature-settings: "liga" 0, "calt" 0;
-    line-height: 1.6;
-  }
-  body { padding-bottom: 3rem; } /* clear fixed footer */
-  ::selection { background-color: #ff7f50; color: #131313; }
-  .material-symbols-outlined { font-size: 1.25rem; }
-  pre { white-space: pre; }
-
-  /* Copy-block affordance */
-  .copy-block { position: relative; }
-  .copy-btn {
-    position: absolute; top: 0.5rem; right: 0.5rem;
-    font-size: 0.6875rem; letter-spacing: 0.02em;
-    padding: 0.125rem 0.375rem;
-    color: #c6c6c6;
-    background: transparent;
-    border: 1px solid transparent;
-    text-transform: uppercase;
-    cursor: pointer;
-  }
-  .copy-btn:hover { color: #131313; background: #ff7f50; }
-  .copy-btn.is-copied { color: #131313; background: #ff7f50; }
-
-  /* Section jumps align under sticky header */
-  section[id] { scroll-margin-top: 5rem; }
-
-  /* Mobile nav drawer */
-  .drawer-hidden { transform: translateY(-100%); }
-
-  html { scroll-behavior: smooth; }
-</style>
+<link rel="stylesheet" href="assets/nebu.css"/>
 </head>
 <body class="bg-background text-on-surface">
 
@@ -99,9 +64,9 @@
 
   <nav class="hidden md:flex gap-8 items-center">
     <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="build-processors.html">[ BUILD ]</a>
     <a class="text-[#ff7f50] font-bold hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="#">[ MAN ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html#quickstart">[ QUICKSTART ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html#processors">[ PROCESSORS ]</a>
     <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
   </nav>
 
@@ -118,23 +83,50 @@
      class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
   <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
     <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="quickstart.html">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="build-processors.html">[ BUILD ]</a>
     <a class="text-[#ff7f50] font-bold py-3 border-b border-[#57423b] border-opacity-40" href="#">[ MAN ]</a>
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html#quickstart">[ QUICKSTART ]</a>
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html#processors">[ PROCESSORS ]</a>
     <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
   </nav>
 </div>
 
-<!-- Man Page -->
-<main class="max-w-4xl mx-auto px-6 py-12 pb-32">
+<!-- Man Page: sidebar + content flex layout -->
+<div class="max-w-7xl mx-auto px-6 lg:flex lg:gap-10 lg:items-start">
+
+  <!-- Sticky [ ON_THIS_PAGE ] sidebar — lg+ only -->
+  <aside class="hidden lg:block lg:w-48 shrink-0 py-12">
+    <nav aria-label="On this page" class="sticky top-24 text-sm">
+      <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ ON_THIS_PAGE ]</div>
+      <ul>
+        <li><a href="#name"        data-toc="name"        class="toc-link">NAME</a></li>
+        <li><a href="#synopsis"    data-toc="synopsis"    class="toc-link">SYNOPSIS</a></li>
+        <li><a href="#description" data-toc="description" class="toc-link">DESCRIPTION</a></li>
+        <li><a href="#commands"    data-toc="commands"    class="toc-link">COMMANDS</a></li>
+        <li><a href="#options"     data-toc="options"     class="toc-link">OPTIONS</a></li>
+        <li><a href="#environment" data-toc="environment" class="toc-link">ENVIRONMENT</a></li>
+        <li><a href="#files"       data-toc="files"       class="toc-link">FILES</a></li>
+        <li><a href="#exit-status" data-toc="exit-status" class="toc-link">EXIT STATUS</a></li>
+        <li><a href="#examples"    data-toc="examples"    class="toc-link">EXAMPLES</a></li>
+        <li><a href="#schema"      data-toc="schema"      class="toc-link">SCHEMA</a></li>
+        <li><a href="#see-also"    data-toc="see-also"    class="toc-link">SEE ALSO</a></li>
+        <li><a href="#author"      data-toc="author"      class="toc-link">AUTHOR</a></li>
+      </ul>
+      <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
+        man 1 nebu<br/>
+        <span class="text-tertiary">rev 2026-04-13</span>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 lg:max-w-3xl py-12 pb-32">
 
   <!-- Breadcrumb trace -->
   <div class="text-[0.8125rem] text-secondary mb-6 uppercase tracking-tight">
     ROOT / DOCS / MAN / <span class="text-primary-container">NEBU(1)</span>
   </div>
 
-  <!-- In-page TOC (teal: navigation meta, not content) -->
-  <nav aria-label="Page sections" class="mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+  <!-- In-page TOC for mobile — sidebar replaces this on lg+ -->
+  <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
     <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
     <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
       <a class="text-primary-container hover:underline" href="#name">#NAME</a>
@@ -227,7 +219,7 @@
         <p class="mb-2">Supports two modes:</p>
         <ul class="list-none pl-4 space-y-1 mb-4">
           <li><span class="text-primary-container">--mode rpc</span> <span class="text-secondary">· (default) stream from a Stellar RPC endpoint</span></li>
-          <li><span class="text-primary-container">--mode archive</span> <span class="text-secondary">· read from a GCS/S3 ledger archive, 100–500 ledgers/sec</span></li>
+          <li><span class="text-primary-container">--mode archive</span> <span class="text-secondary">· read from a GCS/S3 ledger archive (e.g. the public <span class="text-tertiary">aws-public-blockchain</span> bucket)</span></li>
         </ul>
         <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container">
           <button class="copy-btn" data-copy-target="cmd-fetch" type="button">[ COPY ]</button>
@@ -341,17 +333,23 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">Extract token transfers</div>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container">
-          <button class="copy-btn" data-copy-target="ex-01" type="button">[ COPY ]</button>
-          <pre id="ex-01">$ token-transfer --start-ledger 60200000 --end-ledger 60200100</pre>
+        <div class="bg-surface-container-low border-l-2 border-primary-container">
+          <div class="code-head">
+            <span class="code-head__lang">bash</span>
+            <button class="copy-btn copy-btn--inline" data-copy-target="ex-01" type="button">[ COPY ]</button>
+          </div>
+          <pre id="ex-01" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 --end-ledger 60200100</pre>
         </div>
       </div>
 
       <div>
         <div class="text-primary-container font-bold mb-2">USDC-only, deduped, to a file</div>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container overflow-x-auto">
-          <button class="copy-btn" data-copy-target="ex-02" type="button">[ COPY ]</button>
-          <pre id="ex-02">$ token-transfer --start-ledger 60200000 --follow \
+        <div class="bg-surface-container-low border-l-2 border-primary-container">
+          <div class="code-head">
+            <span class="code-head__lang">bash</span>
+            <button class="copy-btn copy-btn--inline" data-copy-target="ex-02" type="button">[ COPY ]</button>
+          </div>
+          <pre id="ex-02" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 --follow \
     | jq -c 'select(.transfer.assetCode == "USDC")' \
     | dedup --key meta.txHash \
     | json-file-sink --out usdc.jsonl</pre>
@@ -360,9 +358,12 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">SQL analytics with DuckDB, no database</div>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container overflow-x-auto">
-          <button class="copy-btn" data-copy-target="ex-03" type="button">[ COPY ]</button>
-          <pre id="ex-03">$ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+        <div class="bg-surface-container-low border-l-2 border-primary-container">
+          <div class="code-head">
+            <span class="code-head__lang">bash</span>
+            <button class="copy-btn copy-btn--inline" data-copy-target="ex-03" type="button">[ COPY ]</button>
+          </div>
+          <pre id="ex-03" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
     | duckdb -c "
         SELECT
           json_extract_string(transfer, '\$.assetCode') AS asset,
@@ -378,9 +379,12 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">Fan-out: NATS + file + terminal</div>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container overflow-x-auto">
-          <button class="copy-btn" data-copy-target="ex-04" type="button">[ COPY ]</button>
-          <pre id="ex-04">$ token-transfer --start-ledger 60200000 --follow \
+        <div class="bg-surface-container-low border-l-2 border-primary-container">
+          <div class="code-head">
+            <span class="code-head__lang">bash</span>
+            <button class="copy-btn copy-btn--inline" data-copy-target="ex-04" type="button">[ COPY ]</button>
+          </div>
+          <pre id="ex-04" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 --follow \
     | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
     | tee &gt;(json-file-sink --out archive.jsonl) \
     | jq -r '"Ledger \(.meta.ledgerSequence): \(.transfer.amount)"'</pre>
@@ -388,13 +392,20 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
       </div>
 
       <div>
-        <div class="text-primary-container font-bold mb-2">Archive-mode backfill from GCS</div>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container overflow-x-auto">
-          <button class="copy-btn" data-copy-target="ex-05" type="button">[ COPY ]</button>
-          <pre id="ex-05">$ nebu fetch --mode archive \
-    --datastore-type GCS \
-    --bucket-path "obsrvr-stellar-data/ledgers/mainnet" \
-    60200000 60300000 \
+        <div class="text-primary-container font-bold mb-2">Archive-mode backfill from the AWS public bucket</div>
+        <p class="text-secondary text-sm mb-3">
+          No AWS credentials required — the SDK falls back to anonymous access. Pubnet only; testnet uses a different (non-Galexie) layout in this bucket.
+        </p>
+        <div class="bg-surface-container-low border-l-2 border-primary-container">
+          <div class="code-head">
+            <span class="code-head__lang">bash</span>
+            <button class="copy-btn copy-btn--inline" data-copy-target="ex-05" type="button">[ COPY ]</button>
+          </div>
+          <pre id="ex-05" class="overflow-x-auto p-4 text-sm">$ nebu fetch --mode archive \
+    --datastore-type S3 \
+    --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+    --region us-east-2 \
+    62080000 62081000 \
   | gzip &gt; historical.xdr.gz</pre>
         </div>
       </div>
@@ -448,76 +459,23 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
     <span>NEBU(1)</span>
   </div>
 
-</main>
+  </main>
+</div>
 
 <!-- Fixed footer -->
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.3</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
   <div class="flex gap-4">
-    <span class="hover:text-[#ff7f50] cursor-pointer">[ NETWORK: MAINNET ]</span>
+    <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
-    <span class="text-[#4dd9e4] hover:text-[#ff7f50] cursor-pointer">[ CONTRACT: STABLE ]</span>
+    <a href="schemas.html" class="hover:text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
+    <span class="hidden md:inline text-[#3d3535]">::</span>
+    <a href="changelog.html" class="hover:text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
     <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
   </div>
 </footer>
 
-<script>
-  // Mobile nav toggle
-  (function () {
-    var btn = document.getElementById('menu-btn');
-    var menu = document.getElementById('mobile-menu');
-    if (!btn || !menu) return;
-    btn.addEventListener('click', function () {
-      var hidden = menu.classList.toggle('drawer-hidden');
-      btn.setAttribute('aria-expanded', String(!hidden));
-      menu.setAttribute('aria-hidden', String(hidden));
-      btn.textContent = hidden ? '[ MENU ]' : '[ CLOSE ]';
-    });
-    menu.querySelectorAll('a').forEach(function (a) {
-      a.addEventListener('click', function () {
-        menu.classList.add('drawer-hidden');
-        btn.setAttribute('aria-expanded', 'false');
-        menu.setAttribute('aria-hidden', 'true');
-        btn.textContent = '[ MENU ]';
-      });
-    });
-  })();
-
-  // Copy-to-clipboard
-  (function () {
-    document.querySelectorAll('.copy-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var id = btn.getAttribute('data-copy-target');
-        var el = document.getElementById(id);
-        if (!el) return;
-        var text = el.innerText.trim();
-        var done = function () {
-          btn.classList.add('is-copied');
-          btn.textContent = '[ COPIED ]';
-          setTimeout(function () {
-            btn.classList.remove('is-copied');
-            btn.textContent = '[ COPY ]';
-          }, 1200);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(done).catch(function () {
-            var ta = document.createElement('textarea');
-            ta.value = text; document.body.appendChild(ta);
-            ta.select(); document.execCommand('copy');
-            document.body.removeChild(ta);
-            done();
-          });
-        } else {
-          var ta = document.createElement('textarea');
-          ta.value = text; document.body.appendChild(ta);
-          ta.select(); document.execCommand('copy');
-          document.body.removeChild(ta);
-          done();
-        }
-      });
-    });
-  })();
-</script>
+<script src="assets/nebu.js"></script>
 </body>
 </html>
