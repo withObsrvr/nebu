@@ -299,8 +299,11 @@ func printTableList(processors []registry.ProcessorEntry, procType string) error
 
 	w.Flush()
 
-	fmt.Println("\nRun a processor:")
-	fmt.Println("  nebu run origin <name> --start-ledger X --end-ledger Y")
+	fmt.Println("\nInstall a processor:")
+	fmt.Println("  nebu install <name>")
+	fmt.Println("\nRun a processor (as standalone binary):")
+	fmt.Println("  <name> --start-ledger X --end-ledger Y")
+	fmt.Println("  nebu fetch X Y | <name>")
 	fmt.Println("\nView processor details:")
 	fmt.Println("  nebu describe <processor>")
 

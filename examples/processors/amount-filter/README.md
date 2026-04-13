@@ -47,13 +47,9 @@ MIN_AMOUNT=10000000 ASSET_CODE=USDC ./amount-filter-grpc-server
 ```
 
 **Use in pipeline:**
-```bash
-# Configure via nebu CLI (future)
-nebu run \
-  --origin token-transfer --start-ledger 60200000 --end-ledger 60200100 \
-  --transform grpc://localhost:9001?min=10000000&asset=USDC \
-  --sink json-file-sink --out results.jsonl
-```
+
+gRPC-backed pipeline composition is not yet wired into the nebu CLI. For the
+CLI-mode pipeline, see the "Quick Start → CLI Mode" section above.
 
 **Test with grpcurl:**
 ```bash
@@ -191,16 +187,16 @@ services:
 
 ### Load Balancing
 
-Run multiple instances for horizontal scaling:
+Run multiple gRPC-server instances for horizontal scaling:
 
 ```bash
 # Start 3 instances
 docker-compose up --scale amount-filter=3
-
-# nebu CLI will load balance across them
-nebu run \
-  --transform grpc://amount-filter-1:9001,grpc://amount-filter-2:9001,grpc://amount-filter-3:9001
 ```
+
+Client-side load balancing across instances is not yet wired into the nebu
+CLI. Use an external gRPC load balancer (e.g. Envoy, nginx) in front of the
+instances until pipeline-level gRPC composition lands.
 
 ## Development
 
