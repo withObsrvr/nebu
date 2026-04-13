@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nebu - Build Processors</title>
+    <meta name="description" content="Processor author guide for nebu.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nebu: {
+                            dark: '#0B0E14',
+                            card: '#151923',
+                            border: '#2A2F3E',
+                            primary: '#A855F7',
+                            secondary: '#EC4899',
+                            accent: '#22D3EE',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'Fira Code', monospace; }
+        .glass-panel {
+            background: rgba(21, 25, 35, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-nebu-dark text-slate-300 antialiased selection:bg-nebu-primary selection:text-white overflow-x-hidden">
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-nebu-primary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50"></div>
+        <div class="absolute top-0 right-1/4 w-96 h-96 bg-nebu-secondary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50"></div>
+        <div class="absolute -bottom-32 left-1/2 w-96 h-96 bg-nebu-accent/10 rounded-full mix-blend-screen filter blur-[128px] opacity-50"></div>
+    </div>
+
+    <nav class="fixed w-full z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold tracking-tighter text-white flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary"></span>
+                nebu
+            </a>
+            <div class="hidden md:flex gap-8 text-sm font-medium">
+                <a href="/#features" class="hover:text-white transition-colors">Features</a>
+                <a href="/#architecture" class="hover:text-white transition-colors">Architecture</a>
+                <a href="/quickstart.html" class="hover:text-white transition-colors">Quickstart</a>
+                <a href="/build-processors.html" class="hover:text-white transition-colors">Build Processors</a>
+                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+            <a href="https://github.com/withObsrvr/nebu" class="px-4 py-2 rounded-full glass-panel hover:bg-white/10 text-white text-sm font-semibold transition-all">
+                Star on GitHub
+            </a>
+        </div>
+    </nav>
+
+    <main class="relative z-10 pt-32 pb-20 px-6">
+        <section class="max-w-5xl mx-auto mb-16 text-center">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-nebu-card border border-nebu-border mb-8 text-xs font-mono text-nebu-accent/80">
+                Processor author path
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold text-white tracking-tight mb-6 leading-tight">
+                Build custom processors against<br>the stable nebu contract.
+            </h1>
+            <p class="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10">
+                nebu is intentionally two things: a user-facing CLI and a minimal, stable contract for authors. If you're building your own processor, focus on <code class="bg-white/10 px-2 py-1 rounded text-slate-300">pkg/processor</code>, <code class="bg-white/10 px-2 py-1 rounded text-slate-300">pkg/source</code>, and the <code class="bg-white/10 px-2 py-1 rounded text-slate-300">--describe-json</code> protocol.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="#types" class="px-8 py-4 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary text-white font-semibold text-lg hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-105">
+                    Explore Processor Types
+                </a>
+                <a href="/quickstart.html" class="px-8 py-4 rounded-full glass-panel text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 border border-nebu-border hover:border-nebu-primary/50 flex items-center gap-2 group">
+                    <span>Read Quickstart</span>
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+            </div>
+        </section>
+
+        <div class="max-w-4xl mx-auto mt-8 mb-16 relative">
+            <div class="bg-[#1e2330] rounded-t-xl p-3 flex items-center gap-2 border-b border-white/5">
+                <div class="flex gap-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="ml-4 text-xs text-slate-500 font-mono">author@obsrvr:~</div>
+            </div>
+            <div class="bg-[#0D1117] rounded-b-xl p-6 font-mono text-sm md:text-base border border-t-0 border-white/5 shadow-2xl overflow-hidden relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-nebu-primary to-transparent opacity-50"></div>
+                <div class="flex flex-col gap-2 text-slate-300">
+                    <div><span class="text-nebu-secondary">❯</span> <span>go mod init github.com/you/my-processor</span></div>
+                    <div><span class="text-nebu-secondary">❯</span> <span>go build ./cmd/my-processor</span></div>
+                    <div><span class="text-nebu-secondary">❯</span> <span>./my-processor --describe-json | jq .</span></div>
+                    <div class="mt-2 text-xs md:text-sm space-y-1 opacity-90">
+                        <div><span class="text-slate-500">{</span><span class="text-nebu-accent">"name"</span>: <span class="text-green-400">"my-processor"</span>, <span class="text-nebu-accent">"type"</span>: <span class="text-green-400">"transform"</span><span class="text-slate-500">}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section id="types" class="max-w-6xl mx-auto grid md:grid-cols-3 gap-8 mb-12">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-xl font-bold text-white mb-3">Origin</h2>
+                <p class="text-slate-400 leading-relaxed">Read ledgers from a source and emit events. Use this when you are extracting new domain objects from Stellar data.</p>
+            </div>
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-xl font-bold text-white mb-3">Transform</h2>
+                <p class="text-slate-400 leading-relaxed">Read JSON events from stdin, filter or enrich them, and emit new JSON events to stdout.</p>
+            </div>
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-xl font-bold text-white mb-3">Sink</h2>
+                <p class="text-slate-400 leading-relaxed">Read JSON events from stdin and produce side effects such as writing files or publishing to external systems.</p>
+            </div>
+        </section>
+
+        <section class="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 mb-12">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Stable surfaces</h2>
+                <ul class="space-y-3 text-slate-300 list-disc pl-5">
+                    <li><code class="bg-white/10 px-2 py-1 rounded text-slate-300">pkg/processor</code> — Processor, Origin, Transform, Sink, Emitter, Reporter, and describe-protocol types</li>
+                    <li><code class="bg-white/10 px-2 py-1 rounded text-slate-300">pkg/source</code> — the LedgerSource contract</li>
+                    <li><code class="bg-white/10 px-2 py-1 rounded text-slate-300">--describe-json</code> — machine-readable introspection for tools and registries</li>
+                    <li><code class="bg-white/10 px-2 py-1 rounded text-slate-300">registry.yaml</code> and <code class="bg-white/10 px-2 py-1 rounded text-slate-300">description.yml</code> — stable discovery formats</li>
+                </ul>
+            </div>
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Recommended workflow</h2>
+                <ol class="space-y-3 text-slate-300 list-decimal pl-5">
+                    <li>Depend only on the stable packages.</li>
+                    <li>Implement the processor type you need.</li>
+                    <li>Expose <code class="bg-white/10 px-2 py-1 rounded text-slate-300">--describe-json</code>.</li>
+                    <li>Ship your binary as its own Go module.</li>
+                    <li>Register it in an external registry repo.</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="max-w-6xl mx-auto mb-12">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-6">Read these docs in order</h2>
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/STABILITY.md">
+                        <div class="text-white font-semibold mb-1">Stability policy</div>
+                        <div class="text-slate-400">Understand the committed contract before you build.</div>
+                    </a>
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/BUILDING_PROCESSORS.md">
+                        <div class="text-white font-semibold mb-1">Building processors</div>
+                        <div class="text-slate-400">Step-by-step authoring guide for origins, transforms, and sinks.</div>
+                    </a>
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md">
+                        <div class="text-white font-semibold mb-1">Runtime hooks</div>
+                        <div class="text-slate-400">Add metrics, tracing, checkpointing, or agent control flow.</div>
+                    </a>
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/REGISTRY_SPEC.md">
+                        <div class="text-white font-semibold mb-1">Registry spec</div>
+                        <div class="text-slate-400">Learn how processors are discovered and installed.</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 mb-12">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Reference implementations</h2>
+                <ul class="space-y-3 text-slate-300">
+                    <li><a class="text-nebu-accent hover:text-white" href="https://github.com/withObsrvr/nebu/tree/main/examples/processors/token-transfer">token-transfer</a></li>
+                    <li><a class="text-nebu-accent hover:text-white" href="https://github.com/withObsrvr/nebu/tree/main/examples/processors/contract-events">contract-events</a></li>
+                    <li><a class="text-nebu-accent hover:text-white" href="https://github.com/withObsrvr/nebu/tree/main/examples/processors/amount-filter">amount-filter</a></li>
+                    <li><a class="text-nebu-accent hover:text-white" href="https://github.com/withObsrvr/nebu/tree/main/examples/processors/postgres-sink">postgres-sink</a></li>
+                </ul>
+            </div>
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Proto-first walkthrough</h2>
+                <p class="text-slate-400 mb-4">The most complete end-to-end processor authoring walkthrough currently lives in the community registry repo.</p>
+                <a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary text-white font-semibold hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.8)] transition-all duration-300">
+                    Open walkthrough
+                </a>
+            </div>
+        </section>
+
+        <section class="max-w-6xl mx-auto">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Need the user path instead?</h2>
+                <p class="text-slate-400 mb-4">If you're trying to query live Stellar data rather than author a processor, head to the quickstart.</p>
+                <a href="/quickstart.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-full glass-panel hover:bg-white/10 text-white font-semibold transition-all duration-300 border border-nebu-border hover:border-nebu-accent/50 group">
+                    <span>Read Quickstart</span>
+                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-white/5 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-xl tracking-tight">nebu</span>
+                <span class="text-slate-600 text-sm">© 2025 Built by OBSRVR</span>
+            </div>
+            <div class="flex gap-6 text-sm text-slate-400">
+                <a href="/" class="hover:text-white transition-colors">Home</a>
+                <a href="https://lab.stellar.org/" class="hover:text-white transition-colors">Stellar Lab</a>
+                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+        </div>
+    </footer>
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
+            } else {
+                nav.classList.remove('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
+            }
+        });
+    </script>
+</body>
+</html>

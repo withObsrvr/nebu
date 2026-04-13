@@ -63,7 +63,6 @@ ENVIRONMENT:
 
 	// Add subcommands
 	rootCmd.AddCommand(newFetchCmd())
-	rootCmd.AddCommand(newRunCmd())
 	rootCmd.AddCommand(newInstallCmd())
 	rootCmd.AddCommand(newNewCmd())
 	rootCmd.AddCommand(newListCmd())

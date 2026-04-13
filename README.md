@@ -20,33 +20,11 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 
 **I want to query Stellar data →** Jump to [Quick Start](#quick-start) below. You'll have JSON events streaming in two minutes.
 
-## Status
+## Website and release notes
 
-🚀 **v0.6.3** — Closes the `_nebu_version` loop from the v0.6.2 install fix. Every reference processor's `go.mod` is now pinned to `github.com/withObsrvr/nebu v0.6.2`, so processor binaries installed via `go install` (without ldflags) correctly report `_nebu_version: "v0.6.2"` in their event envelopes via the runtime build-info fallback introduced in v0.6.2.
-
-**What's new in v0.6.3:**
-- **`_nebu_version` envelope field now resolves correctly for `go install`-ed processors** — v0.6.2 introduced a `runtime/debug.ReadBuildInfo()` fallback in `pkg/version` that scans the compiled-in dep list for the nebu module version when ldflags aren't set. It didn't take effect in v0.6.2 itself because the reference processors still pinned nebu `v0.6.1`, which predates the fallback code. v0.6.3 bumps all 10 reference processors to pin `v0.6.2`, so a fresh `nebu install token-transfer` (or any other processor) now produces events with `_nebu_version: "v0.6.2"` instead of the stale `"dev"` placeholder.
-- **No other code changes.** This is a pinning-only release that closes the tail of v0.6.2's install-experience work.
-
-**Carried over from v0.6.2:**
-- **`go install` for in-tree processors is unblocked** — every reference processor's `go.mod` (previously pinned to a pre-v0.5 pseudo-version that predated `processor.ReportWarning`) is now a valid, published nebu version. `go install github.com/withObsrvr/nebu/examples/processors/<name>/cmd/<name>@latest` works from a clean environment, and `nebu install <name>` (which delegates to `go install` internally) works end-to-end.
-- **`nebu --version` shows the real version from runtime build info** — when nebu is installed via plain `go install` (no ldflags), the binary reads `runtime/debug.ReadBuildInfo()` at startup and reports the module version recorded by the Go toolchain instead of the literal `"dev"` placeholder.
-- **`nebu install` surfaces the underlying `go install` output** — when installation fails, the wrapped nebu error now embeds the captured stderr from the subprocess (between explicit `--- go install output ---` markers), so the real compiler diagnostic is self-contained even in CI / log-forwarded contexts.
-- **`usdc-filter` dead-code fix** — the filter was walking a nested `transfer.asset.issuedAsset.assetCode` path that doesn't exist in real protojson output, so it silently dropped 100% of events. Now walks the flat `transfer.assetCode` correctly.
-- **Claude Code skills catalog** — new root [`SKILL.md`](./SKILL.md) index and [`skills/pipeline-composer/SKILL.md`](./skills/pipeline-composer/SKILL.md) skill that teaches agents to compose Stellar ledger pipelines from the installed catalog via `nebu list` + `--describe-json`, with a full worked USDC-transfers example and the common pitfalls documented inline.
-
-**Carried over from v0.6.0:**
-- **Runtime hooks** — `Runtime.Use(Hooks{...})` lets external code observe pipeline lifecycle events: `OnStart`, `BeforeLedger`, `AfterLedger`, `OnWarning`, `OnFatal`, `OnEnd`. Drop-in metrics, tracing, progress bars, checkpointing, rate limiting, and agent-driven control flow without owning the runtime loop. See [docs/HOOKS.md](./docs/HOOKS.md).
-- **Fatal-priority preemption** — when a processor reports a fatal error, the runtime halts deterministically on the next loop iteration instead of racing the buffered ledger queue.
-- **CI check for contract drift** — `make api-check` (also wired into [`.github/workflows/api-stability.yml`](./.github/workflows/api-stability.yml)) compares `pkg/processor` and `pkg/source` against committed snapshots in [`.api/`](./.api/) and fails the build on unexplained drift.
-
-**Carried over from v0.5.0:**
-- **Stable contract surface** — [`pkg/processor`](./pkg/processor), [`pkg/source`](./pkg/source), `registry.yaml` v1, and the `--describe-json` protocol are committed-stable. See [docs/STABILITY.md](./docs/STABILITY.md).
-- **`--describe-json` protocol** — every processor binary emits a machine-readable envelope with its JSON Schema, flags, and examples. `nebu describe <name>` merges this with registry metadata, and `nebu describe <name> --schema` pipes the raw JSON Schema into validators.
-- **Streams-never-throw** — `Origin.ProcessLedger`, `Transform.ProcessEvent`, and `Sink.WriteEvent` return void. Per-ledger errors flow through `processor.ReportWarning` and the pipeline continues; 10M-event runs no longer die on one malformed event.
-- **Transform and Sink interfaces** formalized in `pkg/processor` alongside `Origin`.
-- **`pkg/source` split** — `LedgerSource` interface in a dep-free root package; concrete implementations in `pkg/source/rpc` / `pkg/source/storage`. External processor authors no longer drag in the AWS SDK just to satisfy the interface.
-- **Registry spec** — [docs/REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) formally defines `registry.yaml` v1 and the `description.yml` v1 external-registry format.
+- **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
+- **Latest release:** [v0.6.3](https://github.com/withObsrvr/nebu/releases/tag/v0.6.3)
+- **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
 **Reference processors shipped in this repo (examples, not product):**
 - **Origins**: [`token-transfer`](./examples/processors/token-transfer), [`contract-events`](./examples/processors/contract-events), [`contract-invocation`](./examples/processors/contract-invocation)
@@ -61,38 +39,36 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 
 ## Quick Start
 
-**Get running in 2 minutes:**
+The canonical quickstart now lives on the website:
 
-### Option A: Using `go install` (Recommended)
+- **Query data:** https://nebu.withobsrvr.com/quickstart.html
+- **Build processors:** https://nebu.withobsrvr.com/build-processors.html
+
+For GitHub readers, here's the shortest successful local path today:
 
 ```bash
-# 1. Install nebu CLI (10 seconds)
 go install github.com/withObsrvr/nebu/cmd/nebu@latest
-
-# 2. Add Go bin to PATH (if not already done)
 export PATH="$HOME/go/bin:$PATH"
 
-# 3. Install token-transfer processor (30 seconds)
 nebu install token-transfer
-
-# 4. See results! (30 seconds - processes 2 ledgers)
 token-transfer --start-ledger 60200000 --end-ledger 60200001
 ```
 
-### Option B: Clone and Build (For Development)
+If you only want to preview output before setting up Go, you can also run the published Docker image:
 
 ```bash
-# 1. Clone and install nebu CLI (30 seconds)
+docker run --rm withobsrvr/nebu:latest \
+  token-transfer --start-ledger 60200000 --end-ledger 60200001
+```
+
+For development inside this repo:
+
+```bash
 git clone https://github.com/withObsrvr/nebu && cd nebu
 make install
-
-# 2. Add Go bin to PATH (if not already done)
 export PATH="$HOME/go/bin:$PATH"
 
-# 3. Install token-transfer processor (builds locally)
 nebu install token-transfer
-
-# 4. See results!
 token-transfer --start-ledger 60200000 --end-ledger 60200001
 ```
 

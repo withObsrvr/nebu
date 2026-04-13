@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nebu - Quickstart</title>
+    <meta name="description" content="Canonical quickstart for nebu.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nebu: {
+                            dark: '#0B0E14',
+                            card: '#151923',
+                            border: '#2A2F3E',
+                            primary: '#A855F7',
+                            secondary: '#EC4899',
+                            accent: '#22D3EE',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'Fira Code', monospace; }
+        .glass-panel {
+            background: rgba(21, 25, 35, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-nebu-dark text-slate-300 antialiased selection:bg-nebu-primary selection:text-white overflow-x-hidden">
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-nebu-primary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50"></div>
+        <div class="absolute top-0 right-1/4 w-96 h-96 bg-nebu-secondary/20 rounded-full mix-blend-screen filter blur-[128px] opacity-50"></div>
+        <div class="absolute -bottom-32 left-1/2 w-96 h-96 bg-nebu-accent/10 rounded-full mix-blend-screen filter blur-[128px] opacity-50"></div>
+    </div>
+
+    <nav class="fixed w-full z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold tracking-tighter text-white flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary"></span>
+                nebu
+            </a>
+            <div class="hidden md:flex gap-8 text-sm font-medium">
+                <a href="/#features" class="hover:text-white transition-colors">Features</a>
+                <a href="/#architecture" class="hover:text-white transition-colors">Architecture</a>
+                <a href="/quickstart.html" class="hover:text-white transition-colors">Quickstart</a>
+                <a href="/build-processors.html" class="hover:text-white transition-colors">Build Processors</a>
+                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+            <a href="https://github.com/withObsrvr/nebu" class="px-4 py-2 rounded-full glass-panel hover:bg-white/10 text-white text-sm font-semibold transition-all">
+                Star on GitHub
+            </a>
+        </div>
+    </nav>
+
+    <main class="relative z-10 pt-32 pb-20 px-6">
+        <section class="max-w-5xl mx-auto mb-16 text-center">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-nebu-card border border-nebu-border mb-8 text-xs font-mono text-nebu-accent/80">
+                Canonical quickstart
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold text-white tracking-tight mb-6 leading-tight">
+                Install nebu, install a processor,<br>and stream Stellar JSON.
+            </h1>
+            <p class="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed mb-10">
+                This is the main getting-started path for nebu. Today the full local workflow starts with Go, because <code class="bg-white/10 px-2 py-1 rounded text-slate-300">nebu install</code> installs processors from Go modules.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="#steps" class="px-8 py-4 rounded-full bg-gradient-to-r from-nebu-primary to-nebu-secondary text-white font-semibold text-lg hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.8)] transition-all duration-300 hover:scale-105">
+                    Start Setup
+                </a>
+                <a href="/build-processors.html" class="px-8 py-4 rounded-full glass-panel text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300 border border-nebu-border hover:border-nebu-primary/50 flex items-center gap-2 group">
+                    <span>Build Processors</span>
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+            </div>
+        </section>
+
+        <div class="max-w-4xl mx-auto mt-8 mb-10 relative">
+            <div class="bg-[#1e2330] rounded-t-xl p-3 flex items-center gap-2 border-b border-white/5">
+                <div class="flex gap-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div class="ml-4 text-xs text-slate-500 font-mono">user@obsrvr:~</div>
+            </div>
+            <div class="bg-[#0D1117] rounded-b-xl p-6 font-mono text-sm md:text-base border border-t-0 border-white/5 shadow-2xl overflow-hidden relative">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-nebu-primary to-transparent opacity-50"></div>
+                <div class="flex flex-col gap-2 text-slate-300">
+                    <div><span class="text-nebu-secondary">❯</span> <span>go install github.com/withObsrvr/nebu/cmd/nebu@latest</span></div>
+                    <div><span class="text-nebu-secondary">❯</span> <span>nebu install token-transfer</span></div>
+                    <div><span class="text-nebu-secondary">❯</span> <span>token-transfer --start-ledger 60200000 --end-ledger 60200001</span></div>
+                    <div class="mt-2 text-xs md:text-sm space-y-1 opacity-90">
+                        <div><span class="text-slate-500">{</span><span class="text-nebu-accent">"_schema"</span>: <span class="text-green-400">"nebu.token_transfer.v1"</span>, <span class="text-nebu-accent">"transfer"</span>: <span class="text-slate-400">{...}</span><span class="text-slate-500">}</span></div>
+                        <div><span class="text-slate-500">{</span><span class="text-nebu-accent">"_schema"</span>: <span class="text-green-400">"nebu.token_transfer.v1"</span>, <span class="text-nebu-accent">"transfer"</span>: <span class="text-slate-400">{...}</span><span class="text-slate-500">}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section class="max-w-5xl mx-auto mb-16">
+            <div class="glass-panel p-8 rounded-2xl">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white mb-2">Watch the quickstart demo</h2>
+                        <p class="text-slate-400">A recorded walkthrough of the canonical quickstart flow.</p>
+                    </div>
+                    <a href="https://github.com/withObsrvr/nebu/tree/main/demo" class="text-nebu-accent hover:text-white transition-colors">View demo assets →</a>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-black/20 p-4 md:p-6">
+                    <div class="overflow-x-auto">
+                        <script src="https://asciinema.org/a/xx41VgAuRBC6dQcI.js" id="asciicast-xx41VgAuRBC6dQcI" async="true"></script>
+                    </div>
+                    <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm">
+                        <p class="text-slate-400">Install nebu, install <code class="bg-white/10 px-2 py-1 rounded text-slate-300">token-transfer</code>, stream JSON, then query the output with DuckDB.</p>
+                        <a href="https://asciinema.org/a/xx41VgAuRBC6dQcI" class="text-nebu-accent hover:text-white transition-colors">Open on asciinema →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="steps" class="max-w-5xl mx-auto grid gap-8">
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">1. Install the CLI</h2>
+                <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                    <span class="text-nebu-accent">$</span> go install github.com/withObsrvr/nebu/cmd/nebu@latest<br>
+                    <span class="text-nebu-accent">$</span> export PATH="$HOME/go/bin:$PATH"<br>
+                    <span class="text-nebu-accent">$</span> nebu --version
+                </div>
+                <p class="mt-4 text-slate-400">Requires Go 1.23 or later and your Go bin directory on PATH.</p>
+            </div>
+
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">2. Install your first processor</h2>
+                <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                    <span class="text-nebu-accent">$</span> nebu list<br>
+                    <span class="text-nebu-accent">$</span> nebu install token-transfer
+                </div>
+                <p class="mt-4 text-slate-400">The CLI embeds the registry and installs processor binaries on demand.</p>
+            </div>
+
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">3. Stream events</h2>
+                <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                    <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200001
+                </div>
+                <p class="mt-4 text-slate-400">You should see newline-delimited JSON events on stdout.</p>
+                <div class="mt-4 bg-[#0D1117] rounded-lg p-5 font-mono text-xs border border-white/5 overflow-x-auto text-slate-300">{"_schema":"nebu.token_transfer.v1","meta":{"ledgerSequence":60200000},"transfer":{"assetCode":"USDC","amount":"1000000"}}</div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="glass-panel p-8 rounded-2xl">
+                    <h2 class="text-2xl font-bold text-white mb-4">4. Filter with jq</h2>
+                    <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                        <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \
+                        <br><span class="ml-4">jq 'select(.transfer.assetCode == "USDC")'</span>
+                    </div>
+                </div>
+                <div class="glass-panel p-8 rounded-2xl">
+                    <h2 class="text-2xl font-bold text-white mb-4">5. Aggregate with DuckDB</h2>
+                    <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                        <span class="text-nebu-accent">$</span> token-transfer --start-ledger 60200000 --end-ledger 60200100 <span class="text-slate-500">|</span> \
+                        <br><span class="ml-4">duckdb -c "SELECT COUNT(*) AS transfers FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">6. Separate fetch from processing</h2>
+                <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                    <span class="text-nebu-accent">$</span> nebu fetch 60200000 60200100 &gt; ledgers.xdr<br>
+                    <span class="text-nebu-accent">$</span> cat ledgers.xdr <span class="text-slate-500">|</span> token-transfer <span class="text-slate-500">|</span> jq .
+                </div>
+            </div>
+
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Preview without setup</h2>
+                <p class="text-slate-400 mb-4">If you only want to see output first, you can run the published Docker image. Treat this as a preview path for now, not the main local install flow.</p>
+                <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
+                    <span class="text-nebu-accent">$</span> docker run --rm withobsrvr/nebu:latest \
+                    <br><span class="ml-4">token-transfer --start-ledger 60200000 --end-ledger 60200001</span>
+                </div>
+            </div>
+
+            <div class="glass-panel p-8 rounded-2xl">
+                <h2 class="text-2xl font-bold text-white mb-4">Where next?</h2>
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/DUCKDB_COOKBOOK.md">
+                        <div class="text-white font-semibold mb-1">DuckDB cookbook</div>
+                        <div class="text-slate-400">Query event streams with SQL.</div>
+                    </a>
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/PIPELINE.md">
+                        <div class="text-white font-semibold mb-1">Pipeline guide</div>
+                        <div class="text-slate-400">Compose processors and sinks.</div>
+                    </a>
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="https://github.com/withObsrvr/nebu/blob/main/docs/ARCHIVE_MODE.md">
+                        <div class="text-white font-semibold mb-1">Archive mode</div>
+                        <div class="text-slate-400">Fetch historical ledgers from storage.</div>
+                    </a>
+                    <a class="rounded-xl bg-black/20 border border-white/10 p-4 hover:border-nebu-primary/40 transition-all" href="/build-processors.html">
+                        <div class="text-white font-semibold mb-1">Build processors</div>
+                        <div class="text-slate-400">Author custom origins, transforms, and sinks.</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-white/5 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-xl tracking-tight">nebu</span>
+                <span class="text-slate-600 text-sm">© 2025 Built by OBSRVR</span>
+            </div>
+            <div class="flex gap-6 text-sm text-slate-400">
+                <a href="/" class="hover:text-white transition-colors">Home</a>
+                <a href="https://lab.stellar.org/" class="hover:text-white transition-colors">Stellar Lab</a>
+                <a href="https://github.com/withObsrvr/nebu" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+        </div>
+    </footer>
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
+            } else {
+                nav.classList.remove('bg-nebu-dark/90', 'backdrop-blur-md', 'shadow-lg');
+            }
+        });
+    </script>
+</body>
+</html>

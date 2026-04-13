@@ -64,7 +64,7 @@ RPC Mode Examples:
   nebu fetch 60200000 0 > ledgers.xdr
 
   # Pipe directly to processor
-  nebu fetch 60200000 60200100 | nebu run origin token-transfer
+  nebu fetch 60200000 60200100 | token-transfer
 
 Archive Mode Examples:
   # Fetch from GCS bucket

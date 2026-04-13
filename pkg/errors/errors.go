@@ -161,9 +161,9 @@ func ProcessorNotFound(name string, available []string) *NebuError {
 // ProcessorTypeMismatch returns an error when processor type doesn't match command.
 func ProcessorTypeMismatch(name, gotType, wantType string) *NebuError {
 	return &NebuError{
-		Message: fmt.Sprintf("Processor '%s' is type '%s', but 'nebu run %s' requires type '%s'",
-			name, gotType, wantType, wantType),
-		Suggestion: fmt.Sprintf("Use the correct command for this processor type:\n  nebu run %s %s ...", gotType, name),
+		Message: fmt.Sprintf("Processor '%s' is type '%s', but this command requires type '%s'",
+			name, gotType, wantType),
+		Suggestion: fmt.Sprintf("Use a command appropriate for '%s' processors, or pick a different processor.", gotType),
 	}
 }
 

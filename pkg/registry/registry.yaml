@@ -1,6 +1,7 @@
 # nebu Processor Registry
 #
-# This file defines available processors that can be run via `nebu run`.
+# This file defines available processors that can be installed via `nebu install`
+# and run as standalone binaries, composed via Unix pipes.
 # Processors can be local (in examples/) or external (git repos, go modules).
 
 version: 1
