@@ -2,6 +2,14 @@
 
 All notable changes to nebu are documented here. For full release artifacts, see [GitHub Releases](https://github.com/withObsrvr/nebu/releases).
 
+## Unreleased
+
+- Updated AWS SDK v2 dependencies across the root module and all reference processor modules to address the EventStream decoder DoS advisory:
+  - `github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream` → `v1.7.8`
+  - `github.com/aws/aws-sdk-go-v2/service/s3` → `v1.99.0`
+- This also pulled related AWS SDK internals forward (`aws-sdk-go-v2`, `smithy-go`, and related service internals) via `go mod tidy`.
+- Verified that `google.golang.org/grpc` is already at `v1.80.0`, which is newer than the fix version for the `:path` authorization-bypass advisory (`v1.79.3`).
+
 ## v0.6.3
 
 - Fixed `_nebu_version` in event envelopes for processors installed via `go install`.
