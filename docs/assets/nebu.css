@@ -71,6 +71,8 @@ pre { white-space: pre; }
   letter-spacing: 0.08em;
 }
 .code-head__lang { color: #4dd9e4; }
+/* Absolute-positioned copy button needs a positioned ancestor */
+.copy-block { position: relative; }
 
 /* Copy button — absolute variant (inside a `.copy-block` container) */
 .copy-btn {
