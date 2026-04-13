@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEBU // THE SOVEREIGN CONSOLE FOR STELLAR</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-bright": "#3a3939",
+          "surface-tint": "#ffb59c",
+          "tertiary": "#4dd9e4",
+          "tertiary-container": "#00b5c0",
+          "on-tertiary": "#00363a",
+          "on-tertiary-container": "#004145",
+          "outline": "#7a6a6a",
+          "outline-variant": "#3d3535",
+          "error": "#ffb4ab",
+          "surface-container-highest": "#353534",
+          "surface-container": "#201f1f",
+          "error-container": "#93000a",
+          "secondary-container": "#454747",
+          "surface-container-high": "#2a2a2a",
+          "primary": "#ffb59c",
+          "surface-container-low": "#1c1b1b",
+          "on-secondary-container": "#b5b5b5",
+          "on-primary": "#5c1a00",
+          "primary-container": "#ff7f50",
+          "on-primary-container": "#6c2000",
+          "on-surface": "#e5e2e1",
+          "on-background": "#e5e2e1",
+          "on-error-container": "#ffdad6",
+          "secondary": "#c6c6c6",
+          "surface-variant": "#353534",
+          "surface-container-lowest": "#0e0e0e",
+          "surface": "#131313",
+          "background": "#131313",
+          /* Semantic aliases — use these for new work */
+          "ember":  "#ff7f50",  /* primary hot accent — live/action */
+          "signal": "#4dd9e4",  /* secondary cool accent — meta/info */
+          "coal":   "#131313",
+          "ash":    "#c6c6c6",
+          "ink":    "#e5e2e1"
+        },
+        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
+        fontFamily: {
+          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
+          headline: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
+          body:     ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
+          label:    ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+    font-feature-settings: "liga" 0, "calt" 0;
+  }
+  /* Clear the fixed footer on every viewport */
+  body { padding-bottom: 3rem; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #131313; }
+  ::-webkit-scrollbar-thumb { background: #ff7f50; }
+  .cursor-blink::after { content: '_'; animation: blink 1s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ascii-pipe { white-space: pre; line-height: 1.25; }
+
+  /* Copy-block affordance */
+  .copy-block { position: relative; }
+  .copy-btn {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    font-size: 0.6875rem; letter-spacing: 0.02em;
+    padding: 0.125rem 0.375rem;
+    color: #c6c6c6;
+    background: transparent;
+    border: 1px solid transparent;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: #131313; background: #ff7f50; }
+  .copy-btn.is-copied { color: #131313; background: #ff7f50; }
+
+  /* Mobile nav drawer */
+  .drawer-hidden { transform: translateY(-100%); }
+</style>
+</head>
+<body class="bg-background text-on-surface selection:bg-primary-container selection:text-background">
+
+<!-- TopAppBar -->
+<header class="bg-[#131313] flex justify-between items-center px-6 py-4 w-full z-50 sticky top-0">
+  <div class="text-xl font-bold text-[#e5e2e1] uppercase tracking-tighter flex items-center gap-3">
+    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
+    <!-- Network badge: mainnet=coral (live), testnet=teal (meta/dev) -->
+    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
+  </div>
+
+  <!-- Desktop nav -->
+  <nav class="hidden md:flex items-center gap-6 uppercase tracking-tighter">
+    <a class="text-[#ff7f50] font-bold hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="#">[ HOME ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="#quickstart">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="#processors">[ PROCESSORS ]</a>
+    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+
+  <!-- Mobile toggle -->
+  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
+          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
+    [ MENU ]
+  </button>
+
+  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+</header>
+
+<!-- Mobile drawer -->
+<div id="mobile-menu" aria-hidden="true"
+     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
+  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
+    <a class="text-[#ff7f50] font-bold py-3 border-b border-[#57423b] border-opacity-40" href="#">[ HOME ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="#quickstart">[ QUICKSTART ]</a>
+    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="#processors">[ PROCESSORS ]</a>
+    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
+  </nav>
+</div>
+
+<main class="max-w-6xl mx-auto px-6 pt-12 pb-32">
+
+  <!-- Hero -->
+  <section class="mb-20">
+    <div class="mb-8 text-[#ff7f50] opacity-50">
+      &lt;-- VESSEL_ONLINE // STELLAR_MAINNET --&gt;
+    </div>
+    <h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-8 text-[#e5e2e1]">
+      # NEBU<span class="text-primary-container cursor-blink"></span>
+    </h1>
+    <p class="text-xl md:text-2xl text-secondary max-w-3xl leading-relaxed mb-4">
+      A toolkit for building Stellar indexers.
+    </p>
+    <p class="text-lg text-secondary max-w-3xl leading-relaxed mb-12">
+      A stable Go contract, standalone processors, and Unix-composable pipelines.
+      From on-chain truth to your applications in two minutes — no orchestrator, no YAML, no daemon.
+    </p>
+
+    <div class="bg-surface-container-low p-8 border-l-4 border-primary-container mb-12 copy-block">
+      <button class="copy-btn" data-copy-target="install-cmd" type="button">[ COPY ]</button>
+      <div class="flex justify-between items-center mb-4 text-[0.6875rem] uppercase text-secondary">
+        <span>QUICK_INSTALL</span>
+        <span>GO &gt;= 1.22</span>
+      </div>
+      <div id="install-cmd" class="text-primary-container text-lg break-all">go install github.com/withObsrvr/nebu/cmd/nebu@latest</div>
+      <div class="mt-3 text-secondary text-sm break-all">
+        $ nebu install token-transfer &amp;&amp; token-transfer --start-ledger 60200000 --end-ledger 60200001
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-6">
+      <a href="#quickstart" class="bg-primary-container text-background px-8 py-3 font-bold text-lg hover:bg-surface-bright hover:text-on-surface transition-colors">
+        [ QUICKSTART ]
+      </a>
+      <a href="man.html" class="border border-outline text-on-surface px-8 py-3 font-bold text-lg hover:bg-primary-container hover:text-background transition-colors">
+        [ MAN PAGE ]
+      </a>
+      <a href="https://github.com/withObsrvr/nebu" class="border border-outline text-on-surface px-8 py-3 font-bold text-lg hover:bg-primary-container hover:text-background transition-colors">
+        [ GITHUB ]
+      </a>
+    </div>
+  </section>
+
+  <div class="text-secondary mb-12 overflow-hidden">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  </div>
+
+  <!-- Bento grid -->
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+
+    <!-- ABOUT -->
+    <section class="md:col-span-8 bg-surface-container-low p-8 border-t-2 border-outline-variant" id="about">
+      <h2 class="text-3xl font-bold mb-6 text-on-surface">## ABOUT</h2>
+      <div class="space-y-6 text-secondary leading-relaxed">
+        <p>&gt; "The GUI is a filter. The pipe is a lens."</p>
+        <p>
+          nebu (pronounced "neh-boo") is built on the supported building blocks Stellar provides for modern indexing —
+          RPC-backed ledger access, the ingest SDK, XDR-native extraction — and packages them into a stable Go contract,
+          standalone processor binaries, and Unix-composable pipelines.
+        </p>
+        <p>
+          Named after the Nebuchadnezzar from The Matrix. nebu is the vessel that carries data
+          from the on-chain truth to your applications.
+        </p>
+        <p class="pt-4">
+          * One repo, two products. <br/>
+          * A stable contract in <span class="text-primary-container">pkg/processor</span>. <br/>
+          * A CLI and reference processors for everyone else.
+        </p>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="md:col-span-4 bg-primary-container p-8 text-background flex flex-col justify-between">
+      <h3 class="font-bold text-[0.6875rem] uppercase mb-4">[ VESSEL_LOG ]</h3>
+      <div>
+        <div class="text-4xl font-bold mb-2 tracking-tighter">5YR</div>
+        <div class="text-sm uppercase opacity-80">BACKFILL_IN_HOURS</div>
+      </div>
+      <div class="mt-8">
+        <div class="text-4xl font-bold mb-2 tracking-tighter">500/s</div>
+        <div class="text-sm uppercase opacity-80">LEDGERS_ARCHIVE_MODE</div>
+      </div>
+      <div class="mt-8">
+        <div class="text-4xl font-bold mb-2 tracking-tighter">0</div>
+        <div class="text-sm uppercase opacity-80">YAML_FILES_REQUIRED</div>
+      </div>
+    </section>
+
+    <!-- PIPELINE ASCII -->
+    <section class="md:col-span-12 bg-surface-container p-8" id="architecture">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## ARCHITECTURE</h2>
+      <div class="ascii-pipe text-secondary text-sm md:text-base overflow-x-auto">
+<span class="text-on-surface">STELLAR_RPC</span>
+    │  LedgerCloseMeta (XDR)
+    ▼
+<span class="text-primary-container">[ ORIGIN ]</span>         token-transfer · contract-events · contract-invocation
+    │  <span class="text-tertiary">typed events (JSON, _schema=nebu.*.v1)</span>
+    ▼
+<span class="text-primary-container">[ TRANSFORM ]</span>      usdc-filter · amount-filter · dedup · time-window
+    │  <span class="text-tertiary">filtered events (meta preserved)</span>
+    ▼
+<span class="text-primary-container">[ SINK ]</span>           json-file-sink · nats-sink · postgres-sink · duckdb · jq
+</div>
+      <p class="mt-8 text-secondary">
+        All processors communicate via Unix pipes (stdin/stdout).
+        Newline-delimited JSON on the wire — easy to debug, trivial to compose with <span class="text-primary-container">jq</span>,
+        <span class="text-primary-container">duckdb</span>, or anything that reads a stream.
+      </p>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="md:col-span-12 bg-surface-container-low p-8 border-t border-outline-variant" id="features">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## FEATURES</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">01_STABLE_CONTRACT</div>
+          <p class="text-secondary text-sm">
+            <span class="text-on-surface">pkg/processor</span> and <span class="text-on-surface">pkg/source</span> are committed-stable,
+            enforced by CI against API snapshots in <span class="text-on-surface">.api/</span>.
+            Build your own processor, ship it as its own binary.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">02_UNIX_PIPES</div>
+          <p class="text-secondary text-sm">
+            No daemon. No orchestrator. Origin | Transform | Sink, composed with the same pipe you've used since 1973.
+            Pipe to <span class="text-on-surface">jq</span>, to <span class="text-on-surface">duckdb</span>, to <span class="text-on-surface">tee</span>.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">03_ARCHIVE_MODE</div>
+          <p class="text-secondary text-sm">
+            Fetch raw XDR directly from GCS or S3 at 100–500 ledgers/sec — bypassing RPC rate limits entirely.
+            Backfill Stellar's full history into a data lakehouse without a single custom worker.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">04_DESCRIBE_JSON</div>
+          <p class="text-secondary text-sm">
+            Every processor emits a JSON-schema-valid <span class="text-on-surface">--describe-json</span> manifest.
+            Agents and tools can discover flags, inputs, outputs, and schema IDs without reading source.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">05_SCHEMA_VERSIONING</div>
+          <p class="text-secondary text-sm">
+            Every event carries <span class="text-on-surface">_schema</span> and <span class="text-on-surface">_nebu_version</span>.
+            Field rename? Bump the version. Your downstream queries never break silently.
+          </p>
+        </div>
+        <div class="space-y-4">
+          <div class="text-primary-container font-bold text-lg">06_COMMUNITY_REGISTRY</div>
+          <p class="text-secondary text-sm">
+            Register any Git repo as a processor source via <span class="text-on-surface">description.yml</span>.
+            <span class="text-on-surface">nebu install your-processor</span> just works.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUICKSTART -->
+    <section class="md:col-span-12 bg-surface-container p-8" id="quickstart">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## QUICKSTART</h2>
+      <div class="text-secondary space-y-8">
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_01</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">INSTALL_VESSEL</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-01" type="button">[ COPY ]</button>
+              <pre id="qs-01">go install github.com/withObsrvr/nebu/cmd/nebu@latest
+export PATH="$HOME/go/bin:$PATH"</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_02</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">DISCOVER_AND_INSTALL</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-02" type="button">[ COPY ]</button>
+              <pre id="qs-02">nebu list
+nebu install token-transfer</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_03</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">STREAM_EVENTS</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-03" type="button">[ COPY ]</button>
+              <pre id="qs-03">token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-6">
+          <span class="text-primary-container shrink-0">STEP_04</span>
+          <div class="flex-1">
+            <span class="text-on-surface font-bold">COMPOSE_A_PIPELINE</span>
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+              <button class="copy-btn" data-copy-target="qs-04" type="button">[ COPY ]</button>
+              <pre id="qs-04">token-transfer --start-ledger 60200000 --follow \
+  | jq -c 'select(.transfer.assetCode == "USDC")' \
+  | dedup --key meta.txHash \
+  | json-file-sink --out usdc.jsonl</pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- INFO callout — teal semantic: nebu meta-fact, not a live action -->
+    <section class="md:col-span-12 bg-surface-container-low p-6 border-l-4 border-tertiary">
+      <div class="flex items-start gap-4">
+        <span class="text-tertiary font-bold text-[0.6875rem] uppercase tracking-widest shrink-0 mt-1">[ INFO ]</span>
+        <p class="text-secondary leading-relaxed">
+          <span class="text-on-surface">Separate fetch from process.</span>
+          <span class="text-tertiary">nebu fetch</span> writes raw <span class="text-tertiary">LedgerCloseMeta</span> XDR to stdout — capture a ledger range once,
+          replay it through any number of processors. Great for backfills, regression tests, and
+          comparing two schema versions over the same ledgers.
+        </p>
+      </div>
+    </section>
+
+    <!-- SAMPLE EVENT -->
+    <section class="md:col-span-7 bg-surface-container-low p-8 border-t border-outline-variant">
+      <h2 class="text-3xl font-bold mb-6 text-on-surface">## SAMPLE_EVENT</h2>
+      <div class="text-[0.6875rem] uppercase text-secondary mb-3">[ STDOUT // NDJSON ]</div>
+      <div class="copy-block">
+        <button class="copy-btn" data-copy-target="sample-event" type="button">[ COPY ]</button>
+        <pre id="sample-event" class="text-sm text-secondary overflow-x-auto leading-relaxed"><span class="text-on-surface">{</span>
+  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.token_transfer.v1"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.3"</span>,
+  <span class="text-tertiary">"meta"</span>: {
+    <span class="text-tertiary">"ledgerSequence"</span>: <span class="text-on-surface">60200000</span>,
+    <span class="text-tertiary">"closedAtUnix"</span>:   <span class="text-on-surface">"1765158311"</span>,
+    <span class="text-tertiary">"txHash"</span>:         <span class="text-on-surface">"abc..."</span>,
+    <span class="text-tertiary">"contractAddress"</span>: <span class="text-on-surface">"CA..."</span>
+  },
+  <span class="text-primary-container">"transfer"</span>: {
+    <span class="text-primary-container">"from"</span>:      <span class="text-on-surface">"GA..."</span>,
+    <span class="text-primary-container">"to"</span>:        <span class="text-on-surface">"GB..."</span>,
+    <span class="text-primary-container">"assetCode"</span>: <span class="text-on-surface">"USDC"</span>,
+    <span class="text-primary-container">"amount"</span>:    <span class="text-on-surface">"1000000"</span>
+  }
+<span class="text-on-surface">}</span>
+<span class="text-tertiary opacity-70">// teal = nebu meta · coral = payload data</span></pre>
+      </div>
+    </section>
+
+    <!-- PROCESSORS -->
+    <section class="md:col-span-5 bg-surface-container-low p-8 border-t border-outline-variant" id="processors">
+      <h2 class="text-3xl font-bold mb-6 text-on-surface">## REGISTRY</h2>
+      <div class="text-[0.6875rem] uppercase text-secondary mb-4">[ nebu list ]</div>
+      <div class="text-sm space-y-1">
+        <div><span class="text-primary-container">token-transfer</span><span class="text-secondary"> · origin   · transfers/mints/burns</span></div>
+        <div><span class="text-primary-container">contract-events</span><span class="text-secondary"> · origin   · Soroban diagnostic events</span></div>
+        <div><span class="text-primary-container">contract-invocation</span><span class="text-secondary"> · origin · Soroban invocations</span></div>
+        <div><span class="text-primary-container">transaction-stats</span><span class="text-secondary"> · origin · per-ledger tx metrics</span></div>
+        <div><span class="text-primary-container">ledger-change-stats</span><span class="text-secondary"> · origin · ledger entry deltas</span></div>
+        <div class="text-secondary opacity-60 py-1">--------------------------------</div>
+        <div><span class="text-primary-container">usdc-filter</span><span class="text-secondary">      · transform · asset filter</span></div>
+        <div><span class="text-primary-container">amount-filter</span><span class="text-secondary">    · transform · threshold filter</span></div>
+        <div><span class="text-primary-container">dedup</span><span class="text-secondary">            · transform · keyed dedup</span></div>
+        <div><span class="text-primary-container">time-window</span><span class="text-secondary">      · transform · windowing</span></div>
+        <div class="text-secondary opacity-60 py-1">--------------------------------</div>
+        <div><span class="text-primary-container">json-file-sink</span><span class="text-secondary">   · sink      · jsonl writer</span></div>
+        <div><span class="text-primary-container">nats-sink</span><span class="text-secondary">        · sink      · NATS / JetStream</span></div>
+        <div><span class="text-primary-container">postgres-sink</span><span class="text-secondary">    · sink      · PG upserts</span></div>
+      </div>
+    </section>
+
+    <!-- TWO WAYS IN -->
+    <section class="md:col-span-12 bg-surface-container p-8">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## TWO_WAYS_IN</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+        <div>
+          <div class="text-primary-container font-bold text-lg mb-4">[ I WANT TO QUERY STELLAR DATA ]</div>
+          <p class="text-secondary mb-6">
+            Install the CLI, pick a processor, pipe events through <span class="text-on-surface">jq</span> or
+            <span class="text-on-surface">duckdb</span>. You're done. No Go required.
+          </p>
+          <a href="#quickstart" class="inline-block border border-outline text-on-surface px-6 py-2 font-bold hover:bg-primary-container hover:text-background transition-colors">
+            [ QUICKSTART &rarr; ]
+          </a>
+        </div>
+        <div>
+          <div class="text-primary-container font-bold text-lg mb-4">[ I WANT TO BUILD A PROCESSOR ]</div>
+          <p class="text-secondary mb-6">
+            The contract is just <span class="text-on-surface">Processor</span>, <span class="text-on-surface">Origin</span>,
+            <span class="text-on-surface">Transform</span>, <span class="text-on-surface">Sink</span>,
+            <span class="text-on-surface">Emitter[T]</span>, and <span class="text-on-surface">Reporter</span>.
+            Implement, ship as a binary, register via <span class="text-on-surface">description.yml</span>.
+          </p>
+          <a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md"
+             class="inline-block border border-outline text-on-surface px-6 py-2 font-bold hover:bg-primary-container hover:text-background transition-colors">
+            [ BUILD_GUIDE &rarr; ]
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEBU vs FLOWCTL -->
+    <section class="md:col-span-12 bg-surface-container-low p-8 border-t border-outline-variant">
+      <h2 class="text-3xl font-bold mb-8 text-on-surface">## NEBU vs FLOWCTL</h2>
+      <div class="text-sm md:text-base">
+        <div class="grid grid-cols-12 gap-4 text-secondary mb-2 pb-2 border-b border-outline-variant">
+          <div class="col-span-4 text-on-surface font-bold">USE_CASE</div>
+          <div class="col-span-4 text-on-surface font-bold">NEBU</div>
+          <div class="col-span-4 text-on-surface font-bold">FLOWCTL</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">prototyping / ad-hoc</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+          <div class="col-span-4 text-secondary">overkill</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">single-machine pipes</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+          <div class="col-span-4 text-secondary">possible but heavy</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">production orchestration</div>
+          <div class="col-span-4 text-secondary">out of scope</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2 border-b border-outline-variant border-opacity-30">
+          <div class="col-span-4 text-secondary">multi-language processors</div>
+          <div class="col-span-4 text-secondary">Go only</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+        </div>
+        <div class="grid grid-cols-12 gap-4 py-2">
+          <div class="col-span-4 text-secondary">distributed / DAG</div>
+          <div class="col-span-4 text-secondary">no</div>
+          <div class="col-span-4 text-primary-container">[ YES ]</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AGENTS — teal: introspection/describe-json is the "meta voice", not live action.
+         Contrast: #131313 on #00b5c0 ≈ 8:1 (AAA). -->
+    <section class="md:col-span-12 bg-tertiary-container p-8 text-background">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div class="font-bold text-[0.6875rem] uppercase mb-2">[ AGENT_FRIENDLY // INTROSPECTION ]</div>
+          <h2 class="text-3xl md:text-4xl font-bold tracking-tighter">
+            Every processor is agent-legible.
+          </h2>
+          <p class="mt-4 max-w-2xl">
+            <span class="font-bold">--describe-json</span> emits flags, inputs, outputs, and schema IDs.
+            Runtime hooks expose metrics, tracing, progress, and agent gates.
+            The contract is small enough for an LLM to hold in its head.
+          </p>
+        </div>
+        <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md"
+           class="shrink-0 border-2 border-background px-6 py-3 font-bold hover:bg-background hover:text-tertiary-container transition-colors">
+          [ HOOKS.MD &rarr; ]
+        </a>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<!-- Fixed footer -->
+<footer class="bg-[#1c1b1b] fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1 text-[#ff7f50] text-[0.6875rem] uppercase">
+  <div class="flex gap-4">
+    <span>VESSEL: ONLINE // VER: v0.6.3</span>
+    <span class="text-secondary hidden md:inline">·</span>
+    <span class="hidden md:inline text-tertiary">CONTRACT: STABLE</span>
+  </div>
+  <div class="flex gap-6">
+    <a class="text-[#c6c6c6] hover:text-[#ff7f50] transition-colors" href="#">[ NETWORK: MAINNET ]</a>
+    <span class="text-secondary text-opacity-30 hidden md:inline">|</span>
+    <a class="text-[#c6c6c6] hover:text-[#ff7f50] transition-colors" href="https://withobsrvr.com">[ OBSRVR ]</a>
+    <span class="text-secondary text-opacity-30 hidden md:inline">|</span>
+    <a class="text-[#c6c6c6] hover:text-[#ff7f50] transition-colors" href="https://github.com/withObsrvr/nebu/releases">[ RELEASES ]</a>
+  </div>
+</footer>
+
+<script>
+  // Mobile nav toggle
+  (function () {
+    var btn = document.getElementById('menu-btn');
+    var menu = document.getElementById('mobile-menu');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', function () {
+      var hidden = menu.classList.toggle('drawer-hidden');
+      btn.setAttribute('aria-expanded', String(!hidden));
+      menu.setAttribute('aria-hidden', String(hidden));
+      btn.textContent = hidden ? '[ MENU ]' : '[ CLOSE ]';
+    });
+    // Close drawer when any link inside is clicked
+    menu.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        menu.classList.add('drawer-hidden');
+        btn.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('aria-hidden', 'true');
+        btn.textContent = '[ MENU ]';
+      });
+    });
+  })();
+
+  // Copy-to-clipboard
+  (function () {
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-copy-target');
+        var el = document.getElementById(id);
+        if (!el) return;
+        var text = el.innerText.trim();
+        var done = function () {
+          btn.classList.add('is-copied');
+          btn.textContent = '[ COPIED ]';
+          setTimeout(function () {
+            btn.classList.remove('is-copied');
+            btn.textContent = '[ COPY ]';
+          }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () {
+            // Fallback
+            var ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta);
+            ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
+            done();
+          });
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta);
+          ta.select(); document.execCommand('copy');
+          document.body.removeChild(ta);
+          done();
+        }
+      });
+    });
+  })();
+</script>
+</body>
+</html>
