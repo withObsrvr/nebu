@@ -135,12 +135,30 @@
         <section id="steps" class="max-w-5xl mx-auto grid gap-8">
             <div class="glass-panel p-8 rounded-2xl">
                 <h2 class="text-2xl font-bold text-white mb-4">1. Install the CLI</h2>
-                <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300">
-                    <span class="text-nebu-accent">$</span> go install github.com/withObsrvr/nebu/cmd/nebu@latest<br>
-                    <span class="text-nebu-accent">$</span> export PATH="$HOME/go/bin:$PATH"<br>
-                    <span class="text-nebu-accent">$</span> nebu --version
+                <div class="mb-4" data-install-box>
+                    <div class="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Quickstart install method selector">
+                        <button type="button" class="install-tab px-4 py-2 rounded-full text-sm font-semibold bg-white text-nebu-dark" data-install-tab data-command="go install github.com/withObsrvr/nebu/cmd/nebu@latest" data-description='Best if you already have Go 1.23+. Then add your Go bin directory to PATH.' aria-selected="true">
+                            Go install
+                        </button>
+                        <button type="button" class="install-tab px-4 py-2 rounded-full text-sm font-semibold glass-panel text-white hover:bg-white/10" data-install-tab data-command="curl -fsSL https://raw.githubusercontent.com/withObsrvr/nebu/main/scripts/install.sh | sh" data-description='Installs the latest nebu release binary to ~/.local/bin. Add that directory to PATH if needed.' aria-selected="false">
+                            curl | sh
+                        </button>
+                    </div>
+                    <div class="bg-[#0D1117] rounded-lg p-5 font-mono text-sm border border-white/5 overflow-x-auto text-slate-300 relative">
+                        <div>
+                            <span class="text-nebu-accent">$</span> <span data-install-command>go install github.com/withObsrvr/nebu/cmd/nebu@latest</span><br>
+                            <span class="text-nebu-accent">$</span> <span data-install-path>export PATH="$HOME/go/bin:$PATH"</span><br>
+                            <span class="text-nebu-accent">$</span> nebu --version
+                        </div>
+                        <button type="button" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors" title="Copy" data-install-copy>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="mt-4 text-slate-400" data-install-description>Requires Go 1.23 or later and your Go bin directory on PATH.</p>
+                    <div class="install-copy-feedback mt-2 text-xs text-nebu-primary opacity-0 transition-opacity">Copied!</div>
                 </div>
-                <p class="mt-4 text-slate-400">Requires Go 1.23 or later and your Go bin directory on PATH.</p>
             </div>
 
             <div class="glass-panel p-8 rounded-2xl">
@@ -233,6 +251,60 @@
         </div>
     </footer>
     <script>
+        function initInstallBoxes() {
+            document.querySelectorAll('[data-install-box]').forEach((box) => {
+                const tabs = box.querySelectorAll('[data-install-tab]');
+                const commandEl = box.querySelector('[data-install-command]');
+                const descriptionEl = box.querySelector('[data-install-description]');
+                const pathEl = box.querySelector('[data-install-path]');
+                const copyButton = box.querySelector('[data-install-copy]');
+                const feedback = box.querySelector('.install-copy-feedback');
+
+                const applyTab = (tab) => {
+                    const command = tab.dataset.command;
+                    const description = tab.dataset.description;
+                    if (commandEl) commandEl.textContent = command;
+                    if (descriptionEl) descriptionEl.textContent = description;
+                    if (pathEl) {
+                        pathEl.textContent = command.includes('curl -fsSL')
+                            ? 'export PATH="$HOME/.local/bin:$PATH"'
+                            : 'export PATH="$HOME/go/bin:$PATH"';
+                    }
+
+                    tabs.forEach((btn) => {
+                        const active = btn === tab;
+                        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                        btn.classList.toggle('bg-white', active);
+                        btn.classList.toggle('text-nebu-dark', active);
+                        btn.classList.toggle('glass-panel', !active);
+                        btn.classList.toggle('text-white', !active);
+                    });
+                };
+
+                tabs.forEach((tab) => {
+                    tab.addEventListener('click', () => applyTab(tab));
+                });
+
+                if (copyButton && commandEl) {
+                    copyButton.addEventListener('click', () => {
+                        navigator.clipboard.writeText(commandEl.textContent).then(() => {
+                            if (!feedback) return;
+                            feedback.classList.remove('opacity-0');
+                            feedback.classList.add('opacity-100');
+                            setTimeout(() => {
+                                feedback.classList.remove('opacity-100');
+                                feedback.classList.add('opacity-0');
+                            }, 2000);
+                        });
+                    });
+                }
+
+                if (tabs.length > 0) applyTab(tabs[0]);
+            });
+        }
+
+        initInstallBoxes();
+
         window.addEventListener('scroll', () => {
             const nav = document.getElementById('navbar');
             if (window.scrollY > 50) {
