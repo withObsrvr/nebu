@@ -71,7 +71,7 @@ func BuildLongHelp(config HelpConfig) string {
 		b.WriteString(`
 INPUT MODES:
   RPC mode:   Fetch ledgers directly from Stellar RPC (default)
-  stdin mode: Read XDR ledgers from stdin (piped from nebu fetch)
+  stdin mode: Read XDR ledgers from stdin (piped from nebu fetch, including archive mode)
   File mode:  Read XDR ledgers from a file
 `)
 	}
@@ -142,6 +142,10 @@ func DefaultOriginExamples(name string) []HelpExample {
 		{
 			Comment: "Read from stdin (piped from nebu fetch)",
 			Command: fmt.Sprintf("nebu fetch 60200000 60200100 | %s", name),
+		},
+		{
+			Comment: "Backfill from the public AWS S3 archive via nebu fetch",
+			Command: fmt.Sprintf("nebu fetch --mode archive --datastore-type S3 --bucket-path \"aws-public-blockchain/v1.1/stellar/ledgers/pubnet\" --region us-east-2 62080000 62080100 | %s", name),
 		},
 		{
 			Comment: "Filter output with jq",
