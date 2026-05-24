@@ -1,141 +1,103 @@
-# Nebu Skill
+---
+name: nebu
+description: >
+  Use this skill when the user wants to compose or run self-hosted Stellar data
+  pipelines with existing nebu processors: ledger extraction, token transfers,
+  contract events/invocations, DEX/swap activity, liquidity pools, NFT events,
+  contract state, transaction/ledger stats, archive backfills, schema-versioned
+  JSONL, DuckDB, Postgres, NATS, Kafka, S3, webhooks, or a self-hosted indexer.
+  Prefer Stellar `data` for one-off live RPC/Horizon lookups. Do not use for
+  building/signing transactions, non-Stellar chains, or implementing new Go
+  processors from scratch.
+user-invocable: true
+argument-hint: [data task]
+---
 
-**Canonical URL:** https://nebu.withobsrvr.com/SKILL.md
+# nebu — Stellar Streaming Runtime
 
-Bootstrap skill for installing Nebu, discovering installed processors, and composing a first working Stellar data pipeline.
+Self-hosted toolkit for Stellar indexers and Unix-composable data pipelines. Nebu turns RPC/archive ledger access into schema-versioned JSONL for tools like `jq`, DuckDB, Postgres, NATS, Kafka, S3, and webhooks.
 
-Nebu is not a raw RPC wrapper. It is built on Stellar's supported indexing primitives — especially RPC-backed ledger access, ingest-based ledger processing, and XDR-native extraction — and exposes them as discoverable processors and pipelines.
+- **Canonical URL:** https://nebu.withobsrvr.com/SKILL.md
+- **Website / quickstart:** https://nebu.withobsrvr.com
+- **Repo:** https://github.com/withObsrvr/nebu
+- **Last verified against:** nebu v0.6.7 (latest local/remote tag)
 
-## Use this skill when
+## Use nebu when
 
-The user wants to:
-- install Nebu
-- extract Stellar ledger data
-- filter or transform a Stellar event stream
-- write Stellar events to a file or external sink
+- extracting bounded Stellar ledger ranges or historical archive backfills
+- composing token-transfer, contract-event, invocation, stats, DEX/swap, state, NFT, or liquidity-pool pipelines
+- fetching raw ledger XDR once and processing it multiple ways
+- installing, inspecting, or composing existing nebu processors
 
-Do not use this skill when the user wants to:
-- build a brand-new processor
-- work with non-Stellar chains
-- sign or submit transactions
+Use another skill/tool for current state lookup (`data`), transaction building (`dapp`), new processor implementation from scratch (nebu processor docs / processor-builder), or non-Stellar chains.
 
-## Core rule
+## Gotchas
 
-**Always inspect the installed version before proposing a command.**
-
-Never guess:
-- processor names
-- flags
-- schema paths
-- output shapes
-
-The installed version is the source of truth.
-
-## Execution loop
-
-1. Clarify the goal:
-   - what data?
-   - what ledger range?
-   - where should output go?
-2. Discover installed processors:
-   ```bash
-   nebu list
-   ```
-3. Inspect every candidate processor:
-   ```bash
-   <processor> --describe-json | jq .
-   ```
-4. Choose:
-   - one **origin**
-   - zero or more **transforms**
-   - zero or one **sink**
-5. Compose a **bounded** pipeline first.
-6. Return:
-   - exact command
-   - one-line explanation of each stage
-   - one verification command
-   - assumptions or unverified details
-
-## Installation
+- Installed binaries are source of truth. **Inspect before proposing or running commands.** Never guess processor names, flags, schemas, fields, or community processor availability.
+- Community processors are dynamic; mention them only after `nebu list` confirms they exist locally.
+- Prefer bounded ledger ranges. Use `--follow` or unbounded ranges only when the user explicitly asks for live streaming.
+- Use `NEBU_RPC_AUTH` from the environment; never paste secrets into commands or committed files.
 
 ```bash
-git clone https://github.com/withObsrvr/nebu && cd nebu
-make build-cli build-processors
-export PATH="$PWD/bin:$PATH"
+nebu --version
+nebu list
+nebu describe <processor>
+<processor> --describe-json | jq .
 ```
+
+Use `nebu describe` for registry details and `--describe-json` for exact processor flags/schema.
+
+## Pipeline workflow
+
+1. Clarify: data type, ledger range, network, destination, and whether live follow is intentional.
+2. Discover processors with `nebu list`.
+3. Inspect every intended stage with `nebu describe <name>` and `<name> --describe-json | jq .`.
+4. Choose: one origin or `nebu fetch`, zero or more transforms, zero or more sinks/fan-outs.
+5. Start with a bounded tracer bullet. Require explicit confirmation for `--follow`, unbounded ranges, production writes, or large backfills.
+6. Return the response contract below.
 
 ## Pipeline model
 
-Every pipeline has this shape:
-
 ```text
-origin -> transform -> transform -> sink
+ledger source → origin → transform → ... → sink/fan-out
 ```
 
-- **origin** emits JSONL events
-- **transform** reads JSONL from stdin and writes JSONL to stdout
-- **sink** reads JSONL from stdin and writes elsewhere
+- `nebu fetch` emits raw ledger XDR from RPC or archive storage.
+- Origins read ledgers from flags or stdin and emit JSONL events.
+- Transforms read JSONL on stdin and write JSONL on stdout.
+- Sinks read JSONL on stdin and write elsewhere.
+- `tee >(sink-a) >(sink-b)` can fan out to multiple destinations.
 
-## Minimal examples
-
-Inspect installed processors:
-
-```bash
-nebu list
-token-transfer --describe-json | jq .
-json-file-sink --describe-json | jq .
-```
-
-Extract token transfers from a bounded range:
+## Quick commands
 
 ```bash
-token-transfer --start-ledger 60200000 --end-ledger 60200001
-```
+go install github.com/withObsrvr/nebu/cmd/nebu@latest
+export PATH="$HOME/go/bin:$PATH"
+nebu install token-transfer
 
-Write results to a file:
-
-```bash
 token-transfer --start-ledger 60200000 --end-ledger 60200010 \
-  | json-file-sink --out /tmp/nebu.jsonl
+  | json-file-sink --out /tmp/transfers.jsonl
+
+nebu fetch 60200000 60200100 > ledgers.xdr
+cat ledgers.xdr | token-transfer | jq -c 'select(.transfer != null)'
+
+nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62081000 | gzip > historical.xdr.gz
 ```
 
-Inspect with standard Unix tooling:
+For processor lists, env vars, schema examples, and more workflows, read `references/reference.md` only when those details are needed. Trigger eval prompts live in `evals/trigger-evals.json`.
 
-```bash
-token-transfer --start-ledger 60200000 --end-ledger 60200010 | jq .
-```
+## Safety and stop conditions
 
-## Stop conditions
-
-Stop and ask for clarification if:
-- the data type is unclear
-- the ledger range is unclear
-- the sink or destination is unclear
-
-Stop and hand off if:
-- no installed processor can do the job
-- the user needs a new processor
-- the task is not about Stellar data extraction
+Stop and ask if data/range/network/destination is unclear; the user implies unbounded streaming; the range may take hours or stress RPC; a command would expose auth (`NEBU_RPC_AUTH`) or write to production; or no installed processor can do the job.
 
 ## Response contract
 
-When proposing a pipeline, include:
-1. the exact shell command
-2. a short explanation of each stage
-3. one verification command
-4. any assumptions
+When proposing a pipeline, return: exact command, one-line stage explanations, one verification command, and flagged assumptions/unverified details.
 
 ## Stability
 
-Nebu stays agent-safe because its runtime contract is discoverable:
-- `nebu list`
-- `nebu describe <name>`
-- `<processor> --describe-json`
-
-`--describe-json` is part of Nebu's stable contract. See [`STABILITY.md`](https://nebu.withobsrvr.com/STABILITY.md).
-
-## Additional skills
-
-- [`nebu-pipeline-composer`](https://github.com/withObsrvr/nebu/blob/main/skills/pipeline-composer/SKILL.md) — detailed multi-stage pipeline composition
-- `nebu-processor-builder` — planned
-- `nebu-common-errors` — planned
+Agent-safe surfaces: `nebu list`, `nebu describe <processor>`, `<processor> --describe-json`, `pkg/processor`, `pkg/source`, `registry.yaml` v1, `description.yml` v1, and schema-versioned JSONL (`_schema`, `_nebu_version`).

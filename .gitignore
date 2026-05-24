@@ -8,6 +8,7 @@
 # Test binary, built with `go test -c`
 *.test
 .clawpatch/
+/skills/nebu/evals/runs/
 
 # Output of the go coverage tool
 *.out
