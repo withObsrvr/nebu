@@ -1,0 +1,42 @@
+[
+  {
+    "query": "Backfill USDC transfers from ledgers 62080000 to 62081000 into DuckDB so I can run SQL on them.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can you build a local pipeline for Soroban contract events and write the JSONL to Postgres?",
+    "should_trigger": true
+  },
+  {
+    "query": "Fetch historical Stellar ledger XDR from the public S3 archive and process it with token-transfer.",
+    "should_trigger": true
+  },
+  {
+    "query": "I want to detect Soroswap or Aquarius swap activity from Stellar ledgers.",
+    "should_trigger": true
+  },
+  {
+    "query": "Pipe Stellar token transfers through jq, dedupe them, and send them to NATS.",
+    "should_trigger": true
+  },
+  {
+    "query": "What's the current balance for this Stellar account?",
+    "should_trigger": false
+  },
+  {
+    "query": "Build and sign a Stellar payment transaction.",
+    "should_trigger": false
+  },
+  {
+    "query": "Query Horizon for the latest operations on this account.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a new custom Go processor for nebu from scratch.",
+    "should_trigger": false
+  },
+  {
+    "query": "Index Ethereum ERC-20 transfers into Postgres.",
+    "should_trigger": false
+  }
+]
