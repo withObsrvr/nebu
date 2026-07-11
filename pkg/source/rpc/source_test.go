@@ -237,6 +237,7 @@ func TestRPCLedgerSource_Cancellation(t *testing.T) {
 	// Read a few ledgers then cancel. Selecting against ctx.Done()
 	// guarantees we can't get stuck on the channel read.
 	count := 0
+	cancelled := false
 readLoop:
 	for count < 3 {
 		select {
@@ -247,6 +248,7 @@ readLoop:
 			count++
 			if count == 3 {
 				cancel()
+				cancelled = true
 			}
 		case <-ctx.Done():
 			break readLoop
@@ -272,7 +274,14 @@ drainLoop:
 
 	select {
 	case streamErr := <-errCh:
-		assert.ErrorIs(t, streamErr, context.Canceled)
+		if cancelled {
+			assert.ErrorIs(t, streamErr, context.Canceled)
+		} else {
+			// cancel() never fired: the stream ended or the deadline hit
+			// first. Surface the underlying error instead of a misleading
+			// Canceled mismatch.
+			t.Errorf("stream ended before cancel() fired after %d ledgers: %v", count, streamErr)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("Stream goroutine did not return after cancellation")
 	}
@@ -365,10 +374,14 @@ type fakeBackend struct {
 }
 
 func (f *fakeBackend) GetLatestLedgerSequence(ctx context.Context) (uint32, error) {
-	return 0, nil
+	// Not exercised by Stream today; fail loudly if that ever changes.
+	return 0, errors.New("fakeBackend: GetLatestLedgerSequence not implemented")
 }
 
 func (f *fakeBackend) GetLedger(ctx context.Context, seq uint32) (xdr.LedgerCloseMeta, error) {
+	if f.getLedger == nil {
+		return xdr.LedgerCloseMeta{}, errors.New("fakeBackend: unexpected GetLedger call")
+	}
 	return f.getLedger(seq)
 }
 
@@ -377,7 +390,8 @@ func (f *fakeBackend) PrepareRange(ctx context.Context, r ledgerbackend.Range) e
 }
 
 func (f *fakeBackend) IsPrepared(ctx context.Context, r ledgerbackend.Range) (bool, error) {
-	return f.prepareErr == nil, nil
+	// Not exercised by Stream today; fail loudly if that ever changes.
+	return false, errors.New("fakeBackend: IsPrepared not implemented")
 }
 
 func (f *fakeBackend) Close() error { return nil }
@@ -420,34 +434,110 @@ func TestStream_ErrorPaths(t *testing.T) {
 			src := &LedgerSource{backend: tt.backend}
 			ch := make(chan xdr.LedgerCloseMeta, 1)
 
-			err := src.Stream(context.Background(), 10, 12, ch)
-			assert.ErrorIs(t, err, sentinel, "backend error must be wrapped, not replaced")
-			assert.ErrorContains(t, err, tt.wantErr)
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- src.Stream(context.Background(), 10, 12, ch)
+			}()
 
 			// Stream must close out on every return path; a consumer
 			// ranging over the channel would otherwise deadlock.
-			_, open := <-ch
-			assert.False(t, open, "Stream must close the output channel on error")
+			drainTimeout := time.After(5 * time.Second)
+		drainLoop:
+			for {
+				select {
+				case _, ok := <-ch:
+					if !ok {
+						break drainLoop
+					}
+				case <-drainTimeout:
+					t.Fatal("Stream did not close the output channel on error")
+				}
+			}
+
+			select {
+			case err := <-errCh:
+				assert.ErrorIs(t, err, sentinel, "backend error must be wrapped, not replaced")
+				assert.ErrorContains(t, err, tt.wantErr)
+			case <-time.After(5 * time.Second):
+				t.Fatal("Stream did not return an error")
+			}
 		})
 	}
 }
 
 func TestStream_BoundedOffline(t *testing.T) {
+	tests := []struct {
+		name  string
+		start uint32
+		end   uint32
+		want  []uint32
+	}{
+		{"multi ledger", 5, 9, []uint32{5, 6, 7, 8, 9}},
+		{"single ledger", 7, 7, []uint32{7}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := &fakeBackend{getLedger: func(seq uint32) (xdr.LedgerCloseMeta, error) {
+				return ledgerWithSeq(seq), nil
+			}}
+			src := &LedgerSource{backend: backend}
+			ch := make(chan xdr.LedgerCloseMeta, 10)
+
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- src.Stream(context.Background(), tt.start, tt.end, ch)
+			}()
+
+			var got []uint32
+			for ledger := range ch {
+				got = append(got, ledger.LedgerSequence())
+			}
+			require.NoError(t, <-errCh)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestStream_CancellationOffline(t *testing.T) {
 	backend := &fakeBackend{getLedger: func(seq uint32) (xdr.LedgerCloseMeta, error) {
 		return ledgerWithSeq(seq), nil
 	}}
 	src := &LedgerSource{backend: backend}
-	ch := make(chan xdr.LedgerCloseMeta, 10)
+	// Unbuffered so the endless stream blocks on send until we read,
+	// exercising the ctx.Done branch of Stream's send select.
+	ch := make(chan xdr.LedgerCloseMeta)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- src.Stream(context.Background(), 5, 9, ch)
+		errCh <- src.Stream(ctx, 1, 0, ch)
 	}()
 
-	var got []uint32
-	for ledger := range ch {
-		got = append(got, ledger.LedgerSequence())
+	// Read a couple of ledgers from the endless stream, then cancel.
+	for range 2 {
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for ledger from fake backend")
+		}
 	}
-	require.NoError(t, <-errCh)
-	assert.Equal(t, []uint32{5, 6, 7, 8, 9}, got)
+	cancel()
+
+	select {
+	case err := <-errCh:
+		assert.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stream did not return after cancellation")
+	}
+
+	// Stream must close the channel on the cancellation return path too.
+	select {
+	case _, ok := <-ch:
+		assert.False(t, ok, "Stream must close the output channel after cancellation")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stream did not close the output channel after cancellation")
+	}
 }

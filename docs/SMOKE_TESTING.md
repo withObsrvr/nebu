@@ -37,9 +37,9 @@ if [[ -n "${NEBU_RPC_AUTH:-}" ]]; then
   RPC_HEADERS=(-H "Authorization: $NEBU_RPC_AUTH")
 fi
 
-TMPDIR="$(mktemp -d)"
-EVENTS="$TMPDIR/token-transfers.jsonl"
-trap 'rm -rf "$TMPDIR"' EXIT
+WORKDIR="$(mktemp -d)"
+EVENTS="$WORKDIR/token-transfers.jsonl"
+trap 'rm -rf "$WORKDIR"' EXIT
 
 LATEST="$({
   curl --fail --silent --show-error \
@@ -65,6 +65,7 @@ echo "Testing bounded mainnet range $START..$END"
 
 test -s "$EVENTS"
 jq -es '
+  length > 0 and
   all(.[];
     ._schema == "nebu.token_transfer.v1" and
     ._nebu_version != null)
