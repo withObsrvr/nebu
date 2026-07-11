@@ -13,7 +13,7 @@
           inherit system;
           config.packageOverrides = prev: {
             duckdb = prev.duckdb.overrideAttrs (oldAttrs: rec {
-              version = "1.5.1";
+              version = "1.5.3";
               src = prev.fetchFromGitHub {
                 owner = "duckdb";
                 repo = "duckdb";

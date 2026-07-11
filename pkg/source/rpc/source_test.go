@@ -24,8 +24,8 @@ func TestRPCLedgerSource_Stream(t *testing.T) {
 	// Stream 5 recent ledgers
 	// Note: RPC typically retains ~24 hours of ledgers
 	// Using a recent-ish range that should be available
-	startLedger := uint32(60200000)
-	endLedger := uint32(60200004)
+	startLedger := uint32(62200000)
+	endLedger := uint32(62200004)
 
 	go func() {
 		err := src.Stream(ctx, startLedger, endLedger, ch)
@@ -94,7 +94,7 @@ func TestRPCLedgerSource_Unbounded(t *testing.T) {
 	// exited with the expected context error after cancel().
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- src.Stream(ctx, 60200000, 0, ch)
+		errCh <- src.Stream(ctx, 62200000, 0, ch)
 	}()
 
 	// Read up to 2 ledgers, then trigger cancellation. Using a select
@@ -160,7 +160,7 @@ func TestRPCLedgerSource_Cancellation(t *testing.T) {
 
 	// Start streaming a larger range of recent ledgers
 	go func() {
-		_ = src.Stream(ctx, 60200000, 60200037, ch)
+		_ = src.Stream(ctx, 62200000, 62200037, ch)
 	}()
 
 	// Read a few ledgers then cancel
