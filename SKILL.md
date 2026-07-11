@@ -36,6 +36,7 @@ Use other tools for current-state lookup (`data`), tx building (`dapp`), non-Ste
 - Broad scans/backfills: prefer `nebu fetch --mode archive` from public archive → pipe XDR into processors. RPC still good for latest ledgers + targeted `getEvents` by known contract/topic.
 - `contract-events` works from `nebu fetch` stdin, including S3 archive mode; it decodes contract events + diagnostics without processor RPC calls.
 - Use `NEBU_RPC_AUTH` from env; never paste secrets.
+- Scripting pipelines: `set -o pipefail`, or an upstream `nebu fetch` failure exits 0 with truncated output.
 
 ```bash
 nebu --version
@@ -90,7 +91,7 @@ nebu fetch --mode archive \
   62080000 62080100 | contract-events | jq -c 'select(.eventType == "swap")'
 ```
 
-More details only if needed: `references/reference.md`. Evals: `evals/trigger-evals.json`.
+More details only if needed: `references/reference.md`. Evals: `evals/trigger-evals.json`. (Both ship with the packaged skill; in-repo under `skills/nebu/`.)
 
 ## Stop / ask
 

@@ -2,7 +2,7 @@
 
 nebu is a Go CLI for Stellar data pipelines. It is intentionally Unix-pipe
 composable: ledger sources and processors stream JSONL between stdin/stdout.
-Cobra/Viper powers the CLI.
+Cobra powers the CLI; configuration comes from flags and `NEBU_*` env vars.
 
 Keep this file lean. Add rules only when agents repeatedly get something wrong.
 
