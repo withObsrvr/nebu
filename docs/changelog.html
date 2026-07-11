@@ -85,7 +85,7 @@
     <nav aria-label="On this page" class="sticky top-24 text-sm">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ VERSIONS ]</div>
       <ul>
-        <li><a href="#unreleased" data-toc="unreleased" class="toc-link">UNRELEASED</a></li>
+        <li><a href="#v0-6-8"     data-toc="v0-6-8"     class="toc-link">v0.6.8</a></li>
         <li><a href="#v0-6-7"     data-toc="v0-6-7"     class="toc-link">v0.6.7</a></li>
         <li><a href="#v0-6-6"     data-toc="v0-6-6"     class="toc-link">v0.6.6</a></li>
         <li><a href="#v0-6-5"     data-toc="v0-6-5"     class="toc-link">v0.6.5</a></li>
@@ -97,7 +97,7 @@
       </ul>
       <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
         release · log<br/>
-        <span class="text-tertiary">rev 2026-04-13</span>
+        <span class="text-tertiary">rev 2026-07-11</span>
       </div>
     </nav>
   </aside>
@@ -123,7 +123,7 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#unreleased">#UNRELEASED</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-8">#v0.6.8</a>
         <a class="text-tertiary hover:underline" href="#v0-6-7">#v0.6.7</a>
         <a class="text-tertiary hover:underline" href="#v0-6-6">#v0.6.6</a>
         <a class="text-tertiary hover:underline" href="#v0-6-5">#v0.6.5</a>
@@ -135,13 +135,42 @@
       </div>
     </nav>
 
-    <!-- UNRELEASED -->
-    <section id="unreleased" class="mb-12">
+    <!-- v0.6.8 -->
+    <section id="v0-6-8" class="mb-12">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
-        <h2 class="text-2xl font-bold text-on-surface">## UNRELEASED</h2>
-        <span class="text-[0.6875rem] uppercase text-tertiary tracking-widest">[ MAIN · HEAD ]</span>
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.8</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.8"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
       </div>
       <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li>
+          <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Dependencies:</strong>
+          <code class="text-on-surface">github.com/stellar/go-stellar-sdk</code>
+          <code class="text-tertiary">v0.5.0</code> → <code class="text-tertiary">v0.6.0</code>, and duckdb
+          <code class="text-tertiary">1.5.1</code> → <code class="text-tertiary">1.5.4</code> in
+          <code class="text-on-surface">flake.nix</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Testing:</strong> the <code class="text-on-surface">pkg/source/rpc</code>
+          integration tests now derive ledger ranges from the RPC health endpoint instead of hardcoded sequences,
+          and assert Stream errors instead of logging them. New fully offline unit coverage for auth-header
+          injection, Stream error paths, and cancellation; network-dependent tests skip under
+          <code class="text-tertiary">go test -short</code>.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Docs:</strong> added <code class="text-on-surface">AGENTS.md</code> and
+          <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/blob/main/docs/SMOKE_TESTING.md"><code>docs/SMOKE_TESTING.md</code></a>
+          (bounded live-RPC end-to-end smoke test); skill-doc sync now covers every
+          <code class="text-on-surface">SKILL.md</code> copy.
+        </li>
+        <li>
+          <span class="text-primary-container">·</span>
+          <strong class="text-on-surface">Skill:</strong> rewrote the nebu skill and added trigger evals
+          (<code class="text-on-surface">skills/nebu/evals/</code>).
+        </li>
         <li>
           <span class="text-primary-container">·</span>
           <strong class="text-on-surface">Reference hooks:</strong> added
@@ -423,7 +452,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.8</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

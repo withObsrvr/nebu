@@ -267,7 +267,7 @@
 <span class="tok-kw">func</span> (o *<span class="tok-type">TxCountOrigin</span>) <span class="tok-fn">ProcessLedger</span>(ctx context.<span class="tok-type">Context</span>, lcm xdr.<span class="tok-type">LedgerCloseMeta</span>) <span class="tok-kw">error</span> {
     <span class="tok-kw">return</span> o.out.<span class="tok-fn">Encode</span>(<span class="tok-type">TxCount</span>{
         Schema:  <span class="tok-str">"example.tx_count.v1"</span>,
-        NebuVer: <span class="tok-str">"v0.6.7"</span>,
+        NebuVer: <span class="tok-str">"v0.6.8"</span>,
         Ledger:  <span class="tok-fn">uint32</span>(lcm.<span class="tok-fn">LedgerSequence</span>()),
         TxCount: <span class="tok-fn">len</span>(lcm.<span class="tok-fn">TransactionEnvelopes</span>()),
     })
@@ -539,7 +539,7 @@ maintainer:
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.7</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.8</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

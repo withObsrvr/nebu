@@ -47,7 +47,7 @@ NEBU_NUM_WORKERS      # archive fetch worker count
 
 **Trust posture:** nebu inherits the trust of the RPC endpoint or archive source. For mainnet work, use a trusted provider or your own infrastructure. Never hardcode `NEBU_RPC_AUTH` in committed scripts.
 
-## Built-in processors in v0.6.7
+## Built-in processors in v0.6.8
 
 Always confirm with `nebu list` against the installed version.
 
@@ -77,7 +77,7 @@ Token-transfer v1 currently uses flat transfer asset fields; confirm with `token
 ```json
 {
   "_schema": "nebu.token_transfer.v1",
-  "_nebu_version": "v0.6.7",
+  "_nebu_version": "v0.6.8",
   "meta": {
     "ledgerSequence": 60200000,
     "closedAtUnix": "1765158311",
