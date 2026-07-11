@@ -13,12 +13,12 @@
           inherit system;
           config.packageOverrides = prev: {
             duckdb = prev.duckdb.overrideAttrs (oldAttrs: rec {
-              version = "1.5.1";
+              version = "1.5.4";
               src = prev.fetchFromGitHub {
                 owner = "duckdb";
                 repo = "duckdb";
                 rev = "v${version}";
-                hash = "sha256-FygBpfhvezvUbI969Dta+vZOPt6BnSW2d5gO4I4oB2A=";
+                hash = "sha256-6xpKZKfH5/nwE2nU5kcpgITKFm3ilb1PYf9QEk+bKoM=";
               };
             });
           };

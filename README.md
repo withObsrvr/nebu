@@ -391,6 +391,11 @@ make lint
 make run-example
 ```
 
+To verify a built application against a live Stellar RPC server without starting
+an unbounded stream, run the [bounded RPC end-to-end smoke
+test](docs/SMOKE_TESTING.md). It fetches three recent ledgers and validates the
+resulting schema-versioned JSONL.
+
 ## Project Structure
 
 ```
