@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -39,6 +39,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
         }
       }
@@ -138,7 +139,7 @@
     </section>
 
     <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs">
         <a class="text-tertiary hover:underline" href="#origins">#ORIGINS</a>
@@ -158,7 +159,7 @@
     </section>
 
     <!-- token-transfer -->
-    <section id="token-transfer" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="token-transfer" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">token-transfer</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
@@ -180,7 +181,7 @@
         </div>
       </div>
 
-      <div class="bg-background border-l-2 border-primary-container mb-3">
+      <div class="bg-background border border-outline-variant mb-3">
         <div class="code-head">
           <span class="code-head__lang">bash · install &amp; run</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-tt" type="button">[ COPY ]</button>
@@ -199,7 +200,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
     </section>
 
     <!-- contract-events -->
-    <section id="contract-events" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="contract-events" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">contract-events</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
@@ -220,7 +221,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
         </div>
       </div>
 
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ce" type="button">[ COPY ]</button>
@@ -232,7 +233,7 @@ contract-events --start-ledger 60200000 --follow \
     </section>
 
     <!-- contract-invocation -->
-    <section id="contract-invocation" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="contract-invocation" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">contract-invocation</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
@@ -252,7 +253,7 @@ contract-events --start-ledger 60200000 --follow \
         </div>
       </div>
 
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ci" type="button">[ COPY ]</button>
@@ -263,7 +264,7 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | jq .function
     </section>
 
     <!-- contract-invocation-extractor -->
-    <section id="contract-invocation-extractor" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="contract-invocation-extractor" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">contract-invocation-extractor</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN ]</span>
@@ -285,7 +286,7 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | jq .function
     </section>
 
     <!-- transaction-stats -->
-    <section id="transaction-stats" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="transaction-stats" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">transaction-stats</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN · EDUCATIONAL ]</span>
@@ -294,7 +295,7 @@ contract-invocation --start-ledger 60200000 --end-ledger 60200100 | jq .function
         Per-ledger transaction metrics — count, success/fail split, operation counts, fee charged. Reference implementation for anyone writing their own stats processor.
       </p>
 
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ts" type="button">[ COPY ]</button>
@@ -306,7 +307,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- ledger-change-stats -->
-    <section id="ledger-change-stats" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="ledger-change-stats" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">ledger-change-stats</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ ORIGIN · EDUCATIONAL ]</span>
@@ -327,7 +328,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- usdc-filter -->
-    <section id="usdc-filter" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="usdc-filter" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">usdc-filter</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
@@ -335,7 +336,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
       <p class="text-secondary text-sm mb-4">
         Keep only events where <span class="text-on-surface">transfer.assetCode</span> is <span class="text-on-surface">USDC</span> and the issuer matches Circle's canonical issuer. Sugar over a jq predicate.
       </p>
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-uf" type="button">[ COPY ]</button>
@@ -345,7 +346,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- amount-filter -->
-    <section id="amount-filter" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="amount-filter" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">amount-filter</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
@@ -353,7 +354,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
       <p class="text-secondary text-sm mb-4">
         Drop events below a minimum or above a maximum amount threshold. Flags: <span class="text-tertiary">--min</span>, <span class="text-tertiary">--max</span>, <span class="text-tertiary">--field</span> (dot path, default <span class="text-on-surface">transfer.amount</span>).
       </p>
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-af" type="button">[ COPY ]</button>
@@ -363,7 +364,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- dedup -->
-    <section id="dedup" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="dedup" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">dedup</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
@@ -371,7 +372,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
       <p class="text-secondary text-sm mb-4">
         Keyed deduplication over a sliding window. Flags: <span class="text-tertiary">--key</span> (dot path into the event), <span class="text-tertiary">--window</span> (number of events or duration).
       </p>
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-dd" type="button">[ COPY ]</button>
@@ -381,7 +382,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- time-window -->
-    <section id="time-window" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="time-window" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">time-window</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ TRANSFORM ]</span>
@@ -402,7 +403,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- json-file-sink -->
-    <section id="json-file-sink" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="json-file-sink" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">json-file-sink</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ SINK ]</span>
@@ -422,7 +423,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
           <div class="text-secondary">cloud sync tools (rclone, restic)</div>
         </div>
       </div>
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-jfs" type="button">[ COPY ]</button>
@@ -433,7 +434,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- nats-sink -->
-    <section id="nats-sink" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="nats-sink" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">nats-sink</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ SINK ]</span>
@@ -454,7 +455,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
           <div class="text-secondary">serverless consumers</div>
         </div>
       </div>
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ns" type="button">[ COPY ]</button>
@@ -465,7 +466,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- postgres-sink -->
-    <section id="postgres-sink" class="mb-12 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="postgres-sink" class="mb-12 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
         <h3 class="text-xl font-bold text-on-surface">postgres-sink</h3>
         <span class="text-[0.6875rem] uppercase tracking-widest text-primary-container">[ SINK ]</span>
@@ -485,7 +486,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
           <div class="text-secondary">one row per event; payload is a JSONB column.</div>
         </div>
       </div>
-      <div class="bg-background border-l-2 border-primary-container">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ps" type="button">[ COPY ]</button>
@@ -496,7 +497,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
     </section>
 
     <!-- FOOTER CTA -->
-    <section class="mb-12 bg-surface-container-low p-6 border-l-4 border-tertiary">
+    <section class="mb-12 bg-surface-container-low p-6 border border-tertiary">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ EXTEND ]</div>
       <h2 class="text-2xl font-bold text-on-surface mb-3">Your processor belongs here.</h2>
       <p class="text-secondary mb-4">

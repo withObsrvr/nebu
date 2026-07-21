@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -44,6 +44,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
         }
       }
@@ -130,7 +131,7 @@
     </section>
 
     <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <a class="text-tertiary hover:underline" href="#install">#INSTALL</a>
@@ -150,7 +151,7 @@
       <h2 class="text-on-surface font-bold text-2xl mb-4">## 01_INSTALL</h2>
       <p class="text-secondary mb-6">Pick the path that matches your environment.</p>
 
-      <div class="bg-surface-container-low border-l-4 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="flex flex-wrap items-end border-b border-outline-variant">
           <button type="button" data-install-tab="go"
                   class="install-tab is-active px-5 py-3 text-sm uppercase tracking-tight font-bold text-primary-container border-b-2 border-primary-container -mb-px">
@@ -167,7 +168,7 @@
         </div>
         <div class="p-6">
           <div data-install-panel="go">
-            <div class="bg-background border-l-2 border-primary-container">
+            <div class="bg-background border border-outline-variant">
               <div class="code-head">
                 <span class="code-head__lang">bash</span>
                 <button class="copy-btn copy-btn--inline" data-copy-target="qi-go" type="button">[ COPY ]</button>
@@ -179,7 +180,7 @@ nebu --version</pre>
             <p class="mt-3 text-secondary text-sm">Requires Go &gt;= 1.22. The canonical path.</p>
           </div>
           <div data-install-panel="curl" class="hidden">
-            <div class="bg-background border-l-2 border-primary-container">
+            <div class="bg-background border border-outline-variant">
               <div class="code-head">
                 <span class="code-head__lang">bash</span>
                 <button class="copy-btn copy-btn--inline" data-copy-target="qi-curl" type="button">[ COPY ]</button>
@@ -189,7 +190,7 @@ nebu --version</pre>
             <p class="mt-3 text-secondary text-sm">Pulls a pre-built binary from the latest GitHub release. No toolchain required.</p>
           </div>
           <div data-install-panel="docker" class="hidden">
-            <div class="bg-background border-l-2 border-primary-container">
+            <div class="bg-background border border-outline-variant">
               <div class="code-head">
                 <span class="code-head__lang">bash</span>
                 <button class="copy-btn copy-btn--inline" data-copy-target="qi-docker" type="button">[ COPY ]</button>
@@ -211,7 +212,7 @@ nebu --version</pre>
         <span class="text-tertiary">go install</span> under the hood and drops the binary at <span class="text-on-surface">$GOPATH/bin</span>.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container mb-6">
+      <div class="bg-surface-container-low border border-outline-variant mb-6">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-first" type="button">[ COPY ]</button>
@@ -222,7 +223,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
 
       <p class="text-secondary mb-3 text-sm">You'll see newline-delimited JSON on stdout. One object per transfer event:</p>
 
-      <div class="bg-surface-container-low border-l-2 border-tertiary">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">ndjson</span>
           <span class="text-secondary">[ STDOUT ]</span>
@@ -247,7 +248,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
         Pipe the stream through <span class="text-tertiary">jq</span> to keep only the events you care about. Exactly the same ergonomics as any other NDJSON source.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-filter" type="button">[ COPY ]</button>
@@ -268,7 +269,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
         Write to a file with <span class="text-tertiary">json-file-sink</span>, or a NATS subject with <span class="text-tertiary">nats-sink</span>, or both at once with <span class="text-tertiary">tee</span>.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container mb-4">
+      <div class="bg-surface-container-low border border-outline-variant mb-4">
         <div class="code-head">
           <span class="code-head__lang">bash · single sink</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-sink-1" type="button">[ COPY ]</button>
@@ -280,7 +281,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
   | json-file-sink --out usdc.jsonl</pre>
       </div>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash · fan-out</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-sink-2" type="button">[ COPY ]</button>
@@ -299,7 +300,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
         <span class="text-tertiary">duckdb</span> reads NDJSON directly from stdin — no database, no schema, no ETL job. SQL across the stream in seconds.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash · duckdb</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-duckdb" type="button">[ COPY ]</button>
@@ -328,7 +329,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
         Omit <span class="text-tertiary">--end-ledger</span> or pass <span class="text-tertiary">--follow</span> to stream continuously — like <span class="text-on-surface">tail -f</span> for the chain.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-follow" type="button">[ COPY ]</button>
@@ -345,7 +346,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
         Capture raw XDR once with <span class="text-tertiary">nebu fetch</span>, replay it through as many processors as you like — no repeated RPC calls.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-fetch" type="button">[ COPY ]</button>
@@ -363,7 +364,7 @@ cat ledgers.xdr | token-transfer  | duckdb -c "SELECT COUNT(*) FROM read_json('/
         falls back to anonymous access automatically:
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container mt-4">
+      <div class="bg-surface-container-low border border-outline-variant mt-4">
         <div class="code-head">
           <span class="code-head__lang">bash · archive mode · pubnet</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-fetch-archive" type="button">[ COPY ]</button>
