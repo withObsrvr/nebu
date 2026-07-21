@@ -13,7 +13,7 @@
 SHELL := $(shell command -v bash 2>/dev/null || echo /bin/bash)
 
 # Version information
-VERSION ?= 0.6.3
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -X github.com/withObsrvr/nebu/pkg/version.Version=$(VERSION)
 
 all: test build
@@ -21,7 +21,7 @@ all: test build
 test:
 	go test -v ./...
 
-build:
+build: build-cli
 	go build -v ./...
 
 build-cli:
