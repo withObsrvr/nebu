@@ -5,13 +5,52 @@
 
 /* ---- Base -------------------------------------------------------------- */
 
+:root {
+  --font-term:  'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+  --font-prose: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
 html, body {
   background-color: #131313;
   color: #e5e2e1;
-  font-family: 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-term);
   font-feature-settings: "liga" 0, "calt" 0;
   line-height: 1.6;
 }
+
+/* ---- Prose voice --------------------------------------------------------
+ * Two-voice typography: JetBrains Mono owns the chrome (nav, headings,
+ * labels, code, tables, ASCII); running paragraphs read in Atkinson
+ * Hyperlegible. Inline command/flag tokens inside prose stay terminal.
+ */
+
+main p {
+  font-family: var(--font-prose);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  max-width: 70ch;
+  text-wrap: pretty;
+}
+main p.text-sm { font-size: 0.9375rem; line-height: 1.65; }
+main p.text-xs { font-size: 0.875rem;  line-height: 1.6; }
+
+/* Tokens (commands, flags, schema fields) keep the terminal voice.
+ * Mono runs larger than sans at equal size, hence the 0.88em trim. */
+main p span[class*="text-"],
+main p span.font-mono,
+main p code {
+  font-family: var(--font-term);
+  font-size: 0.88em;
+}
+
+/* Opt-out for plain-English emphasis inside prose */
+main p span.plain {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Floor for dense code blocks: 12px mono was below comfortable reading */
+pre.text-xs { font-size: 0.8125rem; line-height: 1.6; }
 
 /* Clear the fixed footer on every viewport */
 body { padding-bottom: 3rem; }
@@ -57,7 +96,15 @@ section[id]           { scroll-margin-top: 5rem; }
 
 /* ---- Code blocks ------------------------------------------------------- */
 
-pre { white-space: pre; }
+pre { white-space: pre; overflow-x: auto; }
+
+/* Flex rows (e.g. STEP_NN + content) must let code blocks shrink-and-scroll
+ * instead of widening the page on small screens */
+main .flex-1 { min-width: 0; }
+
+/* Long SNAKE_CASE headings have no natural break points; allow breaking
+ * rather than widening the page on narrow viewports */
+h1, h2, h3 { overflow-wrap: anywhere; }
 
 /* Header bar above a <pre>: language label + copy button */
 .code-head {
@@ -96,6 +143,11 @@ pre { white-space: pre; }
   position: static;
   top: auto;
   right: auto;
+}
+
+/* On phones, wrapped command lines must not run under the copy button */
+@media (max-width: 640px) {
+  .copy-block pre { padding-right: 4.75rem; }
 }
 
 /* ---- Go syntax highlighting (minimal, used in build-processors.html) -- */

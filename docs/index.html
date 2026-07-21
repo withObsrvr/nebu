@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -52,6 +52,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
           headline: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
           body:     ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
@@ -122,7 +123,7 @@
     </p>
 
     <!-- Tabbed install block: GO / CURL / DOCKER -->
-    <div class="bg-surface-container-low border-l-4 border-primary-container mb-12" id="install">
+    <div class="bg-surface-container-low border border-outline-variant mb-12" id="install">
       <div class="flex flex-wrap items-end border-b border-outline-variant">
         <button type="button" data-install-tab="go"
                 class="install-tab is-active px-5 py-3 text-sm uppercase tracking-tight font-bold text-primary-container border-b-2 border-primary-container -mb-px">
@@ -329,7 +330,7 @@ export PATH="$HOME/go/bin:$PATH"</pre>
           <span class="text-primary-container shrink-0">STEP_01</span>
           <div class="flex-1">
             <span class="text-on-surface font-bold">INSTALL_VESSEL</span>
-            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border border-outline-variant text-sm">
               <button class="copy-btn" data-copy-target="qs-01" type="button">[ COPY ]</button>
               <pre id="qs-01">go install github.com/withObsrvr/nebu/cmd/nebu@latest
 export PATH="$HOME/go/bin:$PATH"</pre>
@@ -341,7 +342,7 @@ export PATH="$HOME/go/bin:$PATH"</pre>
           <span class="text-primary-container shrink-0">STEP_02</span>
           <div class="flex-1">
             <span class="text-on-surface font-bold">DISCOVER_AND_INSTALL</span>
-            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border border-outline-variant text-sm">
               <button class="copy-btn" data-copy-target="qs-02" type="button">[ COPY ]</button>
               <pre id="qs-02">nebu list
 nebu install token-transfer</pre>
@@ -353,7 +354,7 @@ nebu install token-transfer</pre>
           <span class="text-primary-container shrink-0">STEP_03</span>
           <div class="flex-1">
             <span class="text-on-surface font-bold">STREAM_EVENTS</span>
-            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border border-outline-variant text-sm">
               <button class="copy-btn" data-copy-target="qs-03" type="button">[ COPY ]</button>
               <pre id="qs-03">token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
             </div>
@@ -364,7 +365,7 @@ nebu install token-transfer</pre>
           <span class="text-primary-container shrink-0">STEP_04</span>
           <div class="flex-1">
             <span class="text-on-surface font-bold">COMPOSE_A_PIPELINE</span>
-            <div class="copy-block mt-2 bg-surface-container-low p-3 border-l-2 border-primary-container text-sm">
+            <div class="copy-block mt-2 bg-surface-container-low p-3 border border-outline-variant text-sm">
               <button class="copy-btn" data-copy-target="qs-04" type="button">[ COPY ]</button>
               <pre id="qs-04">token-transfer --start-ledger 60200000 --follow \
   | jq -c 'select(.transfer.assetCode == "USDC")' \
@@ -393,7 +394,7 @@ nebu install token-transfer</pre>
           <p class="text-secondary text-sm mb-4 flex-1">
             Read deep history from the public <span class="text-tertiary">aws-public-blockchain</span> S3 archive — no AWS account, no RPC rate limits.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-01" type="button">[ COPY ]</button>
@@ -413,7 +414,7 @@ nebu install token-transfer</pre>
           <p class="text-secondary text-sm mb-4 flex-1">
             Use authenticated RPC endpoints via <span class="text-tertiary">NEBU_RPC_AUTH</span> for higher throughput and private lanes.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-02" type="button">[ COPY ]</button>
@@ -432,7 +433,7 @@ token-transfer \
           <p class="text-secondary text-sm mb-4 flex-1">
             Extract → filter → dedupe → store, composed with only the shell's pipe.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-03" type="button">[ COPY ]</button>
@@ -451,7 +452,7 @@ token-transfer \
           <p class="text-secondary text-sm mb-4 flex-1">
             One stream, many sinks. Live NATS for consumers, a JSONL archive on disk, a human-readable tail in the terminal.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-04" type="button">[ COPY ]</button>
@@ -470,7 +471,7 @@ token-transfer \
           <p class="text-secondary text-sm mb-4 flex-1">
             SQL aggregations directly over the stream. No database setup, no schema, no ETL job.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-05" type="button">[ COPY ]</button>
@@ -492,7 +493,7 @@ token-transfer \
           <p class="text-secondary text-sm mb-4 flex-1">
             Capture raw XDR once, replay through any number of processors. Great for backfills and schema diffs.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-06" type="button">[ COPY ]</button>
@@ -515,11 +516,11 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
     </section>
 
     <!-- INFO callout — teal semantic: nebu meta-fact, not a live action -->
-    <section class="md:col-span-12 bg-surface-container-low p-6 border-l-4 border-tertiary">
+    <section class="md:col-span-12 bg-surface-container-low p-6 border border-tertiary">
       <div class="flex items-start gap-4">
         <span class="text-tertiary font-bold text-[0.6875rem] uppercase tracking-widest shrink-0 mt-1">[ INFO ]</span>
         <p class="text-secondary leading-relaxed">
-          <span class="text-on-surface">Separate fetch from process.</span>
+          <span class="text-on-surface plain">Separate fetch from process.</span>
           <span class="text-tertiary">nebu fetch</span> writes raw <span class="text-tertiary">LedgerCloseMeta</span> XDR to stdout — capture a ledger range once,
           replay it through any number of processors. Great for backfills, regression tests, and
           comparing two schema versions over the same ledgers.
@@ -652,7 +653,7 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
             Every processor is agent-legible.
           </h2>
           <p class="mt-4 max-w-2xl">
-            <span class="font-bold">--describe-json</span> emits flags, inputs, outputs, and schema IDs.
+            <span class="font-mono font-bold">--describe-json</span> emits flags, inputs, outputs, and schema IDs.
             Runtime hooks expose metrics, tracing, progress, and agent gates.
             The contract is small enough for an LLM to hold in its head.
           </p>

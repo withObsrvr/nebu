@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -44,6 +44,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
         }
       }
@@ -128,7 +129,7 @@
     </section>
 
     <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <a class="text-tertiary hover:underline" href="#contract">#CONTRACT</a>
@@ -152,7 +153,7 @@
         Anything outside those packages is free to evolve.
       </p>
 
-      <div class="bg-surface-container-low p-6 border-l-2 border-tertiary mb-4">
+      <div class="bg-surface-container-low p-6 border border-outline-variant mb-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
           <div><span class="text-tertiary">Processor</span>       <span class="text-secondary">· root interface</span></div>
           <div><span class="text-tertiary">Origin</span>           <span class="text-secondary">· reads ledgers, emits events</span></div>
@@ -176,12 +177,12 @@
       <h2 class="text-on-surface font-bold text-2xl mb-4">## 02_PROCESSOR_TYPES</h2>
       <div class="space-y-6">
 
-        <div class="bg-surface-container-low p-5 border-l-4 border-primary-container">
+        <div class="bg-surface-container-low p-5 border border-outline-variant">
           <div class="text-primary-container font-bold mb-1">ORIGIN</div>
           <p class="text-secondary text-sm mb-3">
             Consumes ledger XDR, emits typed events as NDJSON. The "producer" end of a pipe.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">go</span>
               <span class="text-secondary">pkg/processor</span>
@@ -192,12 +193,12 @@
           </div>
         </div>
 
-        <div class="bg-surface-container-low p-5 border-l-4 border-primary-container">
+        <div class="bg-surface-container-low p-5 border border-outline-variant">
           <div class="text-primary-container font-bold mb-1">TRANSFORM</div>
           <p class="text-secondary text-sm mb-3">
             Consumes events, emits events. Filters, enrichers, deduplicators, windowers.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">go</span>
               <span class="text-secondary">pkg/processor</span>
@@ -208,12 +209,12 @@
           </div>
         </div>
 
-        <div class="bg-surface-container-low p-5 border-l-4 border-primary-container">
+        <div class="bg-surface-container-low p-5 border border-outline-variant">
           <div class="text-primary-container font-bold mb-1">SINK</div>
           <p class="text-secondary text-sm mb-3">
             Consumes events, produces side effects — DB writes, files, message queues, metrics.
           </p>
-          <div class="bg-background border-l-2 border-primary-container">
+          <div class="bg-background border border-outline-variant">
             <div class="code-head">
               <span class="code-head__lang">go</span>
               <span class="text-secondary">pkg/processor</span>
@@ -234,7 +235,7 @@
         A complete origin processor that counts transactions per ledger and emits one event per ledger close. Real code — starting point for anything you'd build.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container mb-4">
+      <div class="bg-surface-container-low border border-outline-variant mb-4">
         <div class="code-head">
           <span class="code-head__lang">go · main.go</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="bp-origin" type="button">[ COPY ]</button>
@@ -298,7 +299,7 @@
         It owns flag parsing, signal handling, metrics emission, and graceful shutdown.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">go</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="bp-rt" type="button">[ COPY ]</button>
@@ -322,7 +323,7 @@ rt.<span class="tok-fn">RunSink</span>(ctx, proc)</pre>
         This is the agent-legible contract — tooling and LLMs can discover your processor's flags, inputs, outputs, and emitted schema IDs without reading source.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-tertiary">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json</span>
           <span class="text-secondary">--describe-json</span>
@@ -352,7 +353,7 @@ rt.<span class="tok-fn">RunSink</span>(ctx, proc)</pre>
         Processors are standalone binaries, not plugins. Ship them via <span class="text-tertiary">go install</span>-able modules — GoReleaser, GitHub Releases, or a Nix flake.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container mb-4">
+      <div class="bg-surface-container-low border border-outline-variant mb-4">
         <div class="code-head">
           <span class="code-head__lang">bash · layout</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="bp-layout" type="button">[ COPY ]</button>
@@ -366,7 +367,7 @@ rt.<span class="tok-fn">RunSink</span>(ctx, proc)</pre>
 └── README.md</pre>
       </div>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">bash · publish</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="bp-publish" type="button">[ COPY ]</button>
@@ -388,7 +389,7 @@ go install github.com/you/my-processor/cmd/my-processor@v0.1.0</pre>
         Once merged, <span class="text-on-surface">nebu list</span> surfaces it for everyone.
       </p>
 
-      <div class="bg-surface-container-low border-l-2 border-primary-container">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">yaml · description.yml</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="bp-desc" type="button">[ COPY ]</button>
@@ -419,7 +420,7 @@ maintainer:
         The runtime exposes six lifecycle callbacks — <span class="text-tertiary">OnStart</span>, <span class="text-tertiary">BeforeLedger</span>, <span class="text-tertiary">AfterLedger</span>, <span class="text-tertiary">OnWarning</span>, <span class="text-tertiary">OnFatal</span>, <span class="text-tertiary">OnEnd</span>. Register any subset via <span class="text-tertiary">Runtime.Use(Hooks{...})</span> or <span class="text-tertiary">OriginConfig.Hooks</span>; nil fields are no-ops. See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md" class="text-tertiary hover:underline">docs/HOOKS.md</a> for lifecycle, firing order, and abort semantics.
       </p>
 
-      <div class="bg-surface-container-low p-5 border-l-2 border-tertiary mb-6">
+      <div class="bg-surface-container-low p-5 border border-outline-variant mb-6">
         <div class="text-[0.6875rem] uppercase text-tertiary mb-2 tracking-widest">[ REFERENCE IMPLEMENTATIONS · 4 FILES, DROP-IN ]</div>
         <p class="text-secondary text-sm mb-4">
           Each file is self-contained. Copy into your processor's <span class="text-on-surface">cmd/&lt;name&gt;/</span> directory, rename <span class="text-on-surface">package hooks</span> to your package, and wire it into your <span class="text-on-surface">Hooks</span> slice. No framework, no abstract factory.
@@ -476,7 +477,7 @@ maintainer:
     <!-- STABILITY -->
     <section id="stability" class="mb-16">
       <h2 class="text-on-surface font-bold text-2xl mb-4">## 09_STABILITY</h2>
-      <div class="bg-surface-container-low p-6 border-l-2 border-tertiary">
+      <div class="bg-surface-container-low p-6 border border-outline-variant">
         <div class="space-y-3 text-sm">
           <p>
             <span class="text-tertiary font-bold">STABLE:</span>

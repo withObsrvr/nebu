@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -45,6 +45,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono:     ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
           headline: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
           body:     ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"],
@@ -126,7 +127,7 @@
   </div>
 
   <!-- In-page TOC for mobile — sidebar replaces this on lg+ -->
-  <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+  <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
     <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
     <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
       <a class="text-primary-container hover:underline" href="#name">#NAME</a>
@@ -198,7 +199,7 @@
       <div>
         <div class="text-primary-container font-bold mb-2">nebu list</div>
         <p class="mb-2">Show all processors known to the embedded registry and the community registry. Lists name, type, location, and description.</p>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container">
+        <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-list" type="button">[ COPY ]</button>
           <pre id="cmd-list">$ nebu list</pre>
         </div>
@@ -207,7 +208,7 @@
       <div>
         <div class="text-primary-container font-bold mb-2">nebu install &lt;processor&gt;</div>
         <p class="mb-2">Resolve the processor in the registry and install its binary to <span class="font-bold">$GOPATH/bin</span> via <span class="font-bold">go install</span>. Works for built-in examples and any community processor whose Go module installs cleanly.</p>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container">
+        <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-install" type="button">[ COPY ]</button>
           <pre id="cmd-install">$ nebu install token-transfer</pre>
         </div>
@@ -221,7 +222,7 @@
           <li><span class="text-primary-container">--mode rpc</span> <span class="text-secondary">· (default) stream from a Stellar RPC endpoint</span></li>
           <li><span class="text-primary-container">--mode archive</span> <span class="text-secondary">· read from a GCS/S3 ledger archive (e.g. the public <span class="text-tertiary">aws-public-blockchain</span> bucket)</span></li>
         </ul>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container">
+        <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-fetch" type="button">[ COPY ]</button>
           <pre id="cmd-fetch">$ nebu fetch 60200000 60200100 &gt; ledgers.xdr
 $ cat ledgers.xdr | token-transfer | jq</pre>
@@ -231,7 +232,7 @@ $ cat ledgers.xdr | token-transfer | jq</pre>
       <div>
         <div class="text-primary-container font-bold mb-2">&lt;processor&gt; --start-ledger N [--end-ledger N | --follow]</div>
         <p class="mb-2">Run an installed processor. Origins read ledgers (from RPC or stdin) and emit typed events as NDJSON on stdout. Transforms and sinks read NDJSON from stdin.</p>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-primary-container">
+        <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-run" type="button">[ COPY ]</button>
           <pre id="cmd-run">$ token-transfer --start-ledger 60200000 --end-ledger 60200001
 $ token-transfer --start-ledger 60200000 --follow</pre>
@@ -241,7 +242,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
       <div>
         <div class="text-tertiary font-bold mb-2">&lt;processor&gt; --describe-json</div>
         <p class="mb-2">Emit a JSON-schema-valid manifest of the processor's flags, inputs, outputs, and schema IDs. The agent-legible contract — tooling and LLMs can discover capabilities without reading source.</p>
-        <div class="copy-block bg-surface-container-low p-4 text-sm border-l-2 border-tertiary">
+        <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-describe" type="button">[ COPY ]</button>
           <pre id="cmd-describe">$ token-transfer --describe-json | jq .outputs</pre>
         </div>
@@ -333,7 +334,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">Extract token transfers</div>
-        <div class="bg-surface-container-low border-l-2 border-primary-container">
+        <div class="bg-surface-container-low border border-outline-variant">
           <div class="code-head">
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-01" type="button">[ COPY ]</button>
@@ -344,7 +345,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">USDC-only, deduped, to a file</div>
-        <div class="bg-surface-container-low border-l-2 border-primary-container">
+        <div class="bg-surface-container-low border border-outline-variant">
           <div class="code-head">
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-02" type="button">[ COPY ]</button>
@@ -358,7 +359,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">SQL analytics with DuckDB, no database</div>
-        <div class="bg-surface-container-low border-l-2 border-primary-container">
+        <div class="bg-surface-container-low border border-outline-variant">
           <div class="code-head">
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-03" type="button">[ COPY ]</button>
@@ -379,7 +380,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
       <div>
         <div class="text-primary-container font-bold mb-2">Fan-out: NATS + file + terminal</div>
-        <div class="bg-surface-container-low border-l-2 border-primary-container">
+        <div class="bg-surface-container-low border border-outline-variant">
           <div class="code-head">
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-04" type="button">[ COPY ]</button>
@@ -396,7 +397,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
         <p class="text-secondary text-sm mb-3">
           No AWS credentials required — the SDK falls back to anonymous access. Pubnet only; testnet uses a different (non-Galexie) layout in this bucket.
         </p>
-        <div class="bg-surface-container-low border-l-2 border-primary-container">
+        <div class="bg-surface-container-low border border-outline-variant">
           <div class="code-head">
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-05" type="button">[ COPY ]</button>

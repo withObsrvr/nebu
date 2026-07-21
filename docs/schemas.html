@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -39,6 +39,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
         }
       }
@@ -120,7 +121,7 @@
     </section>
 
     <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs">
         <a class="text-tertiary hover:underline" href="#policy">#POLICY</a>
@@ -134,7 +135,7 @@
     <section id="policy" class="mb-16">
       <h2 class="text-2xl font-bold text-on-surface mb-4">## VERSIONING_POLICY</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-surface-container-low p-5 border-l-2 border-primary-container">
+        <div class="bg-surface-container-low p-5 border border-outline-variant">
           <div class="text-primary-container font-bold mb-2">BREAKING → BUMP</div>
           <p class="text-secondary text-sm mb-3">These increment the version (<span class="text-on-surface">v1</span> → <span class="text-on-surface">v2</span>):</p>
           <ul class="text-sm text-secondary space-y-1">
@@ -145,7 +146,7 @@
             <li>· flatten or restructure nested objects</li>
           </ul>
         </div>
-        <div class="bg-surface-container-low p-5 border-l-2 border-tertiary">
+        <div class="bg-surface-container-low p-5 border border-outline-variant">
           <div class="text-tertiary font-bold mb-2">NON-BREAKING → KEEP</div>
           <p class="text-secondary text-sm mb-3">These do not bump the version:</p>
           <ul class="text-sm text-secondary space-y-1">
@@ -167,7 +168,7 @@
       <p class="text-secondary mb-6">
         Every event has the same two metadata fields at the top level, regardless of which processor emitted it:
       </p>
-      <div class="bg-surface-container-low border-l-2 border-tertiary">
+      <div class="bg-surface-container-low border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json</span>
           <span class="text-secondary">ENVELOPE</span>
@@ -194,7 +195,7 @@
     </section>
 
     <!-- token_transfer.v1 -->
-    <section id="nebu-token-transfer-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="nebu-token-transfer-v1" class="mb-10 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <code class="text-xl text-on-surface font-bold">nebu.token_transfer.v1</code>
         <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ STABLE · since v0.3.0 ]</span>
@@ -215,7 +216,7 @@
         </div>
       </div>
 
-      <div class="bg-background border-l-2 border-tertiary">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json · shape</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="sc-tt" type="button">[ COPY ]</button>
@@ -247,7 +248,7 @@
     </section>
 
     <!-- contract_events.v1 -->
-    <section id="nebu-contract-events-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="nebu-contract-events-v1" class="mb-10 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <code class="text-xl text-on-surface font-bold">nebu.contract_events.v1</code>
         <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ STABLE ]</span>
@@ -255,7 +256,7 @@
       <p class="text-secondary text-sm mb-4">
         One event per Soroban diagnostic event emission. Raw XDR SCVals in <span class="text-tertiary">topics</span> and <span class="text-tertiary">data</span>.
       </p>
-      <div class="bg-background border-l-2 border-tertiary">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json · shape</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="sc-ce" type="button">[ COPY ]</button>
@@ -275,7 +276,7 @@
     </section>
 
     <!-- contract_invocation.v1 -->
-    <section id="nebu-contract-invocation-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="nebu-contract-invocation-v1" class="mb-10 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <code class="text-xl text-on-surface font-bold">nebu.contract_invocation.v1</code>
         <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ STABLE ]</span>
@@ -283,7 +284,7 @@
       <p class="text-secondary text-sm mb-4">
         One event per Soroban <span class="text-on-surface">InvokeHostFunction</span> operation, with function name, arguments, success flag, and nested sub-invocations.
       </p>
-      <div class="bg-background border-l-2 border-tertiary">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json · shape</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="sc-ci" type="button">[ COPY ]</button>
@@ -304,7 +305,7 @@
     </section>
 
     <!-- transaction_stats.v1 -->
-    <section id="nebu-transaction-stats-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="nebu-transaction-stats-v1" class="mb-10 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <code class="text-xl text-on-surface font-bold">nebu.transaction_stats.v1</code>
         <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ EXAMPLE ]</span>
@@ -313,7 +314,7 @@
         One event per ledger close, summarizing transaction activity. Emitted by the educational
         <a href="processors.html#transaction-stats" class="text-tertiary hover:underline">transaction-stats</a> processor.
       </p>
-      <div class="bg-background border-l-2 border-tertiary">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json · shape</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="sc-ts" type="button">[ COPY ]</button>
@@ -334,7 +335,7 @@
     </section>
 
     <!-- ledger_change_stats.v1 -->
-    <section id="nebu-ledger-change-stats-v1" class="mb-10 bg-surface-container-low p-6 border-l-2 border-primary-container">
+    <section id="nebu-ledger-change-stats-v1" class="mb-10 bg-surface-container-low p-6 border border-outline-variant">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
         <code class="text-xl text-on-surface font-bold">nebu.ledger_change_stats.v1</code>
         <span class="text-[0.6875rem] uppercase tracking-widest text-tertiary">[ EXAMPLE ]</span>
@@ -342,7 +343,7 @@
       <p class="text-secondary text-sm mb-4">
         One event per ledger close, counting ledger entry changes by entry type.
       </p>
-      <div class="bg-background border-l-2 border-tertiary">
+      <div class="bg-background border border-outline-variant">
         <div class="code-head">
           <span class="code-head__lang">json · shape</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="sc-lc" type="button">[ COPY ]</button>
@@ -366,7 +367,7 @@
       <p class="text-secondary mb-4">
         Schema identifiers are three segments joined with dots:
       </p>
-      <div class="bg-surface-container-low p-4 border-l-2 border-tertiary mb-4">
+      <div class="bg-surface-container-low p-4 border border-outline-variant mb-4">
         <code class="text-lg">
           <span class="text-tertiary">&lt;namespace&gt;</span>.<span class="text-on-surface">&lt;name&gt;</span>.<span class="text-primary-container">v&lt;N&gt;</span>
         </code>

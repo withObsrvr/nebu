@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
@@ -39,6 +39,7 @@
         },
         borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
         fontFamily: {
+          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
           mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
         }
       }
@@ -120,7 +121,7 @@
     </section>
 
     <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border-l-2 border-tertiary">
+    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
         <a class="text-tertiary hover:underline" href="#v0-6-8">#v0.6.8</a>
@@ -375,7 +376,7 @@
         </div>
       </div>
 
-      <div class="bg-surface-container-low p-4 border-l-2 border-tertiary mb-4 text-sm">
+      <div class="bg-surface-container-low p-4 border border-outline-variant mb-4 text-sm">
         <span class="text-tertiary font-bold">[ CONTRACT ]</span>
         <span class="text-secondary">
           This release declared the stable contract surface. From this version on, breaking changes to
@@ -405,7 +406,7 @@
 
     <!-- OLDER -->
     <section class="mb-16">
-      <div class="bg-surface-container-low p-6 border-l-2 border-outline">
+      <div class="bg-surface-container-low p-6 border border-outline-variant">
         <div class="text-[0.6875rem] uppercase text-secondary mb-2 tracking-widest">[ OLDER ]</div>
         <p class="text-secondary text-sm">
           Full release history including <span class="text-on-surface">v0.4.x</span>, <span class="text-on-surface">v0.3.x</span>, and earlier lives in the
