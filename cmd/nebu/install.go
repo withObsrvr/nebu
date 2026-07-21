@@ -99,6 +99,15 @@ func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) er
 		}
 	}
 
+	// Prebuilt binary release (language-agnostic; no Go toolchain needed)
+	if proc.Install != nil {
+		if proc.Install.Kind == "binary" {
+			logInfo("Installing %s from prebuilt binary release...", proc.Name)
+			return installProcessorBinary(proc.Name, proc.Install, installPath)
+		}
+		logInfo("Warning: unknown install kind %q for %s, falling back to go install", proc.Install.Kind, proc.Name)
+	}
+
 	// Fall back to go install (for users without cloned repo)
 	if proc.Location.ModulePackage != "" {
 		logInfo("Installing %s from Go module...", proc.Name)
@@ -107,7 +116,7 @@ func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) er
 
 	return nebuErrors.WithSuggestion(
 		fmt.Sprintf("Processor '%s' has no installable location", proc.Name),
-		"The processor needs either a local path or a Go module package to install.",
+		"The processor needs a local path, an install block, or a Go module package to install.",
 	)
 }
 
