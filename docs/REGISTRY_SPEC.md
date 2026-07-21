@@ -95,6 +95,7 @@ processors:
 | Field | Type | Description |
 |---|---|---|
 | `long_description` | string | Multi-line prose for the `nebu describe` DESCRIPTION section. |
+| `install` | InstallConfig | Prebuilt-binary install method. Takes precedence over `go install` when present. See below. |
 | `proto` | ProtoConfig | Protocol buffer descriptor, for processors that emit typed events. |
 | `schema` | SchemaConfig | Schema versioning metadata. Prefer the processor's own `--describe-json` output at runtime; this is for static catalogs. |
 | `events` | list of EventInfo | Event-type enumeration (for origins emitting oneof events). |
@@ -139,6 +140,37 @@ location:
 | `package` | string | Go package path (documentation only). |
 | `module_package` | string | Go module path used by `nebu install` to run `go install`. |
 | `url` | string | For `git`: repository URL. |
+
+### InstallConfig
+
+Declares a prebuilt-binary install method — the language-agnostic
+alternative to `go install`. Any processor that publishes per-platform
+release binaries with sha256 checksums can be installed through
+`nebu install`, regardless of implementation language. See
+[PROCESSOR_CONTRACT.md](PROCESSOR_CONTRACT.md) for the full authoring
+contract.
+
+```yaml
+install:
+  kind: binary
+  url: https://github.com/owner/repo/releases/download/name-v{version}/name-{os}-{arch}{exe}
+  checksums: https://github.com/owner/repo/releases/download/name-v{version}/checksums.txt
+  version: 0.1.0
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `kind` | string | yes | `binary` is the only recognized kind in v1. Entries with an unrecognized kind fall back to `go install`. |
+| `url` | string | yes | Artifact URL template. `{version}`, `{os}`, `{arch}`, and `{exe}` are substituted; `{os}`/`{arch}` use Go GOOS/GOARCH names (`linux`, `darwin`, `windows` × `amd64`, `arm64`), and `{exe}` becomes `.exe` on Windows, empty elsewhere. |
+| `checksums` | string | yes for `binary` | URL template of a `sha256sum`-format file (`<hex>  <filename>`). `nebu install` refuses to install an artifact whose digest doesn't match. |
+| `version` | string | see notes | Value substituted for `{version}`. In `description.yml`, defaults to `processor.version` when omitted. |
+
+Install resolution order in `nebu install`: local source build (dev
+checkout) → `install` block → `go install` fallback.
+
+After download and verification, `nebu install` runs
+`<binary> --describe-json` as a conformance gate; a binary that fails the
+describe protocol fails installation.
 
 ### SchemaConfig
 
@@ -223,6 +255,13 @@ repo:
   github: username/nebu-processor-my-thing
   ref: v1.0.0
 
+# Only needed for non-Go processors (or Go processors preferring
+# prebuilt releases). See InstallConfig above.
+install:
+  kind: binary
+  url: https://github.com/username/nebu-processor-my-thing/releases/download/v{version}/my-processor-{os}-{arch}{exe}
+  checksums: https://github.com/username/nebu-processor-my-thing/releases/download/v{version}/checksums.txt
+
 proto:
   source: github.com/username/nebu-processor-my-thing/proto
   package: my_processor
@@ -248,6 +287,7 @@ docs:
 |---|---|---|
 | `processor` | **yes** | Identity and metadata. |
 | `repo` | **yes** | Where the source lives. |
+| `install` | no | Prebuilt-binary install method (same InstallConfig as `registry.yaml`, above). Required in practice for non-Go processors, since the fallback is `go install`. `install.version` defaults to `processor.version`. |
 | `proto` | no | Proto descriptor pointer. |
 | `schema` | no | Schema ID and docs pointer. |
 | `docs` | no | Quick-start, examples, and extended prose (rendered by `nebu describe`). |
@@ -260,7 +300,7 @@ docs:
 | `type` | enum: `origin`, `transform`, `sink` | yes |
 | `description` | string | yes |
 | `version` | string | yes |
-| `language` | string | no (for humans; external-language support is future work) |
+| `language` | string | no (informational — any language works; see [PROCESSOR_CONTRACT.md](PROCESSOR_CONTRACT.md) and the `install` block) |
 | `license` | string | no |
 | `maintainers` | list of string | no |
 | `deprecated` | bool | no — set to `true` to mark for removal |
@@ -342,6 +382,7 @@ The spec repo for the flagship community registry is [withObsrvr/nebu-processor-
 
 ## See also
 
+- [PROCESSOR_CONTRACT.md](PROCESSOR_CONTRACT.md) — The language-agnostic processor contract: process model, wire format, `--describe-json`, and distribution requirements.
 - [STABILITY.md](STABILITY.md) — The stability policy covering `pkg/processor`, `pkg/source`, the `--describe-json` protocol, and both registry formats.
 - [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md) — Why nebu stays CLI-only and composes via Unix pipes.
 - `pkg/registry/registry.go` — The Go types that define the `registry.yaml` v1 schema.

@@ -83,7 +83,7 @@ The envelope shape is defined by [`processor.DescribeEnvelope`](../pkg/processor
 
 **Processor authors using `pkg/processor/cli`** get the protocol for free: the helper registers the flag and emits the envelope automatically from the processor's proto type and cobra flag set. Set `SchemaID` on your config (and optionally `InputType`/`OutputType` for transforms and sinks) to populate the schema section.
 
-**Authoring in another language:** implement the flag yourself. Parse `os.Args` for `--describe-json` before any flag validation, build a JSON object matching the envelope shape above, print it, and exit 0.
+**Authoring in another language:** implement the flag yourself. Parse `os.Args` for `--describe-json` before any flag validation, build a JSON object matching the envelope shape above, print it, and exit 0. The full language-agnostic contract — process model, wire format, error reporting, and distribution — is specified in [PROCESSOR_CONTRACT.md](PROCESSOR_CONTRACT.md).
 
 ## Unstable surfaces
 

@@ -26,6 +26,7 @@ type ProcessorEntry struct {
 	Description     string             `yaml:"description"`
 	LongDescription string             `yaml:"long_description,omitempty"`
 	Location        ProcessorLocation  `yaml:"location"`
+	Install         *InstallConfig     `yaml:"install,omitempty"`
 	Proto           *ProtoConfig       `yaml:"proto,omitempty"`
 	Schema          *SchemaConfig      `yaml:"schema,omitempty"`
 	Manifest        string             `yaml:"manifest,omitempty"`
@@ -35,6 +36,21 @@ type ProcessorEntry struct {
 	Examples        []ExampleInfo      `yaml:"examples,omitempty"`
 	WorksWith       *WorksWithInfo     `yaml:"works_with,omitempty"`
 	Source          string             `yaml:"-"` // "embedded" or "community", not serialized
+}
+
+// InstallConfig describes how to install a prebuilt processor binary.
+// This is the language-agnostic alternative to go install: any processor
+// that publishes per-platform binaries with sha256 checksums can be
+// installed through nebu regardless of implementation language.
+//
+// URL and Checksums are templates. Three placeholders are substituted:
+// {version} (from Version), {os} and {arch} (Go GOOS/GOARCH names, e.g.
+// linux/darwin/windows and amd64/arm64).
+type InstallConfig struct {
+	Kind      string `yaml:"kind"`                // "binary" is the only recognized kind
+	URL       string `yaml:"url"`                 // artifact URL template
+	Checksums string `yaml:"checksums,omitempty"` // sha256sum-format checksums file URL template; required for kind: binary
+	Version   string `yaml:"version,omitempty"`   // value substituted for {version}
 }
 
 // SchemaConfig describes the output schema.

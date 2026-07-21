@@ -28,7 +28,8 @@ type ExternalProcessorDesc struct {
 	Repo struct {
 		GitHub string `yaml:"github"`
 	} `yaml:"repo"`
-	Docs struct {
+	Install *InstallConfig `yaml:"install"`
+	Docs    struct {
 		QuickStart          string `yaml:"quick_start"`
 		Examples            string `yaml:"examples"`
 		ExtendedDescription string `yaml:"extended_description"`
@@ -67,6 +68,14 @@ func (d *ExternalProcessorDesc) ToProcessorEntry() ProcessorEntry {
 			"github.com/%s/processors/%s/cmd/%s",
 			d.Repo.GitHub, d.Processor.Name, d.Processor.Name,
 		)
+	}
+
+	if d.Install != nil {
+		inst := *d.Install
+		if inst.Version == "" {
+			inst.Version = d.Processor.Version
+		}
+		entry.Install = &inst
 	}
 
 	return entry
@@ -314,6 +323,9 @@ func (r *ExternalRegistry) writeCache(entries []ProcessorEntry) error {
 		desc.Processor.Type = entry.Type
 		desc.Processor.Description = entry.Description
 		desc.Docs.ExtendedDescription = entry.LongDescription
+		// entry.Install already has Version resolved; persisting it keeps
+		// binary installs working from cache without a registry refetch.
+		desc.Install = entry.Install
 
 		if entry.Maintainer != nil {
 			desc.Processor.Maintainers = []string{entry.Maintainer.Name}
