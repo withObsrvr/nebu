@@ -9,7 +9,7 @@ Four drop-in `runtime.Hooks` implementations you can copy into your own nebu pro
 | [`rate_limit.go`](./rate_limit.go) | `BeforeLedger` | none |
 | [`metrics.go`](./metrics.go) | `AfterLedger`, `OnWarning`, `OnFatal`, `OnEnd` | [`prometheus/client_golang`](https://github.com/prometheus/client_golang) |
 | [`tracing.go`](./tracing.go) | `OnStart`, `BeforeLedger`, `AfterLedger`, `OnWarning`, `OnFatal`, `OnEnd` | [`go.opentelemetry.io/otel`](https://github.com/open-telemetry/opentelemetry-go) |
-| `../processors/token-transfer/cmd/token-transfer/progress.go` | `OnStart`, `AfterLedger`, `OnEnd` | none |
+| [`token-transfer/progress.go`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/cmd/token-transfer/progress.go) | `OnStart`, `AfterLedger`, `OnEnd` | none |
 
 (The progress-bar example is the original reference implementation and lives alongside token-transfer, not here.)
 

@@ -9,7 +9,7 @@ This document formally defines the two YAML formats that describe nebu processor
 | Format | Lives in | Purpose |
 |---|---|---|
 | **`registry.yaml` v1** | Nebu repo root, embedded into the `nebu` binary, authored by nebu maintainers | A single catalog of all built-in processors with rich curated metadata (events, output fields, works_with, examples). One file, many processors. |
-| **`description.yml` v1** | External registry repos (like [nebu-processor-registry](https://github.com/withObsrvr/nebu-processor-registry)), one directory per processor | Lightweight pointer entry for a community-authored processor. References a GitHub repo where the processor code lives; the processor binary itself is the source of truth for schemas and flags via `--describe-json`. |
+| **`description.yml` v1** | External registry repos (like [nebu-processor-registry](https://github.com/withObsrvr/nebu-processor-registry)), one directory per processor | Lightweight pointer entry for a published processor. References a GitHub repo where the processor code lives; the processor binary itself is the source of truth for schemas and flags via `--describe-json`. |
 
 The two formats are intentionally different. `registry.yaml` is a curated catalog; `description.yml` is a pointer. Neither duplicates the other, and `nebu describe` merges them at runtime.
 
@@ -43,10 +43,8 @@ processors:
     Produces events for transfers, mints, burns, clawbacks, and network fees.
 
   location:
-    type: local
-    path: ./examples/processors/token-transfer
-    package: github.com/withObsrvr/nebu/examples/processors/token-transfer
-    module_package: github.com/withObsrvr/nebu/examples/processors/token-transfer/cmd/token-transfer
+    type: module
+    module_package: github.com/withObsrvr/nebu-processor-registry/processors/token-transfer/cmd/token-transfer
 
   proto:
     source: github.com/stellar/go-stellar-sdk/protos/processors/token_transfer
@@ -55,7 +53,7 @@ processors:
   schema:
     version: v1
     identifier: nebu.token_transfer.v1
-    documentation: ./examples/processors/token-transfer/SCHEMA.md
+    documentation: https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/SCHEMA.md
 
   events:
     - name: transfer
@@ -113,9 +111,9 @@ Describes where a processor's code or binary can be found. Three `type` values a
 # Local: source lives in the nebu repo.
 location:
   type: local
-  path: ./examples/processors/token-transfer
-  package: github.com/withObsrvr/nebu/examples/processors/token-transfer
-  module_package: github.com/withObsrvr/nebu/examples/processors/token-transfer/cmd/token-transfer
+  path: ./examples/processors/transaction-stats
+  package: github.com/withObsrvr/nebu/examples/processors/transaction-stats
+  module_package: github.com/withObsrvr/nebu/examples/processors/transaction-stats/cmd/transaction-stats
 ```
 
 ```yaml
@@ -178,7 +176,7 @@ describe protocol fails installation.
 schema:
   version: v1
   identifier: nebu.token_transfer.v1
-  documentation: ./examples/processors/token-transfer/SCHEMA.md
+  documentation: https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/SCHEMA.md
 ```
 
 | Field | Type | Notes |

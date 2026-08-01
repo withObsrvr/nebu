@@ -25,33 +25,6 @@ fi
 
 echo "Generating Go code from proto files..."
 
-# Generate token_transfer_service
-protoc \
-  --go_out=. \
-  --go_opt=paths=source_relative \
-  --go-grpc_out=. \
-  --go-grpc_opt=paths=source_relative \
-  --proto_path=. \
-  examples/processors/token-transfer/proto/token_transfer_service.proto
-
-# Generate amount_filter
-protoc \
-  --go_out=. \
-  --go_opt=paths=source_relative \
-  --go-grpc_out=. \
-  --go-grpc_opt=paths=source_relative \
-  --proto_path=. \
-  examples/processors/amount-filter/proto/amount_filter.proto
-
-# Generate contract_invocation
-protoc \
-  --go_out=. \
-  --go_opt=paths=source_relative \
-  --go-grpc_out=. \
-  --go-grpc_opt=paths=source_relative \
-  --proto_path=. \
-  examples/processors/contract-invocation/proto/contract_invocation.proto
-
 # Generate transaction_stats
 protoc \
   --go_out=. \

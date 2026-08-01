@@ -7,9 +7,9 @@ nebu (pronounced "neh-boo") is built on the supported building blocks Stellar pr
 nebu is two things in one repo:
 
 1. A small, **stable Go contract** ([`pkg/processor`](./pkg/processor) and [`pkg/source`](./pkg/source)) that anyone can implement to write a Stellar processor — origin, transform, or sink. External processors live in their own Go modules and depend only on this contract; they get a CLI, a JSON-schema-emitting `--describe-json` protocol, and runtime observability hooks for free.
-2. A **CLI and a set of reference processors** for users who just want to query live Stellar data, pipe events through `jq` / `duckdb`, and chain pipelines without writing any Go.
+2. A **CLI** for discovering, installing, and composing standalone processors with `jq`, DuckDB, and other Unix tools.
 
-The reference processors in [`examples/processors/`](./examples/processors/) are exemplars, not the "real" nebu — the real nebu is the contract. Build your own processor against `pkg/processor`, ship it as its own binary, register it via [`description.yml`](./docs/REGISTRY_SPEC.md) in any Git repo, and `nebu install your-processor` works.
+Reference and community processors live in the [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry). The small processors under [`examples/processors/`](./examples/processors/) are educational examples that are not published by the external registry. Build your own processor against `pkg/processor`, ship it as its own binary, register it via [`description.yml`](./docs/REGISTRY_SPEC.md), and `nebu install your-processor` works.
 
 Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries data from the on-chain truth to your applications.
 
@@ -26,11 +26,9 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 - **Latest release:** [v0.6.8](https://github.com/withObsrvr/nebu/releases/tag/v0.6.8)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
-**Reference processors shipped in this repo (examples, not product):**
-- **Origins**: [`token-transfer`](./examples/processors/token-transfer), [`contract-events`](./examples/processors/contract-events), [`contract-invocation`](./examples/processors/contract-invocation)
-- **Example / educational origins**: [`transaction-stats`](./examples/processors/transaction-stats), [`ledger-change-stats`](./examples/processors/ledger-change-stats)
-- **Transforms**: [`usdc-filter`](./examples/processors/usdc-filter), [`amount-filter`](./examples/processors/amount-filter), [`dedup`](./examples/processors/dedup), [`time-window`](./examples/processors/time-window)
-- **Sinks**: [`json-file-sink`](./examples/processors/json-file-sink), [`nats-sink`](./examples/processors/nats-sink), [`postgres-sink`](./examples/processors/postgres-sink)
+**Processors:**
+- **Published origins, transforms, and sinks:** [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors)
+- **In-repo educational origins:** [`transaction-stats`](./examples/processors/transaction-stats), [`ledger-change-stats`](./examples/processors/ledger-change-stats)
 
 **Coming next:**
 - Serializable pipeline descriptors (IndexDescriptor) as the canonical hand-off format between nebu and AI agents
@@ -322,15 +320,12 @@ rt.RunOrigin(ctx, source, processor, startLedger, endLedger)
 
 ## Example Processors
 
-nebu ships with example processors in [`examples/processors/`](./examples/processors/):
+Published processors live in the [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors). This repo retains two educational origins:
 
-### Origin Processors
-- **[token-transfer](./examples/processors/token-transfer/)** - Stream token transfer events (transfers, mints, burns, clawbacks, fees)
+- [`transaction-stats`](./examples/processors/transaction-stats) — summarize transactions over a ledger range
+- [`ledger-change-stats`](./examples/processors/ledger-change-stats) — summarize ledger-entry changes
 
-### Sink Processors
-- **[json-file-sink](./examples/processors/json-file-sink/)** - Write events to JSONL files (simplest sink)
-
-**💡 DuckDB users:** See the [DuckDB Cookbook](docs/DUCKDB_COOKBOOK.md) for piping events directly to DuckDB without custom sinks
+**💡 DuckDB users:** See the [DuckDB Cookbook](docs/DUCKDB_COOKBOOK.md) for piping events directly to DuckDB without custom sinks.
 
 ### Basic Examples
 - [`simple_origin`](./examples/simple_origin/) - Count and print ledger info
@@ -406,9 +401,9 @@ nebu/
 │   ├── runtime/    # Pipeline execution
 │   └── registry/   # Processor discovery
 ├── examples/
-│   ├── processors/    # Example processor implementations
-│   │   ├── token-transfer/  # Origin: token transfers
-│   │   └── json-file-sink/  # Sink: JSONL file storage
+│   ├── processors/    # Educational processor implementations
+│   │   ├── transaction-stats/
+│   │   └── ledger-change-stats/
 │   └── simple_origin/ # Basic usage example
 ├── cmd/
 │   └── nebu/       # CLI tool
@@ -535,8 +530,8 @@ When you pipe nebu output to DuckDB, jq, or other tools, those tools rely on the
 - **Breaking changes** (field renames, removals, type changes) → increment version (v1 → v2)
 - **Non-breaking changes** (new fields, new event types) → keep version (stay at v1)
 
-Each processor documents its schema in `SCHEMA.md`:
-- [Token Transfer Schema Documentation](./examples/processors/token-transfer/SCHEMA.md)
+Each published processor documents its schema. For example:
+- [Token Transfer Schema Documentation](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/SCHEMA.md)
 
 ### Using Schema Versions
 
@@ -759,10 +754,10 @@ nebu install json-file-sink
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   json-file-sink --out events.jsonl
 
-# Or build manually
-go build -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/json-file-sink
+# Or build the registry processor manually
+go install github.com/withObsrvr/nebu-processor-registry/processors/json-file-sink/cmd/json-file-sink@latest
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  ./bin/json-file-sink --out events.jsonl
+  json-file-sink --out events.jsonl
 
 # Query the events
 cat events.jsonl | jq 'select(.transfer != null) | {from: .transfer.from, to: .transfer.to, amount: .transfer.amount}'
@@ -806,39 +801,16 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
 
 ## Processor Registry
 
-Processors are discovered through `registry.yaml` in the project root. This lightweight approach keeps nebu's core minimal while supporting extensibility.
+Published processors are discovered from the external [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry). `registry.yaml` contains only processors implemented in this repository.
 
 ### Registry Format
 
-```yaml
-version: 1
-processors:
-  - name: token-transfer
-    type: origin
-    description: Stream token transfer events from Stellar ledgers
-    location:
-      type: local
-      path: ./examples/processors/token-transfer
-    proto:
-      source: github.com/stellar/go-stellar-sdk/protos/processors/token_transfer
-    manifest: ./examples/processors/token-transfer/manifest.yaml
-```
+See [REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) and the registry's [`description.yml` files](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors).
 
 ### Adding Your Own Processor
 
-1. **Create your processor** following the interfaces in `pkg/processor/`
-2. **Add to registry.yaml**:
-   ```yaml
-   - name: my-processor
-     type: origin  # or transform, sink
-     description: What it does
-     location:
-       type: local
-       path: ./path/to/processor
-     maintainer:
-       name: Your Name
-       url: https://github.com/yourname
-   ```
+1. **Create your processor** following the interfaces in `pkg/processor/`.
+2. **Publish it through the external registry** using a `description.yml`.
 3. **Install and run it**:
    ```bash
    nebu install my-processor
@@ -847,13 +819,13 @@ processors:
 
 ### Community Processor Registry
 
-Browse community-contributed processors at the [nebu Community Processor Registry](https://github.com/withObsrvr/nebu-processor-registry).
+Browse published and community-contributed processors at the [nebu Processor Registry](https://github.com/withObsrvr/nebu-processor-registry).
 
-The community registry is a directory of processors built by the community:
-- processors are discovered via the external registry automatically
-- `nebu list` shows both built-in and community processors
-- `nebu install <name>` works for community processors too, as long as their published Go module installs cleanly
-- processors are maintained by their authors, not the nebu core team
+The external registry is a directory of standalone processors:
+- processors are discovered automatically
+- `nebu list` shows both in-repo educational and external processors
+- `nebu install <name>` works as long as the processor's Go module or prebuilt release installs cleanly
+- processors are maintained in the registry or by their authors, not in the nebu core repository
 
 **Fastest way to use community processors:**
 ```bash
@@ -861,7 +833,7 @@ The community registry is a directory of processors built by the community:
 go install github.com/withObsrvr/nebu/cmd/nebu@latest
 export PATH="$HOME/go/bin:$PATH"
 
-# Browse everything available (built-in + community)
+# Browse everything available
 nebu list
 
 # Install a community processor

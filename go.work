@@ -3,14 +3,4 @@ go 1.25.4
 use (
 	.
 	./examples/hooks
-	./examples/processors/amount-filter
-	./examples/processors/contract-events
-	./examples/processors/contract-invocation
-	./examples/processors/dedup
-	./examples/processors/json-file-sink
-	./examples/processors/nats-sink
-	./examples/processors/postgres-sink
-	./examples/processors/time-window
-	./examples/processors/token-transfer
-	./examples/processors/usdc-filter
 )

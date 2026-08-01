@@ -1,195 +1,129 @@
-# nebu Processor Registry
+# nebu Built-in Processor Registry
 #
-# This file defines available processors that can be installed via `nebu install`
-# and run as standalone binaries, composed via Unix pipes.
-# Processors can be local (in examples/) or external (git repos, go modules).
+# Only processors implemented in this repository belong here. Community and
+# reference processors are discovered from nebu-processor-registry.
 
 version: 1
 
 processors:
-  # Token Transfer Origin Processor
-  - name: token-transfer
+  # Transaction Stats Origin Processor
+  - name: transaction-stats
     type: origin
-    description: Stream token transfer events from Stellar ledgers (transfers, mints, burns, clawbacks, fees)
-
-    # Local example processor
-    location:
-      type: local
-      path: ./examples/processors/token-transfer
-      package: github.com/withObsrvr/nebu/examples/processors/token-transfer
-      module_package: github.com/withObsrvr/nebu/examples/processors/token-transfer/cmd/token-transfer
-
-    # Protocol buffer definitions
-    proto:
-      # Uses Stellar's official token_transfer.proto
-      source: github.com/stellar/go-stellar-sdk/protos/processors/token_transfer
-      package: token_transfer
-
-    # JSON Schema (for CLI output)
-    schema:
-      version: v1
-      identifier: nebu.token_transfer.v1
-      documentation: ./examples/processors/token-transfer/SCHEMA.md
-
-    # Metadata
-    manifest: ./examples/processors/token-transfer/manifest.yaml
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # Contract Events Origin Processor
-  - name: contract-events
-    type: origin
-    description: Extract all contract events from Stellar ledgers (not limited to token transfers)
-
-    # Local example processor
-    location:
-      type: local
-      path: ./examples/processors/contract-events
-      package: github.com/withObsrvr/nebu/examples/processors/contract-events
-      module_package: github.com/withObsrvr/nebu/examples/processors/contract-events/cmd/contract-events
-
-    # JSON Schema (for CLI output)
-    schema:
-      version: v1
-      identifier: nebu.contract-events.v1
-      documentation: ./examples/processors/contract-events/README.md
-
-    # Metadata
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # JSON File Sink
-  - name: json-file-sink
-    type: sink
-    description: Write events to newline-delimited JSON (JSONL) files
+    description: Summarize successful and failed transactions and operations across a ledger range
+    long_description: |
+      Example origin processor that reads transactions from each ledger and emits
+      a single summary event at the end of the processed range. Demonstrates the
+      evolution from raw ingest logic to a first-class Nebu processor.
 
     location:
       type: local
-      path: ./examples/processors/json-file-sink
-      package: github.com/withObsrvr/nebu/examples/processors/json-file-sink
-      module_package: github.com/withObsrvr/nebu/examples/processors/json-file-sink/cmd/json-file-sink
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # NATS Sink
-  - name: nats-sink
-    type: sink
-    description: Publish events to NATS message bus for real-time distribution
-
-    location:
-      type: local
-      path: ./examples/processors/nats-sink
-      package: github.com/withObsrvr/nebu/examples/processors/nats-sink
-      module_package: github.com/withObsrvr/nebu/examples/processors/nats-sink/cmd/nats-sink
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # PostgreSQL Sink
-  - name: postgres-sink
-    type: sink
-    description: Store events in PostgreSQL with JSONB schema and TOID-based idempotency
-
-    location:
-      type: local
-      path: ./examples/processors/postgres-sink
-      package: github.com/withObsrvr/nebu/examples/processors/postgres-sink
-      module_package: github.com/withObsrvr/nebu/examples/processors/postgres-sink/cmd/postgres-sink
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # Amount Filter Transform
-  - name: amount-filter
-    type: transform
-    description: Filter token transfer events by amount ranges and asset codes
-
-    location:
-      type: local
-      path: ./examples/processors/amount-filter
-      package: github.com/withObsrvr/nebu/examples/processors/amount-filter
-      module_package: github.com/withObsrvr/nebu/examples/processors/amount-filter/cmd/amount-filter
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # USDC Filter Transform
-  - name: usdc-filter
-    type: transform
-    description: Filter token transfer events for USDC transfers only
-
-    location:
-      type: local
-      path: ./examples/processors/usdc-filter
-      package: github.com/withObsrvr/nebu/examples/processors/usdc-filter
-      module_package: github.com/withObsrvr/nebu/examples/processors/usdc-filter/cmd/usdc-filter
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # Dedup Transform
-  - name: dedup
-    type: transform
-    description: Deduplicate events by key field (e.g., tx_hash)
-
-    location:
-      type: local
-      path: ./examples/processors/dedup
-      package: github.com/withObsrvr/nebu/examples/processors/dedup
-      module_package: github.com/withObsrvr/nebu/examples/processors/dedup/cmd/dedup
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # Time Window Transform
-  - name: time-window
-    type: transform
-    description: Filter events by time window or ledger sequence range
-
-    location:
-      type: local
-      path: ./examples/processors/time-window
-      package: github.com/withObsrvr/nebu/examples/processors/time-window
-      module_package: github.com/withObsrvr/nebu/examples/processors/time-window/cmd/time-window
-
-    maintainer:
-      name: OBSRVR
-      url: https://withobsrvr.com
-
-  # Contract Invocation Origin Processor
-  - name: contract-invocation
-    type: origin
-    description: Stream contract invocation events from Stellar ledgers (function calls, cross-contract calls, state changes)
-
-    location:
-      type: local
-      path: ./examples/processors/contract-invocation
-      package: github.com/withObsrvr/nebu/examples/processors/contract-invocation
-      module_package: github.com/withObsrvr/nebu/examples/processors/contract-invocation/cmd/contract-invocation
+      path: ./examples/processors/transaction-stats
+      package: github.com/withObsrvr/nebu/examples/processors/transaction-stats
+      module_package: github.com/withObsrvr/nebu/examples/processors/transaction-stats/cmd/transaction-stats
 
     schema:
       version: v1
-      identifier: nebu.contract-invocation.v1
-      documentation: ./examples/processors/contract-invocation/README.md
+      identifier: nebu.transaction_stats.v1
+      documentation: ./examples/processors/transaction-stats/README.md
 
+    events:
+      - name: summary
+        description: Aggregate statistics for the full processed ledger range
+
+    output_fields:
+      - path: startLedger
+        description: First ledger included in the processed range
+      - path: endLedger
+        description: Last ledger included in the processed range
+      - path: successfulTransactions
+        description: Count of successful transactions
+      - path: failedTransactions
+        description: Count of failed transactions
+      - path: totalTransactions
+        description: Total transaction count
+      - path: operationsInSuccessful
+        description: Count of operations in successful transactions
+      - path: operationsInFailed
+        description: Count of operations in failed transactions
+      - path: totalOperations
+        description: Total operation count
+
+    examples:
+      - comment: Basic usage
+        command: transaction-stats --start-ledger 60200000 --end-ledger 60200009
+      - comment: Use after fetch separation
+        command: nebu fetch 60200000 60200009 | transaction-stats
+
+    works_with:
+      input:
+        - nebu fetch
+      transforms: []
+      sinks:
+        - json-file-sink
+        - postgres-sink
+        - nats-sink
+
+    manifest: ./examples/processors/transaction-stats/manifest.yaml
     maintainer:
       name: OBSRVR
       url: https://withobsrvr.com
 
-  # Future processors can be added here
-  # Example of external processor:
-  # - name: soroban-events
-  #   type: origin
-  #   location:
-  #     type: git
-  #     url: https://github.com/withObsrvr/nebu-processor-soroban
-  #   ...
+  # Ledger Change Stats Origin Processor
+  - name: ledger-change-stats
+    type: origin
+    description: Emit per-ledger created, updated, deleted, and change-reason statistics
+    long_description: |
+      Example origin processor that reads ledger entry changes from each ledger and
+      emits one summary event per ledger. Demonstrates how raw change-reader logic
+      becomes a first-class Nebu processor with CLI packaging and schema metadata.
+
+    location:
+      type: local
+      path: ./examples/processors/ledger-change-stats
+      package: github.com/withObsrvr/nebu/examples/processors/ledger-change-stats
+      module_package: github.com/withObsrvr/nebu/examples/processors/ledger-change-stats/cmd/ledger-change-stats
+
+    schema:
+      version: v1
+      identifier: nebu.ledger_change_stats.v1
+      documentation: ./examples/processors/ledger-change-stats/README.md
+
+    events:
+      - name: per-ledger-summary
+        description: Summary statistics for one ledger's entry changes
+
+    output_fields:
+      - path: ledgerSequence
+        description: Ledger number summarized by this event
+      - path: ledgerEntriesCreated
+        description: Count of created ledger entries
+      - path: ledgerEntriesUpdated
+        description: Count of updated ledger entries
+      - path: ledgerEntriesDeleted
+        description: Count of deleted ledger entries
+      - path: feeRelatedChanges
+        description: Count of fee-caused changes
+      - path: txRelatedChanges
+        description: Count of transaction-caused changes
+      - path: operationRelatedChanges
+        description: Count of operation-caused changes
+
+    examples:
+      - comment: Basic usage
+        command: ledger-change-stats --start-ledger 60200000 --end-ledger 60200005
+      - comment: Use after fetch separation
+        command: nebu fetch 60200000 60200005 | ledger-change-stats
+
+    works_with:
+      input:
+        - nebu fetch
+      transforms: []
+      sinks:
+        - json-file-sink
+        - postgres-sink
+        - nats-sink
+
+    manifest: ./examples/processors/ledger-change-stats/manifest.yaml
+    maintainer:
+      name: OBSRVR
+      url: https://withobsrvr.com
