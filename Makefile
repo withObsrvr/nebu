@@ -57,24 +57,25 @@ gen-protos:
 
 # Build all processor binaries
 build-processors:
-	@echo "Building processor binaries..."
+	@echo "Installing published processors from nebu-processor-registry..."
 	@mkdir -p bin
-	go build -ldflags "$(LDFLAGS)" -o bin/token-transfer ./examples/processors/token-transfer/cmd/token-transfer
-	cd examples/processors/contract-events && go build -ldflags "$(LDFLAGS)" -o ../../../bin/contract-events ./cmd/contract-events
-	go build -ldflags "$(LDFLAGS)" -o bin/contract-invocation ./examples/processors/contract-invocation/cmd/contract-invocation
-	go build -ldflags "$(LDFLAGS)" -o bin/usdc-filter ./examples/processors/usdc-filter/cmd/usdc-filter
-	go build -ldflags "$(LDFLAGS)" -o bin/amount-filter ./examples/processors/amount-filter/cmd/amount-filter
-	go build -ldflags "$(LDFLAGS)" -o bin/time-window ./examples/processors/time-window/cmd/time-window
-	go build -ldflags "$(LDFLAGS)" -o bin/dedup ./examples/processors/dedup/cmd/dedup
-	go build -ldflags "$(LDFLAGS)" -o bin/json-file-sink ./examples/processors/json-file-sink/cmd/json-file-sink
-	cd examples/processors/nats-sink && go build -ldflags "$(LDFLAGS)" -o ../../../bin/nats-sink ./cmd/nats-sink
-	go build -ldflags "$(LDFLAGS)" -o bin/postgres-sink ./examples/processors/postgres-sink/cmd/postgres-sink
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/token-transfer/cmd/token-transfer@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/contract-events/cmd/contract-events@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/contract-invocation/cmd/contract-invocation@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/usdc-filter/cmd/usdc-filter@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/amount-filter/cmd/amount-filter@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/time-window/cmd/time-window@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/dedup/cmd/dedup@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/json-file-sink/cmd/json-file-sink@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/nats-sink/cmd/nats-sink@latest
+	GOWORK=off GOBIN=$(CURDIR)/bin go install github.com/withObsrvr/nebu-processor-registry/processors/postgres-sink/cmd/postgres-sink@latest
+	@echo "Building in-repo educational processors..."
 	go build -ldflags "$(LDFLAGS)" -o bin/transaction-stats ./examples/processors/transaction-stats/cmd/transaction-stats
 	go build -ldflags "$(LDFLAGS)" -o bin/ledger-change-stats ./examples/processors/ledger-change-stats/cmd/ledger-change-stats
-	@echo "✓ All processors built in ./bin/"
+	@echo "✓ All processor binaries built in ./bin/"
 
-# Run integration tests
-test-integration:
+# Run integration tests against installed registry processors.
+test-integration: build-processors
 	@./tests/integration/test_pipelines.sh
 
 docs-smoke:

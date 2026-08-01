@@ -17,23 +17,22 @@ RUN apk add --no-cache \
     gcc \
     musl-dev
 
-# Clone nebu repository
-ARG NEBU_VERSION=main
-RUN git clone --depth 1 --branch ${NEBU_VERSION} https://github.com/withObsrvr/nebu.git
+# Clone the processor registry, which owns the published processor sources.
+ARG REGISTRY_VERSION=main
+RUN git clone --depth 1 --branch ${REGISTRY_VERSION} https://github.com/withObsrvr/nebu-processor-registry.git
 
-WORKDIR /build/nebu
+WORKDIR /build/nebu-processor-registry
 
-# Build official processors
-# Each processor has its own go.mod, so we build from their directories
+# Each processor has its own go.mod, so build from its directory.
 
 # contract-events: Origin processor that extracts contract invocation events
-WORKDIR /build/nebu/examples/processors/contract-events
+WORKDIR /build/nebu-processor-registry/processors/contract-events
 RUN go build -o /processors/contract-events \
     -ldflags="-s -w" \
     ./cmd/contract-events
 
 # postgres-sink: Sink processor that writes to PostgreSQL
-WORKDIR /build/nebu/examples/processors/postgres-sink
+WORKDIR /build/nebu-processor-registry/processors/postgres-sink
 RUN go build -o /processors/postgres-sink \
     -ldflags="-s -w" \
     ./cmd/postgres-sink
@@ -42,13 +41,13 @@ RUN go build -o /processors/postgres-sink \
 # These are optional and can be configured via PIPELINE_FILTERS env var
 
 # dedup: Deduplicate events in stream
-WORKDIR /build/nebu/examples/processors/dedup
+WORKDIR /build/nebu-processor-registry/processors/dedup
 RUN go build -o /processors/dedup \
     -ldflags="-s -w" \
     ./cmd/dedup
 
 # amount-filter: Filter events by amount threshold
-WORKDIR /build/nebu/examples/processors/amount-filter
+WORKDIR /build/nebu-processor-registry/processors/amount-filter
 RUN go build -o /processors/amount-filter \
     -ldflags="-s -w" \
     ./cmd/amount-filter

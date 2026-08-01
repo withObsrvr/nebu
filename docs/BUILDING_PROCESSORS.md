@@ -62,8 +62,8 @@ Transform processors read newline-delimited JSON from stdin, transform or filter
 **1. Create the directory structure**
 
 ```bash
-mkdir -p examples/processors/my-filter/cmd/my-filter
-cd examples/processors/my-filter
+mkdir -p my-filter/cmd/my-filter
+cd my-filter
 ```
 
 **2. Create `cmd/my-filter/main.go`**
@@ -103,7 +103,8 @@ func filterFunc(event map[string]interface{}) map[string]interface{} {
 **3. Build and test**
 
 ```bash
-go build -o ../../../bin/my-filter ./cmd/my-filter
+mkdir -p bin
+go build -o ./bin/my-filter ./cmd/my-filter
 
 echo '{"transfer":{"assetCode":"USDC","amount":"100"}}'
 ```
@@ -156,10 +157,10 @@ func filterFunc(event map[string]interface{}) map[string]interface{} {
 
 ### Real examples
 
-- [`usdc-filter`](../examples/processors/usdc-filter/cmd/usdc-filter/main.go)
-- [`amount-filter`](../examples/processors/amount-filter/cmd/amount-filter/main.go)
-- [`time-window`](../examples/processors/time-window/cmd/time-window/main.go)
-- [`dedup`](../examples/processors/dedup/cmd/dedup/main.go)
+- [`usdc-filter`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/usdc-filter/cmd/usdc-filter/main.go)
+- [`amount-filter`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/amount-filter/cmd/amount-filter/main.go)
+- [`time-window`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/time-window/cmd/time-window/main.go)
+- [`dedup`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/dedup/cmd/dedup/main.go)
 
 ---
 
@@ -172,8 +173,8 @@ Sink processors read newline-delimited JSON from stdin and produce side effects.
 **1. Create the directory structure**
 
 ```bash
-mkdir -p examples/processors/my-sink/cmd/my-sink
-cd examples/processors/my-sink
+mkdir -p my-sink/cmd/my-sink
+cd my-sink
 ```
 
 **2. Create `cmd/my-sink/main.go`**
@@ -259,9 +260,9 @@ func sinkFunc(event map[string]interface{}) error {
 
 ### Real examples
 
-- [`json-file-sink`](../examples/processors/json-file-sink/cmd/json-file-sink/main.go)
-- [`nats-sink`](../examples/processors/nats-sink/cmd/nats-sink/main.go)
-- [`postgres-sink`](../examples/processors/postgres-sink/cmd/postgres-sink/main.go)
+- [`json-file-sink`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/json-file-sink/cmd/json-file-sink/main.go)
+- [`nats-sink`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/nats-sink/cmd/nats-sink/main.go)
+- [`postgres-sink`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/postgres-sink/cmd/postgres-sink/main.go)
 
 ---
 
@@ -281,8 +282,8 @@ That means:
 **1. Create the directory structure**
 
 ```bash
-mkdir -p examples/processors/my-origin/cmd/my-origin
-cd examples/processors/my-origin
+mkdir -p my-origin/cmd/my-origin
+cd my-origin
 ```
 
 **2. Define protobuf schema in `proto/my_origin.proto`**
@@ -292,7 +293,7 @@ syntax = "proto3";
 
 package my_origin;
 
-option go_package = "github.com/withObsrvr/nebu/examples/processors/my-origin/proto";
+option go_package = "github.com/you/my-origin/proto";
 
 message MyEvent {
   uint32 ledger_sequence = 1;
@@ -322,7 +323,7 @@ import (
     "github.com/stellar/go-stellar-sdk/xdr"
     "github.com/withObsrvr/nebu/pkg/processor"
 
-    mypb "github.com/withObsrvr/nebu/examples/processors/my-origin/proto"
+    mypb "github.com/you/my-origin/proto"
 )
 
 type Origin struct {
@@ -371,8 +372,8 @@ func extractEvents(ledger xdr.LedgerCloseMeta) ([]*mypb.MyEvent, error) {
 package main
 
 import (
-    myorigin "github.com/withObsrvr/nebu/examples/processors/my-origin"
-    mypb "github.com/withObsrvr/nebu/examples/processors/my-origin/proto"
+    myorigin "github.com/you/my-origin"
+    mypb "github.com/you/my-origin/proto"
     "github.com/withObsrvr/nebu/pkg/processor/cli"
 )
 
@@ -396,22 +397,23 @@ func main() {
 **6. Initialize the module**
 
 ```bash
-go mod init github.com/withObsrvr/nebu/examples/processors/my-origin
+go mod init github.com/you/my-origin
 go mod tidy
 ```
 
 **7. Build and test**
 
 ```bash
-go build -o ../../../bin/my-origin ./cmd/my-origin
+mkdir -p bin
+go build -o ./bin/my-origin ./cmd/my-origin
 ./bin/my-origin --describe-json | jq .
 ```
 
 ### Real examples
 
-- [`token-transfer`](../examples/processors/token-transfer/)
-- [`contract-events`](../examples/processors/contract-events/)
-- [`contract-invocation`](../examples/processors/contract-invocation/)
+- [`token-transfer`](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors/token-transfer)
+- [`contract-events`](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors/contract-events)
+- [`contract-invocation`](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors/contract-invocation)
 
 ---
 
@@ -449,13 +451,13 @@ For typed processors embedded in Go, test the actual interfaces from `pkg/proces
 ### Build locally
 
 ```bash
-go build -o ./bin/my-processor ./examples/processors/my-processor/cmd/my-processor
+go build -o ./bin/my-processor ./cmd/my-processor
 ```
 
 ### Install via `go install`
 
 ```bash
-cd examples/processors/my-processor
+cd my-processor
 go install ./cmd/my-processor
 ```
 
@@ -503,4 +505,4 @@ For a processor that lives outside this repo:
 - [`docs/STABILITY.md`](./STABILITY.md)
 - [`docs/PIPELINE.md`](./PIPELINE.md)
 - [`docs/REGISTRY_SPEC.md`](./REGISTRY_SPEC.md)
-- [`examples/processors/token-transfer/SCHEMA.md`](../examples/processors/token-transfer/SCHEMA.md)
+- [`token-transfer/SCHEMA.md`](https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/SCHEMA.md)

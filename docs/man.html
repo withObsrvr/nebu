@@ -198,7 +198,7 @@
 
       <div>
         <div class="text-primary-container font-bold mb-2">nebu list</div>
-        <p class="mb-2">Show all processors known to the embedded registry and the community registry. Lists name, type, location, and description.</p>
+        <p class="mb-2">Show all processors known to the embedded registry and the external processor registry. Lists name, type, location, and description.</p>
         <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-list" type="button">[ COPY ]</button>
           <pre id="cmd-list">$ nebu list</pre>
@@ -207,7 +207,7 @@
 
       <div>
         <div class="text-primary-container font-bold mb-2">nebu install &lt;processor&gt;</div>
-        <p class="mb-2">Resolve the processor in the registry and install its binary to <span class="font-bold">$GOPATH/bin</span> via <span class="font-bold">go install</span>. Works for built-in examples and any community processor whose Go module installs cleanly.</p>
+        <p class="mb-2">Resolve the processor in the registry and install its binary to <span class="font-bold">$GOPATH/bin</span> via <span class="font-bold">go install</span>. Works for in-repo educational examples and external processors whose Go module or prebuilt release installs cleanly.</p>
         <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-install" type="button">[ COPY ]</button>
           <pre id="cmd-install">$ nebu install token-transfer</pre>

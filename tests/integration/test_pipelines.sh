@@ -35,12 +35,12 @@ trap cleanup EXIT
 # Helper functions
 pass() {
     echo -e "${GREEN}✓${NC} $1"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED+=1))
 }
 
 fail() {
     echo -e "${RED}✗${NC} $1"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED+=1))
 }
 
 test_header() {
@@ -52,27 +52,16 @@ test_header() {
 build_binaries() {
     test_header "Building binaries"
 
-    if [[ ! -f "$BIN_DIR/token-transfer" ]]; then
-        go build -o "$BIN_DIR/token-transfer" ./examples/processors/token-transfer/cmd/token-transfer || fail "Failed to build token-transfer"
-    fi
+    local required=(token-transfer usdc-filter amount-filter dedup json-file-sink)
+    for name in "${required[@]}"; do
+        if [[ ! -x "$BIN_DIR/$name" ]]; then
+            echo -e "${RED}✗${NC} Missing $BIN_DIR/$name; run make build-processors first"
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+            return 1
+        fi
+    done
 
-    if [[ ! -f "$BIN_DIR/usdc-filter" ]]; then
-        go build -o "$BIN_DIR/usdc-filter" ./examples/processors/usdc-filter/cmd/usdc-filter || fail "Failed to build usdc-filter"
-    fi
-
-    if [[ ! -f "$BIN_DIR/amount-filter" ]]; then
-        go build -o "$BIN_DIR/amount-filter" ./examples/processors/amount-filter/cmd/amount-filter || fail "Failed to build amount-filter"
-    fi
-
-    if [[ ! -f "$BIN_DIR/dedup" ]]; then
-        go build -o "$BIN_DIR/dedup" ./examples/processors/dedup/cmd/dedup || fail "Failed to build dedup"
-    fi
-
-    if [[ ! -f "$BIN_DIR/json-file-sink" ]]; then
-        go build -o "$BIN_DIR/json-file-sink" ./examples/processors/json-file-sink/cmd/json-file-sink || fail "Failed to build json-file-sink"
-    fi
-
-    pass "All binaries built"
+    pass "All registry processor binaries available"
 }
 
 # Test 1: Origin processor produces JSON output
@@ -107,7 +96,7 @@ test_usdc_filter() {
 
     OUTPUT=$("$BIN_DIR/token-transfer" -q --start-ledger "$TEST_LEDGER_START" --end-ledger "$TEST_LEDGER_END" | \
              "$BIN_DIR/usdc-filter" -q | \
-             jq -r '.asset.code' | \
+             jq -r '.transfer.assetCode // empty' | \
              sort | uniq)
 
     if [[ "$OUTPUT" == "USDC" ]]; then
@@ -124,7 +113,7 @@ test_amount_filter() {
     # Get all amounts after filtering for min 10M
     MIN_AMOUNT=$("$BIN_DIR/token-transfer" -q --start-ledger "$TEST_LEDGER_START" --end-ledger "$TEST_LEDGER_END" | \
                  "$BIN_DIR/amount-filter" -q --min 10000000 | \
-                 jq -r '.amount' | \
+                 jq -r '.transfer.amount // empty' | \
                  sort -n | \
                  head -1)
 
@@ -142,11 +131,11 @@ test_dedup() {
     # Create test data with duplicates
     TEST_FILE="$TEST_TMP/test_dedup.jsonl"
     cat > "$TEST_FILE" <<EOF
-{"tx_hash":"abc123","amount":"100"}
-{"tx_hash":"def456","amount":"200"}
-{"tx_hash":"abc123","amount":"100"}
-{"tx_hash":"ghi789","amount":"300"}
-{"tx_hash":"def456","amount":"200"}
+{"meta":{"txHash":"abc123"},"amount":"100"}
+{"meta":{"txHash":"def456"},"amount":"200"}
+{"meta":{"txHash":"abc123"},"amount":"100"}
+{"meta":{"txHash":"ghi789"},"amount":"300"}
+{"meta":{"txHash":"def456"},"amount":"200"}
 EOF
 
     UNIQUE_COUNT=$(cat "$TEST_FILE" | "$BIN_DIR/dedup" -q | wc -l)
@@ -195,8 +184,8 @@ test_multi_transform() {
         # Verify all events are USDC and >= 10M
         VALID=true
         while IFS= read -r line; do
-            ASSET=$(echo "$line" | jq -r '.asset.code')
-            AMOUNT=$(echo "$line" | jq -r '.amount')
+            ASSET=$(echo "$line" | jq -r '.transfer.assetCode // empty')
+            AMOUNT=$(echo "$line" | jq -r '.transfer.amount // empty')
 
             if [[ "$ASSET" != "USDC" ]] || [[ $AMOUNT -lt 10000000 ]]; then
                 VALID=false
@@ -229,7 +218,7 @@ test_duckdb_integration() {
         "$BIN_DIR/usdc-filter" -q | \
         duckdb "$DB_FILE" -c "CREATE TABLE transfers AS SELECT * FROM read_json('/dev/stdin')"
 
-    COUNT=$(duckdb "$DB_FILE" -c "SELECT COUNT(*) FROM transfers" -noheader -list)
+    COUNT=$(duckdb -csv -noheader "$DB_FILE" -c "SELECT COUNT(*) FROM transfers")
 
     if [[ $COUNT -gt 0 ]]; then
         pass "DuckDB integration works ($COUNT events imported)"

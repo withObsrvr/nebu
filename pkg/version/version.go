@@ -19,7 +19,7 @@ var Version = "dev"
 // nebuModulePath is the canonical Go module path for the nebu module.
 // It's used in init to pick the correct version out of runtime build
 // info when this package is compiled into a binary whose main module
-// is NOT nebu (e.g., a processor submodule under examples/processors).
+// is NOT nebu (for example, an external processor module).
 const nebuModulePath = "github.com/withObsrvr/nebu"
 
 func init() {
@@ -40,8 +40,8 @@ func init() {
 		return
 	}
 
-	// Case 2: compiled into a submodule (e.g., a processor binary
-	// like token-transfer under examples/processors/). info.Main
+	// Case 2: compiled into another module (e.g., an external
+	// processor binary). info.Main
 	// holds the submodule's own pseudo-version, which is not what
 	// we want — consumers of version.Version (including the
 	// _nebu_version field every origin CLI helper writes into the

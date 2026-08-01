@@ -439,7 +439,7 @@ Edit `Dockerfile` to build additional processors:
 
 ```dockerfile
 # Build token-transfer processor
-WORKDIR /build/nebu/examples/processors/token-transfer
+WORKDIR /build/nebu-processor-registry/processors/token-transfer
 RUN go build -o /processors/token-transfer \
     -ldflags="-s -w" \
     ./cmd/token-transfer
@@ -858,24 +858,17 @@ FROM golang:alpine AS builder
 ```
 
 **Error 2: Module does not contain package**
-```
-main module (github.com/withObsrvr/nebu) does not contain package github.com/withObsrvr/nebu/examples/processors/contract-events/cmd/contract-events
-```
 
-**Fix:** Each processor has its own `go.mod` and must be built from its own directory:
+**Fix:** Published processor sources live in `nebu-processor-registry`. Each processor has its own `go.mod` and must be built from its own directory:
 
 ```dockerfile
-# Correct:
-WORKDIR /build/nebu/examples/processors/contract-events
+WORKDIR /build/nebu-processor-registry/processors/contract-events
 RUN go build -o /processors/contract-events ./cmd/contract-events
-
-# Not:
-RUN go build -o /processors/contract-events ./examples/processors/contract-events/cmd/contract-events
 ```
 
 **Error 3: No Go files in directory**
 ```
-no Go files in /build/nebu/examples/processors/contract-events/cmd
+no Go files in /build/nebu-processor-registry/processors/contract-events/cmd
 ```
 
 **Fix:** The processor path needs an extra nested directory:
@@ -893,7 +886,7 @@ no Go files in /build/nebu/examples/processors/contract-events/cmd
 ERROR: failed to solve: process "/bin/sh -c go build..." did not complete successfully
 ```
 
-**Fix:** Check Dockerfile syntax and ensure nebu repository is accessible:
+**Fix:** Check Dockerfile syntax and ensure the nebu processor registry is accessible:
 
 ```bash
 # Test build locally
@@ -928,15 +921,15 @@ token-transfer --follow | postgres-sink --table token_transfers &
 wait
 ```
 
-### Q: How do I upgrade to a newer version of nebu?
+### Q: How do I upgrade the processors?
 
-**A:** Rebuild and redeploy:
+**A:** Update `REGISTRY_VERSION` in the Dockerfile, then rebuild and redeploy:
+
+```dockerfile
+ARG REGISTRY_VERSION=main
+```
 
 ```bash
-# Edit Dockerfile to use new version
-ARG NEBU_VERSION=v1.2.0  # Change this
-
-# Redeploy
 fly deploy
 ```
 

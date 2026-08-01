@@ -8,6 +8,26 @@ import (
 //go:embed test_registry.yaml
 var testEmbeddedRegistry []byte
 
+func TestBuiltInRegistryContainsOnlyInRepoProcessors(t *testing.T) {
+	reg, err := LoadFromBytes(embeddedRegistry)
+	if err != nil {
+		t.Fatalf("parse built-in registry: %v", err)
+	}
+
+	want := map[string]bool{
+		"transaction-stats":   true,
+		"ledger-change-stats": true,
+	}
+	if len(reg.Processors) != len(want) {
+		t.Fatalf("built-in registry has %d processors, want %d", len(reg.Processors), len(want))
+	}
+	for _, proc := range reg.Processors {
+		if !want[proc.Name] {
+			t.Errorf("built-in registry unexpectedly contains %q", proc.Name)
+		}
+	}
+}
+
 func TestEmbedYAML(t *testing.T) {
 	if len(testEmbeddedRegistry) == 0 {
 		t.Fatal("Embedded YAML is empty")
