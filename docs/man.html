@@ -114,7 +114,7 @@
       </ul>
       <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
         man 1 nebu<br/>
-        <span class="text-tertiary">rev 2026-04-13</span>
+        <span class="text-tertiary">rev 2026-08-03</span>
       </div>
     </nav>
   </aside>
@@ -216,7 +216,7 @@
 
       <div>
         <div class="text-primary-container font-bold mb-2">nebu fetch &lt;start&gt; &lt;end&gt;</div>
-        <p class="mb-2">Fetch raw <span class="font-bold">LedgerCloseMeta</span> XDR for a ledger range and write it to stdout. Decouples fetching from processing — capture once, replay through many processors.</p>
+        <p class="mb-2">Fetch raw <span class="font-bold">LedgerCloseMeta</span> XDR for a ledger range and write it to stdout. RPC and archive modes pass the backend's XDR bytes directly through without decoding and re-encoding each ledger. The output remains compatible with existing processors and saved <code class="text-on-surface">.xdr</code> files.</p>
         <p class="mb-2">Supports two modes:</p>
         <ul class="list-none pl-4 space-y-1 mb-4">
           <li><span class="text-primary-container">--mode rpc</span> <span class="text-secondary">· (default) stream from a Stellar RPC endpoint</span></li>
@@ -456,7 +456,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
   <!-- Masthead footer -->
   <div class="flex justify-between items-baseline border-t border-outline-variant pt-2 mt-12 text-secondary text-sm">
     <span>OBSRVR</span>
-    <span class="hidden md:inline">2026-04-13</span>
+    <span class="hidden md:inline">2026-08-03</span>
     <span>NEBU(1)</span>
   </div>
 
@@ -465,7 +465,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
 <!-- Fixed footer -->
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.8</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.11</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

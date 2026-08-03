@@ -15,7 +15,7 @@ Archive mode enables `nebu fetch` to read Stellar ledger data directly from clou
 
 ## Overview
 
-Archive mode uses Stellar SDK's `BufferedStorageBackend` to read ledger data from cloud storage buckets where Stellar's Galexie service exports ledgers in XDR format.
+Archive mode uses the Stellar SDK's `LedgerStream` API over buffered storage to read ledger data from cloud buckets where Stellar's Galexie service exports XDR. Nebu writes each raw ledger record directly to stdout or `--output`; it does not decode and re-encode `LedgerCloseMeta` during fetch.
 
 ### RPC Mode vs Archive Mode
 

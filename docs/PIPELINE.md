@@ -96,7 +96,7 @@ Token-transfer events are newline-delimited JSON. A transfer event looks like:
 ```json
 {
   "_schema": "nebu.token_transfer.v1",
-  "_nebu_version": "v0.6.2",
+  "_nebu_version": "v0.6.11",
   "meta": {
     "ledgerSequence": 60200000,
     "closedAtUnix": "1765158311",

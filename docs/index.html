@@ -227,7 +227,7 @@ export PATH="$HOME/go/bin:$PATH"</pre>
     <section class="md:col-span-4 bg-primary-container p-8 text-background flex flex-col justify-between">
       <h3 class="font-bold text-[0.6875rem] uppercase mb-4">[ VESSEL_LOG ]</h3>
       <a href="processors.html" class="group">
-        <div class="text-4xl font-bold mb-2 tracking-tighter group-hover:underline">13</div>
+        <div class="text-4xl font-bold mb-2 tracking-tighter group-hover:underline">35</div>
         <div class="text-sm uppercase opacity-80">PUBLISHED_PROCESSORS</div>
       </a>
       <a href="schemas.html" class="mt-8 group">
@@ -521,9 +521,7 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
         <span class="text-tertiary font-bold text-[0.6875rem] uppercase tracking-widest shrink-0 mt-1">[ INFO ]</span>
         <p class="text-secondary leading-relaxed">
           <span class="text-on-surface plain">Separate fetch from process.</span>
-          <span class="text-tertiary">nebu fetch</span> writes raw <span class="text-tertiary">LedgerCloseMeta</span> XDR to stdout — capture a ledger range once,
-          replay it through any number of processors. Great for backfills, regression tests, and
-          comparing two schema versions over the same ledgers.
+          <span class="text-tertiary">nebu fetch</span> passes raw <span class="text-tertiary">LedgerCloseMeta</span> XDR directly from RPC or archive storage to stdout, without a decode/re-encode cycle — capture a ledger range once and replay it through any number of processors. Great for backfills, regression tests, and comparing two schema versions over the same ledgers.
         </p>
       </div>
     </section>
@@ -536,7 +534,7 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
         <button class="copy-btn" data-copy-target="sample-event" type="button">[ COPY ]</button>
         <pre id="sample-event" class="text-sm text-secondary overflow-x-auto leading-relaxed"><span class="text-on-surface">{</span>
   <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.token_transfer.v1"</span>,
-  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.8"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.11"</span>,
   <span class="text-tertiary">"meta"</span>: {
     <span class="text-tertiary">"ledgerSequence"</span>: <span class="text-on-surface">60200000</span>,
     <span class="text-tertiary">"closedAtUnix"</span>:   <span class="text-on-surface">"1765158311"</span>,
@@ -671,7 +669,7 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
 
 <!-- Fixed footer -->
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.8</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.11</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

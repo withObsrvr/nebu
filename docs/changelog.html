@@ -86,6 +86,9 @@
     <nav aria-label="On this page" class="sticky top-24 text-sm">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ VERSIONS ]</div>
       <ul>
+        <li><a href="#v0-6-11"    data-toc="v0-6-11"    class="toc-link">v0.6.11</a></li>
+        <li><a href="#v0-6-10"    data-toc="v0-6-10"    class="toc-link">v0.6.10</a></li>
+        <li><a href="#v0-6-9"     data-toc="v0-6-9"     class="toc-link">v0.6.9</a></li>
         <li><a href="#v0-6-8"     data-toc="v0-6-8"     class="toc-link">v0.6.8</a></li>
         <li><a href="#v0-6-7"     data-toc="v0-6-7"     class="toc-link">v0.6.7</a></li>
         <li><a href="#v0-6-6"     data-toc="v0-6-6"     class="toc-link">v0.6.6</a></li>
@@ -98,7 +101,7 @@
       </ul>
       <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
         release · log<br/>
-        <span class="text-tertiary">rev 2026-07-11</span>
+        <span class="text-tertiary">rev 2026-08-03</span>
       </div>
     </nav>
   </aside>
@@ -124,6 +127,9 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+        <a class="text-tertiary hover:underline" href="#v0-6-11">#v0.6.11</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-10">#v0.6.10</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-9">#v0.6.9</a>
         <a class="text-tertiary hover:underline" href="#v0-6-8">#v0.6.8</a>
         <a class="text-tertiary hover:underline" href="#v0-6-7">#v0.6.7</a>
         <a class="text-tertiary hover:underline" href="#v0-6-6">#v0.6.6</a>
@@ -135,6 +141,49 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.6.11 -->
+    <section id="v0-6-11" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.11</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.11"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Protocol 28:</strong> upgraded <code class="text-on-surface">github.com/stellar/go-stellar-sdk</code> from <code class="text-tertiary">v0.6.0</code> to <code class="text-tertiary">v0.7.0</code> in nebu, the hooks example, and all 34 Go processor modules.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Raw fetch:</strong> RPC and archive modes now use <code class="text-on-surface">LedgerStream.RawLedgers</code> and write backend XDR bytes directly to stdout or <code class="text-on-surface">--output</code>. The decode/re-encode cycle is gone and the existing concatenated-XDR wire format is unchanged.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Processor ownership:</strong> published processors now have one canonical implementation in <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu-processor-registry">nebu-processor-registry</a>; this repository retains only its educational processors.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Build:</strong> <code class="text-on-surface">make build-processors</code> installs published processors from the external registry and builds educational processors locally.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Verification:</strong> added byte-for-byte XDR compatibility, no-decode, stream-error, short-write, range, and RPC-header tests. RPC and public-S3 fetch pipelines were verified through <code class="text-on-surface">token-transfer</code>.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.10 -->
+    <section id="v0-6-10" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.10</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.10"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <code class="text-on-surface">make build</code> now emits the canonical <code class="text-on-surface">bin/nebu</code> executable before compiling the remaining packages.</li>
+        <li><span class="text-primary-container">·</span> Build versions now come from <code class="text-on-surface">git describe --tags --always --dirty</code>, with the <code class="text-on-surface">VERSION</code> override and <code class="text-on-surface">dev</code> fallback preserved.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.9 -->
+    <section id="v0-6-9" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.9</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.9"
+           class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> Added checksum-verified, atomic installation of prebuilt processor binaries, enabling processors written outside Go. Installed binaries must pass <code class="text-on-surface">--describe-json</code>.</li>
+        <li><span class="text-primary-container">·</span> Added the normative, language-agnostic <a class="text-tertiary hover:underline" href="https://github.com/withObsrvr/nebu/blob/main/docs/PROCESSOR_CONTRACT.md"><code>PROCESSOR_CONTRACT.md</code></a>.</li>
+        <li><span class="text-primary-container">·</span> Extended registry v1 entries with an optional <code class="text-on-surface">install</code> block while preserving existing Go-module installation.</li>
+      </ul>
+    </section>
 
     <!-- v0.6.8 -->
     <section id="v0-6-8" class="mb-12">
@@ -453,7 +502,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.8</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.11</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
