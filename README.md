@@ -52,12 +52,15 @@ nebu install token-transfer
 token-transfer --start-ledger 60200000 --end-ledger 60200001
 ```
 
-If you only want to preview output before setting up Go, you can also run the published Docker image:
+The published Docker image contains the nebu CLI. Published processors are released independently from the processor registry and are not bundled into this image:
 
 ```bash
+docker run --rm withobsrvr/nebu:latest --version
 docker run --rm withobsrvr/nebu:latest \
-  token-transfer --start-ledger 60200000 --end-ledger 60200001
+  fetch 60200000 60200001 > ledgers.xdr
 ```
+
+Install processors separately with `nebu install <name>`, or build a pipeline image from the external registry as shown in [`examples/deployments/flyio/`](./examples/deployments/flyio/).
 
 For development inside this repo:
 

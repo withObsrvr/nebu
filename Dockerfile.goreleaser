@@ -1,45 +1,10 @@
-# Dockerfile for nebu with pre-built binaries
-# Used by goreleaser to package all binaries into a single image
+# GoReleaser packages the nebu CLI only. Published processor binaries are
+# released independently from github.com/withObsrvr/nebu-processor-registry.
+FROM gcr.io/distroless/static-debian12:nonroot
 
-FROM alpine:3.19
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/nebu /usr/local/bin/nebu
 
-# Install runtime dependencies
-# - bash: For scripts and pipeline composition
-# - curl: For health checks and RPC testing
-# - ca-certificates: For HTTPS connections
-# - postgresql-client: For psql migrations
-# - jq: For JSON processing in pipelines
-RUN apk add --no-cache \
-    bash \
-    curl \
-    ca-certificates \
-    postgresql-client \
-    jq
-
-# Copy all pre-built binaries from goreleaser context
-COPY nebu /usr/local/bin/
-COPY token-transfer /usr/local/bin/
-COPY contract-events /usr/local/bin/
-COPY contract-invocation /usr/local/bin/
-COPY postgres-sink /usr/local/bin/
-COPY nats-sink /usr/local/bin/
-COPY json-file-sink /usr/local/bin/
-COPY dedup /usr/local/bin/
-COPY amount-filter /usr/local/bin/
-COPY time-window /usr/local/bin/
-COPY usdc-filter /usr/local/bin/
-
-RUN chmod +x /usr/local/bin/*
-
-# Create non-root user for running processors
-RUN addgroup -g 1000 nebu && \
-    adduser -D -u 1000 -G nebu nebu
-
-# Create data directory for any processor state
-RUN mkdir -p /data && chown -R nebu:nebu /data
-
-USER nebu
 WORKDIR /data
-
-# Default to bash shell for interactive use
-CMD ["/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/nebu"]
+CMD ["--help"]

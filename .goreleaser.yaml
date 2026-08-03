@@ -1,5 +1,5 @@
-# GoReleaser configuration for nebu
-# Builds and publishes nebu CLI and all processors
+# GoReleaser configuration for the nebu CLI.
+# Published processors are released independently from nebu-processor-registry.
 
 version: 2
 
@@ -8,7 +8,6 @@ before:
     - go mod download
 
 builds:
-  # Main nebu CLI
   - id: nebu
     main: ./cmd/nebu
     binary: nebu
@@ -25,204 +24,18 @@ builds:
       - -s -w
       - -X github.com/withObsrvr/nebu/pkg/version.Version={{.Version}}
 
-  # Origin processor: token-transfer
-  - id: token-transfer
-    main: ./cmd/token-transfer
-    binary: token-transfer
-    dir: ./examples/processors/token-transfer
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Origin processor: contract-events
-  - id: contract-events
-    main: ./cmd/contract-events
-    binary: contract-events
-    dir: ./examples/processors/contract-events
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Origin processor: contract-invocation
-  - id: contract-invocation
-    main: ./cmd/contract-invocation
-    binary: contract-invocation
-    dir: ./examples/processors/contract-invocation
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Sink processor: postgres-sink
-  - id: postgres-sink
-    main: ./cmd/postgres-sink
-    binary: postgres-sink
-    dir: ./examples/processors/postgres-sink
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Sink processor: nats-sink
-  - id: nats-sink
-    main: ./cmd/nats-sink
-    binary: nats-sink
-    dir: ./examples/processors/nats-sink
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Sink processor: json-file-sink
-  - id: json-file-sink
-    main: ./cmd/json-file-sink
-    binary: json-file-sink
-    dir: ./examples/processors/json-file-sink
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Transform processor: dedup
-  - id: dedup
-    main: ./cmd/dedup
-    binary: dedup
-    dir: ./examples/processors/dedup
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Transform processor: amount-filter
-  - id: amount-filter
-    main: ./cmd/amount-filter
-    binary: amount-filter
-    dir: ./examples/processors/amount-filter
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Transform processor: time-window
-  - id: time-window
-    main: ./cmd/time-window
-    binary: time-window
-    dir: ./examples/processors/time-window
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
-  # Transform processor: usdc-filter
-  - id: usdc-filter
-    main: ./cmd/usdc-filter
-    binary: usdc-filter
-    dir: ./examples/processors/usdc-filter
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-
 archives:
   - id: nebu-cli
-    format: tar.gz
+    formats:
+      - tar.gz
     name_template: "nebu_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    builds:
+    ids:
       - nebu
     files:
       - README.md
 
-  - id: processors
-    format: tar.gz
-    name_template: "nebu-processors_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    builds:
-      - token-transfer
-      - contract-events
-      - contract-invocation
-      - postgres-sink
-      - nats-sink
-      - json-file-sink
-      - dedup
-      - amount-filter
-      - time-window
-      - usdc-filter
-    files:
-      - README.md
-
 checksum:
-  name_template: 'checksums.txt'
+  name_template: checksums.txt
 
 changelog:
   sort: asc
@@ -232,68 +45,24 @@ changelog:
       - '^test:'
       - '^chore:'
 
-dockers:
-  - id: nebu-amd64
-    use: buildx
+dockers_v2:
+  - id: nebu
     ids:
       - nebu
-      - token-transfer
-      - contract-events
-      - contract-invocation
-      - postgres-sink
-      - nats-sink
-      - json-file-sink
-      - dedup
-      - amount-filter
-      - time-window
-      - usdc-filter
-    image_templates:
-      - "withobsrvr/nebu:{{ .Version }}-amd64"
-      - "withobsrvr/nebu:latest-amd64"
     dockerfile: Dockerfile.goreleaser
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-
-  - id: nebu-arm64
-    use: buildx
-    ids:
-      - nebu
-      - token-transfer
-      - contract-events
-      - contract-invocation
-      - postgres-sink
-      - nats-sink
-      - json-file-sink
-      - dedup
-      - amount-filter
-      - time-window
-      - usdc-filter
-    image_templates:
-      - "withobsrvr/nebu:{{ .Version }}-arm64"
-      - "withobsrvr/nebu:latest-arm64"
-    dockerfile: Dockerfile.goreleaser
-    goarch: arm64
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-
-docker_manifests:
-  - name_template: "withobsrvr/nebu:{{ .Version }}"
-    image_templates:
-      - "withobsrvr/nebu:{{ .Version }}-amd64"
-      - "withobsrvr/nebu:{{ .Version }}-arm64"
-
-  - name_template: "withobsrvr/nebu:latest"
-    image_templates:
-      - "withobsrvr/nebu:latest-amd64"
-      - "withobsrvr/nebu:latest-arm64"
+    images:
+      - withobsrvr/nebu
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.version: "{{ .Version }}"
 
 release:
   github:

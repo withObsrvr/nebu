@@ -170,12 +170,13 @@ export PATH="$HOME/go/bin:$PATH"</pre>
         <div data-install-panel="docker" class="hidden">
           <div class="copy-block">
             <button class="copy-btn" data-copy-target="install-docker" type="button">[ COPY ]</button>
-            <pre id="install-docker" class="text-primary-container text-lg break-all whitespace-pre-wrap">docker run --rm withobsrvr/nebu:latest \
-  token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
+            <pre id="install-docker" class="text-primary-container text-lg break-all whitespace-pre-wrap">docker run --rm withobsrvr/nebu:latest --version
+docker run --rm withobsrvr/nebu:latest \
+  fetch 60200000 60200001 &gt; ledgers.xdr</pre>
           </div>
           <div class="mt-4 text-secondary text-sm">
-            Preview events before installing anything locally.
-            <span class="text-tertiary">Ephemeral — good for tire-kicking, not for pipelines.</span>
+            The image contains the nebu CLI only; published processors are installed or packaged separately from the external registry.
+            <span class="text-tertiary">Use it for raw fetches and CLI inspection.</span>
           </div>
         </div>
       </div>

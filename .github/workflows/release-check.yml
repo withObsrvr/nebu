@@ -1,0 +1,71 @@
+name: Release configuration
+
+on:
+  pull_request:
+    paths:
+      - '.goreleaser.yaml'
+      - 'Dockerfile.goreleaser'
+      - '.github/workflows/release-check.yml'
+      - '.github/workflows/release.yml'
+      - 'cmd/nebu/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+  push:
+    branches:
+      - main
+    paths:
+      - '.goreleaser.yaml'
+      - 'Dockerfile.goreleaser'
+      - '.github/workflows/release-check.yml'
+      - '.github/workflows/release.yml'
+      - 'cmd/nebu/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+
+permissions:
+  contents: read
+
+jobs:
+  goreleaser-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.4'
+          cache: true
+
+      - name: Validate GoReleaser configuration
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.17.1
+          args: check
+
+      - name: Build release snapshot
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.17.1
+          args: build --snapshot --clean --single-target --id nebu
+
+      - name: Smoke-test release image
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$(find dist -type f -name nebu -print -quit)"
+          test -n "$binary"
+
+          context="$(mktemp -d)"
+          trap 'rm -rf "$context"' EXIT
+          cp Dockerfile.goreleaser "$context/Dockerfile"
+          mkdir -p "$context/linux/amd64"
+          cp "$binary" "$context/linux/amd64/nebu"
+
+          docker build --platform linux/amd64 --tag nebu:release-smoke "$context"
+          docker run --rm nebu:release-smoke --version
