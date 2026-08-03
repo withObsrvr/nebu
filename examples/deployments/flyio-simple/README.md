@@ -1,8 +1,8 @@
 # Deploy nebu to Fly.io (Simplified)
 
-**Deploy a nebu indexer in 5 minutes using pre-built Docker images.**
+**Deploy a small nebu indexer from the official CLI image and published processor modules.**
 
-This simplified deployment uses the official `withobsrvr/nebu` Docker image with all processors pre-built. No compilation needed - just configure and deploy.
+The official `withobsrvr/nebu` image contains the nebu CLI only. This deployment adds `contract-events` and `postgres-sink` by building their canonical modules from `nebu-processor-registry`.
 
 ---
 
@@ -138,11 +138,11 @@ exec token-transfer \
       --batch-size "$BATCH_SIZE"
 ```
 
-Then update `001_schema.sql` with the appropriate table schema and redeploy.
+Also add `token-transfer` to the `go install` command in `Dockerfile`, update `001_schema.sql` with the appropriate table schema, and redeploy.
 
 ### Add Multiple Sinks
 
-Pipe to multiple destinations using `tee`:
+Add each additional processor to the `go install` command in `Dockerfile`, then pipe to multiple destinations using `tee`:
 
 ```bash
 exec contract-events \
@@ -157,27 +157,13 @@ exec contract-events \
 
 ## How This Works
 
-1. **Dockerfile** pulls the official `withobsrvr/nebu:latest` image from Docker Hub
-2. All processors (contract-events, token-transfer, postgres-sink, etc.) are pre-built in the image
-3. **start.sh** runs migrations and starts the indexer pipeline
-4. Fly.io keeps the process running and restarts it on failure
-5. Data persists in your PostgreSQL database
+1. **Dockerfile** builds the required processor modules from `nebu-processor-registry`.
+2. The runtime stage starts from the official CLI-only `withobsrvr/nebu:latest` image.
+3. **start.sh** runs migrations and starts the indexer pipeline.
+4. Fly.io keeps the process running and restarts it on failure.
+5. Data persists in your PostgreSQL database.
 
-**No compilation, no build time - just configure and run.**
-
----
-
-## Comparison: Before vs After
-
-**Before (build from source):**
-- 98-line Dockerfile with multi-stage Go compilation
-- 5+ minutes to build processors from source
-- Complex build orchestration with separate go.mod files
-
-**After (pre-built image):**
-- 10-line Dockerfile pulling published image
-- 30 seconds to pull image
-- Zero build complexity
+Processor compilation happens during `fly deploy`; processors are not bundled into the base nebu image.
 
 ---
 
@@ -200,14 +186,7 @@ For production workloads with advanced needs, see the [full deployment example](
 
 ### Deployment fails to pull image
 
-The `withobsrvr/nebu` image is published on Docker Hub when a new release is tagged. If the image doesn't exist yet, you can build it locally using goreleaser:
-
-```bash
-cd /path/to/nebu
-goreleaser release --snapshot --clean
-docker tag withobsrvr/nebu:latest-amd64 withobsrvr/nebu:latest
-docker push withobsrvr/nebu:latest
-```
+The CLI-only `withobsrvr/nebu` image is published on Docker Hub when a new nebu release is tagged. If the image is unavailable, verify the tag on the [nebu Docker Hub repository](https://hub.docker.com/r/withobsrvr/nebu) before deploying.
 
 ### Database connection errors
 
@@ -256,6 +235,6 @@ Total: **~$10-25/month** for a basic indexer.
 - Customize the pipeline in `start.sh`
 - Add your own processors
 - Scale up VM resources if needed: `fly scale vm ...`
-- Explore other nebu processors: `docker run withobsrvr/nebu:latest ls /usr/local/bin`
+- Explore other processors in [`nebu-processor-registry`](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors) and add the required modules to the Dockerfile
 
 For questions or issues, see the [main nebu docs](https://github.com/withObsrvr/nebu).

@@ -8,6 +8,7 @@ All notable changes to nebu are documented here. For full release artifacts, see
 - Raw fetch: `nebu fetch` now uses the SDK's `LedgerStream.RawLedgers` path for both RPC and archive mode. Ledger XDR is written directly to stdout or `--output` without decoding into `LedgerCloseMeta` and marshaling it again; the existing concatenated-XDR wire format is unchanged.
 - Processor ownership: removed duplicated published processor implementations from nebu. The external processor registry is now their canonical source; the two in-repo educational processors remain.
 - Build: `make build-processors` now installs published processors from `github.com/withObsrvr/nebu-processor-registry` and builds the educational processors locally.
+- Release packaging: GoReleaser archives and the `withobsrvr/nebu` container now contain the nebu CLI only. Published processors release independently from `nebu-processor-registry`.
 - Testing: added byte-for-byte XDR compatibility, no-decode, stream-error, short-write, range, and RPC-header tests for raw fetch. Verified RPC and public-S3 fetch pipelines through `token-transfer`; all nebu and registry processor tests and vet checks pass.
 
 ## v0.6.10

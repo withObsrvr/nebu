@@ -6,10 +6,7 @@ This guide shows you how to run a nebu indexer on [Fly.io](https://fly.io) with 
 
 > **🚀 Looking for something simpler?**
 >
-> If you're primarily using nebu for development and data exploration, check out the **[simplified deployment](../flyio-simple/)** which uses pre-built Docker images. It has:
-> - ✨ 90% less build time (pull image vs compile from source)
-> - ✨ 10-line Dockerfile instead of 98 lines
-> - ✨ 5-minute setup with zero build complexity
+> If you're primarily using nebu for development and data exploration, check out the **[simplified deployment](../flyio-simple/)**. It builds only `contract-events` and `postgres-sink` from the external processor registry on top of the official CLI image, with fewer operational scripts.
 >
 > This guide is for production workloads that need backfill orchestration, complex filtering, and advanced monitoring.
 

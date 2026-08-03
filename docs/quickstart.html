@@ -195,10 +195,11 @@ nebu --version</pre>
                 <span class="code-head__lang">bash</span>
                 <button class="copy-btn copy-btn--inline" data-copy-target="qi-docker" type="button">[ COPY ]</button>
               </div>
-              <pre id="qi-docker" class="overflow-x-auto p-3 text-sm">docker run --rm withobsrvr/nebu:latest \
-  token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
+              <pre id="qi-docker" class="overflow-x-auto p-3 text-sm">docker run --rm withobsrvr/nebu:latest --version
+docker run --rm withobsrvr/nebu:latest \
+  fetch 60200000 60200001 &gt; ledgers.xdr</pre>
             </div>
-            <p class="mt-3 text-secondary text-sm">Ephemeral — tire-kicking only. Not recommended for pipelines.</p>
+            <p class="mt-3 text-secondary text-sm">The image contains the nebu CLI only. Install or package published processors separately from the external registry.</p>
           </div>
         </div>
       </div>

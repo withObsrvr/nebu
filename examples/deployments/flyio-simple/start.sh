@@ -5,7 +5,7 @@ set -euo pipefail
 # nebu Indexer Startup Script (Simplified)
 # =============================================================================
 # This script runs a contract events indexer pipeline on Fly.io
-# All processors are pre-built and available in PATH
+# Required processors are built from nebu-processor-registry by the Dockerfile.
 
 echo "========================================"
 echo "Starting nebu Indexer"
@@ -49,7 +49,7 @@ echo "Starting indexer pipeline..."
 echo "  contract-events | postgres-sink"
 echo "========================================"
 
-# Start pipeline - processors are already in PATH from Docker image
+# Start pipeline - processors are copied into PATH by this deployment image.
 exec contract-events \
   --start-ledger "$START_LEDGER" \
   --rpc-url "$RPC_URL" \
