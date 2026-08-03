@@ -23,7 +23,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Latest release:** [v0.6.8](https://github.com/withObsrvr/nebu/releases/tag/v0.6.8)
+- **Latest release:** [v0.6.11](https://github.com/withObsrvr/nebu/releases/tag/v0.6.11)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
 **Processors:**
@@ -72,7 +72,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.6.2","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.6.11","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -604,7 +604,7 @@ token-transfer \
 
 ### Fetch ledgers (without processing)
 
-Use `nebu fetch` to download raw ledger XDR that can be piped to processors:
+Use `nebu fetch` to download raw ledger XDR that can be piped to processors. In v0.6.11 and later, RPC and archive fetches write the backend's XDR bytes directly without decoding and re-encoding each ledger; the wire format remains compatible with existing processors and saved `.xdr` files.
 
 ```bash
 # Fetch bounded range

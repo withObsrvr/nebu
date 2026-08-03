@@ -7,10 +7,10 @@ import "runtime/debug"
 //
 // Set at build time via ldflags (see Makefile):
 //
-//	go build -ldflags "-X github.com/withObsrvr/nebu/pkg/version.Version=0.6.3"
+//	go build -ldflags "-X github.com/withObsrvr/nebu/pkg/version.Version=v0.6.11"
 //
 // When built without ldflags (e.g., plain `go install
-// github.com/withObsrvr/nebu/cmd/nebu@v0.6.3`), the init function below
+// github.com/withObsrvr/nebu/cmd/nebu@v0.6.11`), the init function below
 // upgrades the default "dev" string to the module version recorded in
 // the binary by the Go toolchain — so `nebu --version` shows a useful
 // value regardless of how the binary was produced.

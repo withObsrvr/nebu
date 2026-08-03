@@ -2,6 +2,25 @@
 
 All notable changes to nebu are documented here. For full release artifacts, see [GitHub Releases](https://github.com/withObsrvr/nebu/releases).
 
+## v0.6.11
+
+- Protocol 28: upgraded `github.com/stellar/go-stellar-sdk` from v0.6.0 to v0.7.0 in nebu, the hooks example, and all 34 Go processor modules in `nebu-processor-registry`.
+- Raw fetch: `nebu fetch` now uses the SDK's `LedgerStream.RawLedgers` path for both RPC and archive mode. Ledger XDR is written directly to stdout or `--output` without decoding into `LedgerCloseMeta` and marshaling it again; the existing concatenated-XDR wire format is unchanged.
+- Processor ownership: removed duplicated published processor implementations from nebu. The external processor registry is now their canonical source; the two in-repo educational processors remain.
+- Build: `make build-processors` now installs published processors from `github.com/withObsrvr/nebu-processor-registry` and builds the educational processors locally.
+- Testing: added byte-for-byte XDR compatibility, no-decode, stream-error, short-write, range, and RPC-header tests for raw fetch. Verified RPC and public-S3 fetch pipelines through `token-transfer`; all nebu and registry processor tests and vet checks pass.
+
+## v0.6.10
+
+- `make build` now emits the canonical `bin/nebu` executable before compiling the remaining packages.
+- Build versions are derived from `git describe --tags --always --dirty` instead of a stale hardcoded value, with `VERSION` override and `dev` fallback preserved.
+
+## v0.6.9
+
+- Added checksum-verified installation of prebuilt processor binaries, enabling processors written outside Go. Binary installs are atomic and gated by a successful `--describe-json` check.
+- Added the normative, language-agnostic [`docs/PROCESSOR_CONTRACT.md`](docs/PROCESSOR_CONTRACT.md).
+- Extended registry v1 entries with an optional `install` block while preserving compatibility with existing Go-module processors.
+
 ## v0.6.8
 
 - Dependencies: `github.com/stellar/go-stellar-sdk` v0.5.0 → v0.6.0 (with the matching `go-xdr` bump) and duckdb 1.5.1 → 1.5.4 in `flake.nix`.

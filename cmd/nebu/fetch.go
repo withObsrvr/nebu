@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,9 +15,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
-	"github.com/stellar/go-stellar-sdk/xdr"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
-	"github.com/withObsrvr/nebu/pkg/source/rpc"
 	"github.com/withObsrvr/nebu/pkg/source/storage"
 )
 
@@ -253,80 +254,96 @@ Archive Mode Examples:
 	return cmd
 }
 
-func fetchLedgersRPC(ctx context.Context, rpcURL, networkPass string, start, end uint32, outputFile, authHeader string) error {
-	// Create RPC source with optional auth headers
-	var src *rpc.LedgerSource
-	var err error
+// fetchHeaderTransport adds fetch-specific headers without mutating requests
+// owned by the Stellar RPC client.
+type fetchHeaderTransport struct {
+	base    http.RoundTripper
+	headers map[string]string
+}
 
+func (t *fetchHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	reqCopy := req.Clone(req.Context())
+	for key, value := range t.headers {
+		reqCopy.Header.Set(key, value)
+	}
+	return t.base.RoundTrip(reqCopy)
+}
+
+func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, outputFile, authHeader string) error {
+	if rpcURL == "" {
+		return nebuErrors.FailedToCreateSource("RPC", errors.New("rpcURL cannot be empty"))
+	}
+
+	options := ledgerbackend.RPCLedgerBackendOptions{RPCServerURL: rpcURL}
 	if authHeader != "" {
-		headers := map[string]string{"Authorization": authHeader}
-		src, err = rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
-	} else {
-		src, err = rpc.NewLedgerSource(rpcURL)
+		options.HttpClient = &http.Client{Transport: &fetchHeaderTransport{
+			base:    http.DefaultTransport,
+			headers: map[string]string{"Authorization": authHeader},
+		}}
 	}
 
+	stream := ledgerbackend.NewRPCStream(options, nil)
+	return fetchRawLedgers(ctx, stream, start, end, outputFile)
+}
+
+func fetchLedgersArchive(
+	ctx context.Context,
+	datastoreType, bucketPath, region string,
+	bufferSize, numWorkers uint32,
+	start, end uint32,
+	outputFile string,
+) error {
+	datastoreConfig := datastore.DataStoreConfig{
+		Type: datastoreType,
+		Params: map[string]string{
+			"destination_bucket_path": bucketPath,
+		},
+		Schema: storage.DefaultDataStoreSchema(),
+	}
+	if datastoreType == "S3" {
+		datastoreConfig.Params["region"] = region
+	}
+
+	bufferConfig := ledgerbackend.BufferedStorageBackendConfig{
+		BufferSize: bufferSize,
+		NumWorkers: numWorkers,
+		RetryLimit: 3,
+		RetryWait:  5 * time.Second,
+	}
+
+	stream := ledgerbackend.NewBufferedStorageStream(bufferConfig, datastoreConfig, nil)
+	return fetchRawLedgers(ctx, stream, start, end, outputFile)
+}
+
+func fetchRawLedgers(
+	ctx context.Context,
+	stream ledgerbackend.LedgerStream,
+	start, end uint32,
+	outputFile string,
+) error {
+	ledgerRange, err := rawLedgerRange(start, end)
 	if err != nil {
-		return nebuErrors.FailedToCreateSource("RPC", err)
+		return err
 	}
-	defer src.Close()
 
-	// Determine output destination
-	var output *os.File
+	var output io.Writer = os.Stdout
+	var outputFileHandle *os.File
 	if outputFile != "" {
-		f, err := os.Create(outputFile)
+		outputFileHandle, err = os.Create(outputFile)
 		if err != nil {
 			return nebuErrors.FailedToCreateFile(outputFile, err)
 		}
-		defer f.Close()
-		output = f
-	} else {
-		output = os.Stdout
+		output = outputFileHandle
 	}
 
-	// Stream ledgers
-	ledgerCh := make(chan xdr.LedgerCloseMeta, 128)
-	errCh := make(chan error, 1)
-
-	go func() {
-		err := src.Stream(ctx, start, end, ledgerCh)
-		if err != nil && err != context.Canceled {
-			errCh <- err
-		}
-		close(errCh)
-	}()
-
-	ledgerCount := 0
-	for ledger := range ledgerCh {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		// Write XDR to output using xdr.Marshal (includes framing)
-		_, err := xdr.Marshal(output, ledger)
-		if err != nil {
-			return fmt.Errorf("failed to marshal ledger %d: %w", ledger.LedgerSequence(), err)
-		}
-
-		ledgerCount++
-		// For unbounded streaming, report progress more frequently
-		reportInterval := 10
-		if end == 0 {
-			reportInterval = 100 // Report every 100 ledgers for unbounded
-		}
-		if ledgerCount%reportInterval == 0 {
-			if end == 0 {
-				logInfo("Streaming... fetched %d ledgers (current: %d)", ledgerCount, ledger.LedgerSequence())
-			} else {
-				logInfo("Fetched %d ledgers...", ledgerCount)
-			}
+	ledgerCount, streamErr := writeRawLedgers(ctx, stream, ledgerRange, output, start, end)
+	if outputFileHandle != nil {
+		if closeErr := outputFileHandle.Close(); closeErr != nil {
+			streamErr = errors.Join(streamErr, fmt.Errorf("failed to close output file %q: %w", outputFile, closeErr))
 		}
 	}
-
-	// Check for stream errors
-	if err := <-errCh; err != nil {
-		return nebuErrors.StreamError(err)
+	if streamErr != nil {
+		return streamErr
 	}
 
 	if end == 0 {
@@ -337,105 +354,67 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, networkPass string, start, end
 	return nil
 }
 
-func fetchLedgersArchive(
+func rawLedgerRange(start, end uint32) (ledgerbackend.Range, error) {
+	if start == 0 {
+		return ledgerbackend.Range{}, errors.New("start ledger must be greater than zero")
+	}
+	if end > 0 && start > end {
+		return ledgerbackend.Range{}, fmt.Errorf("invalid ledger range: start %d exceeds end %d", start, end)
+	}
+	if end == 0 {
+		return ledgerbackend.UnboundedRange(start), nil
+	}
+	return ledgerbackend.BoundedRange(start, end), nil
+}
+
+func writeRawLedgers(
 	ctx context.Context,
-	datastoreType, bucketPath, region string,
-	bufferSize, numWorkers uint32,
+	stream ledgerbackend.LedgerStream,
+	ledgerRange ledgerbackend.Range,
+	output io.Writer,
 	start, end uint32,
-	outputFile string,
-) error {
-	// Build datastore configuration
-	datastoreConfig := datastore.DataStoreConfig{
-		Type: datastoreType,
-		Params: map[string]string{
-			"destination_bucket_path": bucketPath,
-		},
-		Schema: storage.DefaultDataStoreSchema(),
-	}
-
-	// Add region for S3
-	if datastoreType == "S3" {
-		datastoreConfig.Params["region"] = region
-	}
-
-	// Build buffer configuration
-	bufferConfig := ledgerbackend.BufferedStorageBackendConfig{
-		BufferSize: bufferSize,
-		NumWorkers: numWorkers,
-		RetryLimit: 3,
-		RetryWait:  5 * time.Second,
-	}
-
-	// Create storage source
-	src, err := storage.NewLedgerSource(datastoreConfig, bufferConfig)
-	if err != nil {
-		return nebuErrors.FailedToCreateSource("storage", err)
-	}
-	defer src.Close()
-
-	// Determine output destination
-	var output *os.File
-	if outputFile != "" {
-		f, err := os.Create(outputFile)
-		if err != nil {
-			return nebuErrors.FailedToCreateFile(outputFile, err)
-		}
-		defer f.Close()
-		output = f
-	} else {
-		output = os.Stdout
-	}
-
-	// Stream ledgers
-	ledgerCh := make(chan xdr.LedgerCloseMeta, 128)
-	errCh := make(chan error, 1)
-
-	go func() {
-		err := src.Stream(ctx, start, end, ledgerCh)
-		if err != nil && err != context.Canceled {
-			errCh <- err
-		}
-		close(errCh)
-	}()
-
+) (int, error) {
 	ledgerCount := 0
-	for ledger := range ledgerCh {
+	reportInterval := 10
+	if end == 0 {
+		reportInterval = 100
+	}
+
+	for raw, streamErr := range stream.RawLedgers(ctx, ledgerRange) {
+		if streamErr != nil {
+			if end == 0 && errors.Is(streamErr, context.Canceled) {
+				return ledgerCount, nil
+			}
+			return ledgerCount, nebuErrors.StreamError(streamErr)
+		}
+
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			if end == 0 {
+				return ledgerCount, nil
+			}
+			return ledgerCount, ctx.Err()
 		default:
 		}
 
-		// Write XDR to output using xdr.Marshal (includes framing)
-		_, err := xdr.Marshal(output, ledger)
+		sequence := uint64(start) + uint64(ledgerCount)
+		n, err := output.Write(raw)
 		if err != nil {
-			return fmt.Errorf("failed to marshal ledger %d: %w", ledger.LedgerSequence(), err)
+			return ledgerCount, fmt.Errorf("failed to write ledger %d: %w", sequence, err)
+		}
+		if n != len(raw) {
+			return ledgerCount, fmt.Errorf("failed to write ledger %d: wrote %d of %d bytes: %w", sequence, n, len(raw), io.ErrShortWrite)
 		}
 
 		ledgerCount++
-		// For unbounded streaming, report progress more frequently
-		reportInterval := 10
-		if end == 0 {
-			reportInterval = 100 // Report every 100 ledgers for unbounded
-		}
 		if ledgerCount%reportInterval == 0 {
 			if end == 0 {
-				logInfo("Streaming... fetched %d ledgers (current: %d)", ledgerCount, ledger.LedgerSequence())
+				logInfo("Streaming... fetched %d ledgers (current: %d)", ledgerCount, sequence)
 			} else {
 				logInfo("Fetched %d ledgers...", ledgerCount)
 			}
 		}
 	}
 
-	// Check for stream errors
-	if err := <-errCh; err != nil {
-		return nebuErrors.StreamError(err)
-	}
-
-	if end == 0 {
-		logInfo("Stopped streaming at %d ledgers", ledgerCount)
-	} else {
-		logInfo("Fetched %d ledgers", ledgerCount)
-	}
-	return nil
+	return ledgerCount, nil
 }
