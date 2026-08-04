@@ -6,7 +6,7 @@ replace github.com/withObsrvr/nebu => ../..
 
 require (
 	github.com/prometheus/client_golang v1.23.2
-	github.com/stellar/go-stellar-sdk v0.7.0
+	github.com/stellar/go-stellar-sdk v0.7.1
 	github.com/withObsrvr/nebu v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.43.0
