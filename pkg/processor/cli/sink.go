@@ -57,6 +57,7 @@ func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)
 	}
 
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	attachProgramStatus(rootCmd, config.Name, &quietMode)
 	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 
 	// Allow the sink to add custom flags

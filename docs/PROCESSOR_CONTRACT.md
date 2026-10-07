@@ -127,6 +127,26 @@ minor releases.
   (e.g. `NEBU_RPC_AUTH` for origins). Document every env var the
   processor reads.
 
+### Program status
+
+Processors SHOULD report their lifecycle with the Program Status Protocol
+(OSC 7501) on stderr. Status is metadata for the surrounding terminal; it
+MUST NOT be written to the NDJSON data stream on stdout.
+
+- `working` means processing has started.
+- `done` means a bounded run or input stream completed successfully.
+- `error` means processing stopped with an unrecoverable error.
+- `idle` means the user canceled the processor.
+- `blocked` SHOULD identify waits for permission, a question, or
+  authentication when the processor can distinguish them.
+
+Processors SHOULD implement `--program-status=auto|always|never` and the
+equivalent `NEBU_PROGRAM_STATUS` default. `auto` emits only when stderr is a
+terminal, `never` disables reports, and `always` supports compatible terminals
+behind an intermediate pipe. `--quiet` suppresses `auto` reports; an explicit
+`always` overrides quiet mode. `--describe-json` MUST remain JSON-only and MUST
+NOT emit status reports.
+
 ## 5. Distribution and registry
 
 A community processor is published by adding a directory with a

@@ -744,6 +744,19 @@ token-transfer --quiet --start-ledger 60200000 --end-ledger 60200100 | jq
 nebu fetch --quiet 60200000 60200100 | token-transfer --quiet | jq
 ```
 
+**Terminal program status:**
+
+`nebu` reports `working`, `done`, and `error` states using the Program Status
+Protocol (OSC 7501). Status reports go to the diagnostic stream (`stderr`), so
+ledger output on `stdout` remains safe to pipe or redirect.
+
+The default `--program-status=auto` emits reports only when `stderr` is a
+terminal. Use `--program-status=always` when a compatible terminal or
+multiplexer is behind an intermediate pipe, or `--program-status=never` to
+disable reports. `NEBU_PROGRAM_STATUS` sets the same default. `--quiet`
+suppresses automatic reports; an explicit `--program-status=always` overrides
+quiet mode.
+
 ### Build a Pipeline
 
 Stream events from origin processors into sink processors using Unix pipes:
