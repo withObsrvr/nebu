@@ -49,6 +49,7 @@ type TransformFunc func(event map[string]interface{}) map[string]interface{}
 // Transform processors read JSON events from stdin and write transformed JSON to stdout.
 func RunTransformCLI(config TransformConfig, transformFunc TransformFunc, flags func(*cobra.Command)) {
 	var quietMode bool
+	var status *commandStatus
 
 	// Build help text
 	longHelp := buildTransformLongHelp(config)
@@ -59,12 +60,12 @@ func RunTransformCLI(config TransformConfig, transformFunc TransformFunc, flags 
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTransform(transformFunc, quietMode)
+			return runTransform(transformFunc, quietMode, status)
 		},
 	}
 
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
-	attachProgramStatus(rootCmd, config.Name, &quietMode)
+	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 
 	// Allow the transform to add custom flags
@@ -83,12 +84,13 @@ func RunTransformCLI(config TransformConfig, transformFunc TransformFunc, flags 
 	}
 }
 
-func runTransform(transformFunc TransformFunc, quietMode bool) error {
+func runTransform(transformFunc TransformFunc, quietMode bool, status *commandStatus) error {
 	// Handle Ctrl+C
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
+		status.cancel()
 		if !quietMode {
 			fmt.Fprintln(os.Stderr, "\nShutting down...")
 		}

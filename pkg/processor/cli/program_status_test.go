@@ -67,3 +67,21 @@ func TestCommandStatusRejectsInvalidMode(t *testing.T) {
 	require.ErrorContains(t, err, "expected auto, always, or never")
 	assert.False(t, called)
 }
+
+func TestCommandStatusCancellationDoesNotReportDone(t *testing.T) {
+	quiet := false
+	var status *commandStatus
+	cmd := &cobra.Command{Use: "test", RunE: func(*cobra.Command, []string) error {
+		status.cancel()
+		return nil
+	}}
+	status = attachProgramStatus(cmd, "test-app", &quiet)
+	status.mode = "always"
+	var output bytes.Buffer
+	status.writer = &output
+
+	require.NoError(t, cmd.Execute())
+	assert.Contains(t, output.String(), "state=working")
+	assert.Contains(t, output.String(), "state=idle")
+	assert.NotContains(t, output.String(), "state=done")
+}

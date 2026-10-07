@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/spf13/cobra"
@@ -21,6 +22,7 @@ type commandStatus struct {
 	quiet      *bool
 	writer     io.Writer
 	isTerminal func() bool
+	canceled   atomic.Bool
 }
 
 func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandStatus {
@@ -43,6 +45,8 @@ func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandSt
 		status.write(programstatus.Working, "Running "+app)
 		err := run(cmd, args)
 		switch {
+		case status.canceled.Load():
+			// cancel reports idle immediately, before forced-exit timers can fire.
 		case err == nil:
 			status.write(programstatus.Done, app+" finished")
 		case errors.Is(err, context.Canceled):
@@ -53,6 +57,12 @@ func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandSt
 		return err
 	}
 	return status
+}
+
+func (s *commandStatus) cancel() {
+	if s.canceled.CompareAndSwap(false, true) {
+		s.write(programstatus.Idle, s.app+" canceled")
+	}
 }
 
 func programStatusDefault() string {

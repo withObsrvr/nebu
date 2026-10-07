@@ -37,6 +37,7 @@ func RunProtoOriginCLI[T proto.Message](
 	config OriginConfig,
 	createProcessor func(networkPass string) ProtoOriginProcessor[T],
 ) {
+	var status *commandStatus
 	var (
 		rpcURL      string
 		startLedger uint32
@@ -101,6 +102,7 @@ func RunProtoOriginCLI[T proto.Message](
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				<-sigCh
+				status.cancel()
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "\nShutting down...")
 				}
@@ -210,7 +212,7 @@ func RunProtoOriginCLI[T proto.Message](
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence (0 for unbounded)")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
-	attachProgramStatus(rootCmd, config.Name, &quietMode)
+	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 
 	// Short-circuit into the describe-json protocol before cobra

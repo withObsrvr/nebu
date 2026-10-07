@@ -42,6 +42,7 @@ type SinkFunc func(event map[string]interface{}) error
 // Sink processors read JSON events from stdin and produce side effects (write to DB, files, etc).
 func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)) {
 	var quietMode bool
+	var status *commandStatus
 
 	// Build help text
 	longHelp := buildSinkLongHelp(config)
@@ -52,12 +53,12 @@ func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSink(sinkFunc, quietMode)
+			return runSink(sinkFunc, quietMode, status)
 		},
 	}
 
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
-	attachProgramStatus(rootCmd, config.Name, &quietMode)
+	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 
 	// Allow the sink to add custom flags
@@ -76,12 +77,13 @@ func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)
 	}
 }
 
-func runSink(sinkFunc SinkFunc, quietMode bool) error {
+func runSink(sinkFunc SinkFunc, quietMode bool, status *commandStatus) error {
 	// Handle Ctrl+C
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
+		status.cancel()
 		if !quietMode {
 			fmt.Fprintln(os.Stderr, "\nShutting down...")
 		}
