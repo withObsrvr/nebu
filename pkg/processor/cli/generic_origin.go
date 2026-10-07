@@ -35,6 +35,7 @@ func RunGenericOriginCLI[T any](
 	config OriginConfig,
 	createProcessor func(networkPass string) GenericOriginProcessor[T],
 ) {
+	var status *commandStatus
 	var (
 		rpcURL      string
 		startLedger uint32
@@ -121,6 +122,7 @@ Examples:
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				<-sigCh
+				status.cancel()
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "\nShutting down...")
 				}
@@ -231,6 +233,7 @@ Examples:
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence (0 for unbounded)")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

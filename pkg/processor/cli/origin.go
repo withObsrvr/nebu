@@ -78,6 +78,7 @@ type TokenTransferOriginProcessor interface {
 // RunOriginCLI creates and executes a CLI for an origin processor.
 // This provides a full CLI experience with flags, help text, and all input modes.
 func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) TokenTransferOriginProcessor) {
+	var status *commandStatus
 	var (
 		rpcURL      string
 		startLedger uint32
@@ -141,6 +142,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				<-sigCh
+				status.cancel()
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "\nShutting down...")
 				}
@@ -225,6 +227,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
