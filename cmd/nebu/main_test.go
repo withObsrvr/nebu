@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -16,6 +17,14 @@ func TestValidateProgramStatusMode(t *testing.T) {
 		})
 	}
 	require.ErrorContains(t, validateProgramStatusMode("sometimes"), "expected auto, always, or never")
+}
+
+func TestTerminalFileRejectsNonTerminalCharacterDevice(t *testing.T) {
+	devNull, err := os.Open(os.DevNull)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, devNull.Close()) })
+
+	assert.False(t, terminalFile(devNull))
 }
 
 func TestOneLineProducesValidProtocolText(t *testing.T) {

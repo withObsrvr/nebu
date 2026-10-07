@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -38,6 +39,7 @@ func TestCommandStatusLifecycle(t *testing.T) {
 			var output bytes.Buffer
 			status.writer = &output
 
+			cmd.SetArgs([]string{})
 			err := cmd.Execute()
 			if tt.runErr != nil {
 				require.ErrorIs(t, err, tt.runErr)
@@ -63,6 +65,7 @@ func TestCommandStatusRejectsInvalidMode(t *testing.T) {
 	status := attachProgramStatus(cmd, "test-app", &quiet)
 	status.mode = "sometimes"
 
+	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	require.ErrorContains(t, err, "expected auto, always, or never")
 	assert.False(t, called)
@@ -80,8 +83,17 @@ func TestCommandStatusCancellationDoesNotReportDone(t *testing.T) {
 	var output bytes.Buffer
 	status.writer = &output
 
+	cmd.SetArgs([]string{})
 	require.NoError(t, cmd.Execute())
 	assert.Contains(t, output.String(), "state=working")
 	assert.Contains(t, output.String(), "state=idle")
 	assert.NotContains(t, output.String(), "state=done")
+}
+
+func TestTerminalFileRejectsNonTerminalCharacterDevice(t *testing.T) {
+	devNull, err := os.Open(os.DevNull)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, devNull.Close()) })
+
+	assert.False(t, terminalFile(devNull))
 }

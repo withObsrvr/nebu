@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/withObsrvr/nebu/pkg/programstatus"
+	"golang.org/x/term"
 )
 
 const programStatusFlagName = "program-status"
@@ -27,13 +28,10 @@ type commandStatus struct {
 
 func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandStatus {
 	status := &commandStatus{
-		app:    app,
-		quiet:  quiet,
-		writer: os.Stderr,
-		isTerminal: func() bool {
-			info, err := os.Stderr.Stat()
-			return err == nil && info.Mode()&os.ModeCharDevice != 0 && os.Getenv("TERM") != "dumb"
-		},
+		app:        app,
+		quiet:      quiet,
+		writer:     os.Stderr,
+		isTerminal: func() bool { return terminalFile(os.Stderr) },
 	}
 	cmd.Flags().StringVar(&status.mode, programStatusFlagName, programStatusDefault(), "program status reporting: auto, always, or never (or set NEBU_PROGRAM_STATUS)")
 
@@ -57,6 +55,10 @@ func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandSt
 		return err
 	}
 	return status
+}
+
+func terminalFile(file *os.File) bool {
+	return os.Getenv("TERM") != "dumb" && term.IsTerminal(int(file.Fd()))
 }
 
 func (s *commandStatus) cancel() {

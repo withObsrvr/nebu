@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/withObsrvr/nebu/pkg/programstatus"
 	"github.com/withObsrvr/nebu/pkg/version"
+	"golang.org/x/term"
 )
 
 var (
@@ -122,8 +123,11 @@ func programStatusEnabled() bool {
 	if programStatusMode == "always" {
 		return true
 	}
-	info, err := os.Stderr.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0 && os.Getenv("TERM") != "dumb"
+	return terminalFile(os.Stderr)
+}
+
+func terminalFile(file *os.File) bool {
+	return os.Getenv("TERM") != "dumb" && term.IsTerminal(int(file.Fd()))
 }
 
 func writeProgramStatus(state programstatus.State, message string) {
