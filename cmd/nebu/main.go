@@ -74,15 +74,19 @@ ENVIRONMENT:
 			if err := validateProgramStatusMode(programStatusMode); err != nil {
 				return err
 			}
+			if err := openStatusStream(cmd); err != nil {
+				return err
+			}
 			programStatusStarted = true
 			writeProgramStatus(programstatus.Working, "Running "+cmd.CommandPath())
-			return nil
+			return writeStructuredStatus(programstatus.Working, "Running "+cmd.CommandPath())
 		},
 	}
 
 	// Add global flags
 	rootCmd.PersistentFlags().BoolVarP(&quietMode, "quiet", "q", false, "suppress non-error output")
 	rootCmd.PersistentFlags().StringVar(&programStatusMode, "program-status", programStatusDefault(), "program status reporting: auto, always, or never (or set NEBU_PROGRAM_STATUS)")
+	rootCmd.PersistentFlags().StringVar(&statusFilePath, "status-file", statusFileDefault(), "write nebu.status.v1 NDJSON updates to a dedicated file (or set NEBU_STATUS_FILE)")
 
 	// Add subcommands
 	rootCmd.AddCommand(newFetchCmd())
@@ -96,7 +100,9 @@ ENVIRONMENT:
 }
 
 func execute(rootCmd *cobra.Command) int {
-	if err := rootCmd.Execute(); err != nil {
+	err := rootCmd.Execute()
+	err = finishStatusStream(err)
+	if err != nil {
 		writeProgramStatus(programstatus.Error, oneLine(err.Error()))
 		fmt.Fprintln(os.Stderr, err)
 		return nebuErrors.ExitCode(err)

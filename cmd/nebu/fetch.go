@@ -475,6 +475,9 @@ func writeRawLedgersWithCheckpoint(
 		}
 
 		ledgerCount++
+		if err := writeStructuredProgress(uint32(sequence), end); err != nil {
+			return ledgerCount, fmt.Errorf("write status after ledger %d: %w", sequence, err)
+		}
 		if checkpoint.willPersist(false) && syncOutput != nil {
 			if err := syncOutput(); err != nil {
 				return ledgerCount, fmt.Errorf("sync output before checkpoint after ledger %d: %w", sequence, err)

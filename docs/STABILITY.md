@@ -12,6 +12,7 @@ This document says what is and is not covered by that commitment. If you're writ
 | **`pkg/source`** | The `LedgerSource` interface is permanent. It exists at this path with this name. |
 | **`registry.yaml` v1** | The field set and types defined by the v1 schema are permanent. External registries may author YAML against this schema. |
 | **`--describe-json` protocol** | Every processor binary must implement a `--describe-json` flag that prints a [`DescribeEnvelope`](../pkg/processor/describe.go) to stdout and exits 0. The envelope shape is permanent; nebu may add new optional fields in minor releases but will not rename or remove existing ones without a major version bump. |
+| **`nebu.status.v1` protocol** | The opt-in NDJSON status record defined in [STATUS_STREAM.md](STATUS_STREAM.md) is stable. Consumers must ignore unknown fields; existing fields and meanings will not be renamed or removed without a schema-version change. |
 
 **"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver. As of the streams-never-throw landing (see below), **no further breaking changes to the stable surface are planned before 1.0**.
 
