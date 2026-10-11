@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/stellar/go-stellar-sdk/network"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 )
 
 // Global flag for quiet mode
@@ -70,7 +71,7 @@ func validateNetworkConfig(rpcURL, networkPass string) error {
 	// Check for testnet RPC with mainnet network
 	if strings.Contains(strings.ToLower(rpcURL), "testnet") {
 		if networkPass == network.PublicNetworkPassphrase {
-			return fmt.Errorf(`Network configuration mismatch detected:
+			return nebuErrors.Usage(fmt.Errorf(`Network configuration mismatch detected:
   RPC URL:  %s (appears to be TESTNET)
   Network:  %s (MAINNET passphrase)
 
@@ -80,14 +81,14 @@ To fix:
   nebu [command] --rpc-url %s --network testnet ...
 
 Or set environment:
-  export NEBU_NETWORK=testnet`, rpcURL, networkPass, rpcURL)
+	  export NEBU_NETWORK=testnet`, rpcURL, networkPass, rpcURL))
 		}
 	}
 
 	// Check for mainnet RPC with testnet network
 	if strings.Contains(strings.ToLower(rpcURL), "mainnet") || strings.Contains(strings.ToLower(rpcURL), "pubnet") {
 		if networkPass == network.TestNetworkPassphrase {
-			return fmt.Errorf(`Network configuration mismatch detected:
+			return nebuErrors.Usage(fmt.Errorf(`Network configuration mismatch detected:
   RPC URL:  %s (appears to be MAINNET)
   Network:  %s (TESTNET passphrase)
 
@@ -97,7 +98,7 @@ To fix:
   nebu [command] --rpc-url %s --network mainnet ...
 
 Or set environment:
-  export NEBU_NETWORK=mainnet`, rpcURL, networkPass, rpcURL)
+	  export NEBU_NETWORK=mainnet`, rpcURL, networkPass, rpcURL))
 		}
 	}
 

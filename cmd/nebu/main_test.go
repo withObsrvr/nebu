@@ -14,6 +14,10 @@ import (
 )
 
 func TestCommandExitCodes(t *testing.T) {
+	t.Setenv("POSTGRES_DSN", "")
+	t.Setenv("NEBU_MODE", "")
+	t.Setenv("NEBU_NETWORK", "")
+	t.Setenv("NEBU_RPC_URL", "")
 	tests := []struct {
 		name string
 		args []string
@@ -21,6 +25,11 @@ func TestCommandExitCodes(t *testing.T) {
 	}{
 		{name: "usage missing argument", args: []string{"--program-status=never", "fetch"}, want: 2},
 		{name: "usage bad flag", args: []string{"--program-status=never", "fetch", "--not-a-flag"}, want: 2},
+		{name: "usage missing required resume flags", args: []string{"--program-status=never", "resume", "echo ok"}, want: 2},
+		{name: "usage invalid resume table", args: []string{"--program-status=never", "resume", "--dsn", "unused", "--fallback-start", "1", "--table", "bad-name", "echo ok"}, want: 2},
+		{name: "usage invalid resume column", args: []string{"--program-status=never", "resume", "--dsn", "unused", "--fallback-start", "1", "--ledger-column", "bad-name", "echo ok"}, want: 2},
+		{name: "usage invalid processor type", args: []string{"--program-status=never", "new", "processor", "example", "--type", "bad"}, want: 2},
+		{name: "usage network mismatch", args: []string{"--program-status=never", "fetch", "--rpc-url", "https://testnet.example", "1"}, want: 2},
 		{name: "processor not found", args: []string{"--program-status=never", "install", "does-not-exist"}, want: 3},
 	}
 

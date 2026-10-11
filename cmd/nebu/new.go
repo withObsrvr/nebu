@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 )
 
 func newNewCmd() *cobra.Command {
@@ -50,7 +51,7 @@ Example:
 			}
 
 			if !validTypes[processorType] {
-				return fmt.Errorf("invalid processor type: %s (must be origin, transform, or sink)", processorType)
+				return nebuErrors.Usage(fmt.Errorf("invalid processor type: %s (must be origin, transform, or sink)", processorType))
 			}
 
 			return scaffoldProcessor(name, processorType)
