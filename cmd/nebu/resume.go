@@ -29,11 +29,12 @@ func newResumeCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "resume -- <pipeline>",
-		Short: "Auto-resume a pipeline from the last processed ledger",
+		Short: "Resume from a Postgres sink (legacy convenience)",
 		Long: `Resume queries PostgreSQL for the maximum ledger sequence already processed,
 then launches the given pipeline with --start-ledger set to max+1.
 
-This preserves Unix-pipe separation: the origin processor doesn't need DB access.
+This is a Postgres-specific convenience. For new sink-independent pipelines,
+prefer 'nebu fetch --checkpoint PATH'.
 
 Examples:
   # Resume using the ledger_sequence column (default, works with postgres-sink v0.2.0+)
