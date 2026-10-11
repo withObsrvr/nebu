@@ -343,6 +343,11 @@ func fetchRawLedgers(
 		}
 	}
 	if streamErr != nil {
+		if end > 0 {
+			if summaryErr := writeFetchFailureSummary(os.Stderr, start, end, ledgerCount, streamErr); summaryErr != nil {
+				streamErr = errors.Join(streamErr, fmt.Errorf("failed to write fetch failure summary: %w", summaryErr))
+			}
+		}
 		return streamErr
 	}
 
@@ -416,5 +421,33 @@ func writeRawLedgers(
 		}
 	}
 
+	if end > 0 {
+		expected := uint64(end) - uint64(start) + 1
+		if uint64(ledgerCount) != expected {
+			return ledgerCount, fmt.Errorf(
+				"incomplete fetch: stream ended after %d of %d ledgers",
+				ledgerCount,
+				expected,
+			)
+		}
+	}
+
 	return ledgerCount, nil
+}
+
+func writeFetchFailureSummary(w io.Writer, start, end uint32, fetched int, reason error) error {
+	expected := uint64(end) - uint64(start) + 1
+	last := "none"
+	if fetched > 0 {
+		last = fmt.Sprintf("%d", uint64(start)+uint64(fetched)-1)
+	}
+	_, err := fmt.Fprintf(
+		w,
+		"fetched %d/%d ledgers, last=%s, reason=%s\n",
+		fetched,
+		expected,
+		last,
+		oneLine(reason.Error()),
+	)
+	return err
 }
