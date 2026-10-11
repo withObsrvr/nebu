@@ -280,6 +280,22 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
         <span>Suppress informational output. Only NDJSON events on stdout.</span>
       </div>
       <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--program-status &lt;mode&gt;</span>
+        <span>OSC 7501 terminal status: <span class="font-bold">auto</span>, <span class="font-bold">always</span>, or <span class="font-bold">never</span>. Default: <span class="font-bold">auto</span>.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--status-file &lt;path&gt;</span>
+        <span>Write stable <span class="font-bold">nebu.status.v1</span> NDJSON lifecycle and progress records to a dedicated file.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--checkpoint &lt;path&gt;</span>
+        <span>Persist resumable state for a bounded <span class="font-bold">fetch</span>. Use with file output and keep the two paths distinct.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--checkpoint-interval N</span>
+        <span>Ledgers between durable checkpoint writes. Default: <span class="font-bold">1</span>.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
         <span class="font-bold text-secondary w-44 shrink-0">-v, --version</span>
         <span>Print version information and exit.</span>
       </div>
@@ -303,6 +319,8 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
       <p><code class="text-tertiary">NEBU_REGION</code> — S3 region (archive mode, S3 only).</p>
       <p><code class="text-tertiary">NEBU_BUFFER_SIZE</code> — archive fetch cache size. Default: <span class="font-bold">100</span>.</p>
       <p><code class="text-tertiary">NEBU_NUM_WORKERS</code> — archive parallel fetch workers. Default: <span class="font-bold">10</span>.</p>
+      <p><code class="text-tertiary">NEBU_PROGRAM_STATUS</code> — OSC 7501 reporting mode: <span class="font-bold">auto</span>, <span class="font-bold">always</span>, or <span class="font-bold">never</span>.</p>
+      <p><code class="text-tertiary">NEBU_STATUS_FILE</code> — path for the dedicated <span class="font-bold">nebu.status.v1</span> NDJSON stream.</p>
     </div>
   </section>
 
@@ -322,8 +340,10 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
     <div class="pl-8 space-y-2">
       <p><span class="font-bold">0</span> — success.</p>
       <p><span class="font-bold">1</span> — general error (see stderr).</p>
-      <p><span class="font-bold">2</span> — bad arguments or unknown processor.</p>
-      <p><span class="font-bold">3</span> — RPC / archive fetch failed.</p>
+      <p><span class="font-bold">2</span> — invalid usage or configuration.</p>
+      <p><span class="font-bold">3</span> — requested processor or ledger range was not found or is ambiguous.</p>
+      <p><span class="font-bold">4</span> — RPC or archive source is unavailable.</p>
+      <p><span class="font-bold">130</span> — interrupted by <span class="font-bold">SIGINT</span> / Ctrl+C.</p>
     </div>
   </section>
 
@@ -465,7 +485,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
 
 <!-- Fixed footer -->
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.11</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.15</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
