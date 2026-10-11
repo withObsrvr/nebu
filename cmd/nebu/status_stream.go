@@ -25,6 +25,17 @@ func openStatusStream(cmd *cobra.Command) error {
 	if statusFilePath == "" {
 		return nil
 	}
+	if statusInfo, err := os.Stat(statusFilePath); err == nil {
+		stdoutInfo, stdoutErr := os.Stdout.Stat()
+		if stdoutErr != nil {
+			return fmt.Errorf("inspect stdout: %w", stdoutErr)
+		}
+		if os.SameFile(statusInfo, stdoutInfo) {
+			return fmt.Errorf("--status-file must not refer to redirected stdout")
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect status file %q: %w", statusFilePath, err)
+	}
 	for _, flagName := range []string{"output", "checkpoint"} {
 		flag := cmd.Flags().Lookup(flagName)
 		if flag == nil || flag.Value.String() == "" {

@@ -88,6 +88,19 @@ func TestCheckpointRejectsOutputPathAliases(t *testing.T) {
 		err := validateCheckpointOutputPaths(path, alias)
 		require.ErrorContains(t, err, "must refer to different files")
 	})
+
+	t.Run("nonexistent files beneath symlinked parent", func(t *testing.T) {
+		realDir := filepath.Join(dir, "real")
+		require.NoError(t, os.Mkdir(realDir, 0o755))
+		linkedDir := filepath.Join(dir, "linked")
+		require.NoError(t, os.Symlink(realDir, linkedDir))
+
+		err := validateCheckpointOutputPaths(
+			filepath.Join(realDir, "future"),
+			filepath.Join(linkedDir, "future"),
+		)
+		require.ErrorContains(t, err, "must refer to different files")
+	})
 }
 
 func TestOutputSyncPrecedesCheckpointPersistence(t *testing.T) {

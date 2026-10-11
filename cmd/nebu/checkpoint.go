@@ -114,20 +114,20 @@ func validateCheckpointOutputPaths(checkpointPath, outputPath string) error {
 }
 
 func pathsReferToSameFile(firstPath, secondPath string) (bool, error) {
-	firstAbs, err := filepath.Abs(filepath.Clean(firstPath))
+	firstCanonical, err := canonicalizePath(firstPath)
 	if err != nil {
 		return false, fmt.Errorf("resolve path %q: %w", firstPath, err)
 	}
-	secondAbs, err := filepath.Abs(filepath.Clean(secondPath))
+	secondCanonical, err := canonicalizePath(secondPath)
 	if err != nil {
 		return false, fmt.Errorf("resolve path %q: %w", secondPath, err)
 	}
-	if firstAbs == secondAbs {
+	if firstCanonical == secondCanonical {
 		return true, nil
 	}
 
-	firstInfo, firstErr := os.Stat(firstAbs)
-	secondInfo, secondErr := os.Stat(secondAbs)
+	firstInfo, firstErr := os.Stat(firstCanonical)
+	secondInfo, secondErr := os.Stat(secondCanonical)
 	if firstErr == nil && secondErr == nil && os.SameFile(firstInfo, secondInfo) {
 		return true, nil
 	}
@@ -138,6 +138,38 @@ func pathsReferToSameFile(firstPath, secondPath string) (bool, error) {
 		return false, fmt.Errorf("inspect path %q: %w", secondPath, secondErr)
 	}
 	return false, nil
+}
+
+// canonicalizePath resolves symlinks in the deepest existing ancestor, then
+// reattaches any path components that do not exist yet. This lets alias checks
+// work before output files are created.
+func canonicalizePath(path string) (string, error) {
+	abs, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return "", err
+	}
+
+	current := abs
+	var missing []string
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for index := len(missing) - 1; index >= 0; index-- {
+				resolved = filepath.Join(resolved, missing[index])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return abs, nil
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
 }
 
 func writeCheckpointAtomically(path string, state fetchCheckpoint) error {

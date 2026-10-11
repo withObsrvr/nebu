@@ -53,6 +53,37 @@ func TestStatusFileRejectsOutputAliasBeforeTruncating(t *testing.T) {
 	assert.Equal(t, "keep", string(contents))
 }
 
+func TestStatusFileRejectsRedirectedStdoutAlias(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "redirected.xdr")
+	redirected, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	require.NoError(t, err)
+	originalStdout := os.Stdout
+	os.Stdout = redirected
+	defer func() {
+		os.Stdout = originalStdout
+		require.NoError(t, redirected.Close())
+	}()
+
+	statusFilePath = path
+	statusFileHandle = nil
+	statusWriter = nil
+	err = openStatusStream(newFetchCmd())
+	require.ErrorContains(t, err, "redirected stdout")
+}
+
+func TestStructuredStatusCancellationEndsIdle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	require.ErrorIs(t, finishStatusStream(context.Canceled), context.Canceled)
+	records := readStatusRecords(t, path)
+	require.Len(t, records, 1)
+	assert.Equal(t, programstatus.Idle, records[0].State)
+}
+
 func TestStructuredFetchProgressIncludesLedgerLag(t *testing.T) {
 	var output bytes.Buffer
 	statusWriter = status.NewWriter(&output, "nebu")

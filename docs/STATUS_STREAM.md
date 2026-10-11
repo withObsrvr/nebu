@@ -39,7 +39,9 @@ For an unbounded fetch, `current_ledger` is present while `target_ledger` and
 `ledger_lag` are omitted because there is no fixed target. Consumers must
 ignore unknown fields so compatible fields can be added in future versions.
 
-The stream begins with `working`, emits fetch progress records, and ends with
-`done` or `error`. Failure to open or write an explicitly configured status
-file fails the command; it is therefore safe for an orchestrator to rely on the
-configured stream rather than silently losing observability.
+The stream begins with `working` and emits fetch progress records. Its terminal
+state is `done` after successful completion, `idle` after cancellation or
+interruption, or `error` after failure. Failure to open or write an explicitly
+configured status file fails the command; it is therefore safe for an
+orchestrator to rely on the configured stream rather than silently losing
+observability.
