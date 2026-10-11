@@ -139,9 +139,16 @@ func printGroupedList(processors []registry.ProcessorEntry, filterType string) e
 		}
 
 		for _, proc := range procs {
-			tag := ""
+			tags := make([]string, 0, 2)
 			if proc.Source == "community" {
-				tag = " [community]"
+				tags = append(tags, "community")
+			}
+			if proc.Deprecated {
+				tags = append(tags, "deprecated")
+			}
+			tag := ""
+			if len(tags) > 0 {
+				tag = " [" + strings.Join(tags, ", ") + "]"
 			}
 			fmt.Printf("  %-*s  %s%s\n", maxNameLen, proc.Name, truncate(proc.Description, 60), tag)
 		}
@@ -177,6 +184,12 @@ func printVerboseList(processors []registry.ProcessorEntry, filterType string) e
 
 		for _, proc := range procs {
 			fmt.Printf("%s\n", proc.Name)
+			if proc.Deprecated {
+				fmt.Println("  Deprecated: yes")
+				if proc.DeprecationNotice != "" {
+					fmt.Printf("  Deprecation notice: %s\n", proc.DeprecationNotice)
+				}
+			}
 
 			// Type and schema
 			fmt.Printf("  Type:    %s\n", proc.Type)
@@ -218,22 +231,28 @@ func printVerboseList(processors []registry.ProcessorEntry, filterType string) e
 // printJSONList outputs processors as JSON
 func printJSONList(processors []registry.ProcessorEntry) error {
 	type jsonProcessor struct {
-		Name        string   `json:"name"`
-		Type        string   `json:"type"`
-		Description string   `json:"description"`
-		Source      string   `json:"source,omitempty"`
-		Schema      string   `json:"schema,omitempty"`
-		Events      []string `json:"events,omitempty"`
-		Example     string   `json:"example,omitempty"`
+		Name              string         `json:"name"`
+		Type              string         `json:"type"`
+		Description       string         `json:"description"`
+		Source            string         `json:"source,omitempty"`
+		Schema            string         `json:"schema,omitempty"`
+		Events            []string       `json:"events,omitempty"`
+		Example           string         `json:"example,omitempty"`
+		Deprecated        bool           `json:"deprecated,omitempty"`
+		DeprecationNotice string         `json:"deprecation_notice,omitempty"`
+		Metadata          map[string]any `json:"metadata,omitempty"`
 	}
 
 	output := make([]jsonProcessor, len(processors))
 	for i, proc := range processors {
 		jp := jsonProcessor{
-			Name:        proc.Name,
-			Type:        proc.Type,
-			Description: proc.Description,
-			Source:      proc.Source,
+			Name:              proc.Name,
+			Type:              proc.Type,
+			Description:       proc.Description,
+			Source:            proc.Source,
+			Deprecated:        proc.Deprecated,
+			DeprecationNotice: proc.DeprecationNotice,
+			Metadata:          proc.Metadata,
 		}
 
 		if proc.Schema != nil {

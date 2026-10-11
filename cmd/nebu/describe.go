@@ -124,6 +124,12 @@ func printDescribe(proc *registry.ProcessorEntry, env *processor.DescribeEnvelop
 	if proc.Source == "community" {
 		fmt.Printf("Source: community (external registry)\n")
 	}
+	if proc.Deprecated {
+		fmt.Printf("Deprecated: yes\n")
+		if proc.DeprecationNotice != "" {
+			fmt.Printf("Deprecation notice: %s\n", proc.DeprecationNotice)
+		}
+	}
 	if env != nil && env.Version != "" {
 		fmt.Printf("Version: %s\n", env.Version)
 	}
@@ -319,25 +325,31 @@ func printJSONDescribe(proc *registry.ProcessorEntry, env *processor.DescribeEnv
 	}
 
 	type jsonDescribe struct {
-		Name            string                    `json:"name"`
-		Type            string                    `json:"type"`
-		Version         string                    `json:"version,omitempty"`
-		Description     string                    `json:"description"`
-		LongDescription string                    `json:"long_description,omitempty"`
-		Schema          *processor.DescribeSchema `json:"schema,omitempty"`
-		Flags           []processor.DescribeFlag  `json:"flags,omitempty"`
-		Events          []jsonEvent               `json:"events,omitempty"`
-		OutputFields    []jsonField               `json:"output_fields,omitempty"`
-		Examples        []describeExample         `json:"examples,omitempty"`
-		WorksWith       *describeWorksWith        `json:"works_with,omitempty"`
-		Maintainer      string                    `json:"maintainer,omitempty"`
+		Name              string                    `json:"name"`
+		Type              string                    `json:"type"`
+		Version           string                    `json:"version,omitempty"`
+		Description       string                    `json:"description"`
+		LongDescription   string                    `json:"long_description,omitempty"`
+		Schema            *processor.DescribeSchema `json:"schema,omitempty"`
+		Flags             []processor.DescribeFlag  `json:"flags,omitempty"`
+		Events            []jsonEvent               `json:"events,omitempty"`
+		OutputFields      []jsonField               `json:"output_fields,omitempty"`
+		Examples          []describeExample         `json:"examples,omitempty"`
+		WorksWith         *describeWorksWith        `json:"works_with,omitempty"`
+		Maintainer        string                    `json:"maintainer,omitempty"`
+		Deprecated        bool                      `json:"deprecated,omitempty"`
+		DeprecationNotice string                    `json:"deprecation_notice,omitempty"`
+		Metadata          map[string]any            `json:"metadata,omitempty"`
 	}
 
 	output := jsonDescribe{
-		Name:            proc.Name,
-		Type:            proc.Type,
-		Description:     proc.Description,
-		LongDescription: proc.LongDescription,
+		Name:              proc.Name,
+		Type:              proc.Type,
+		Description:       proc.Description,
+		LongDescription:   proc.LongDescription,
+		Deprecated:        proc.Deprecated,
+		DeprecationNotice: proc.DeprecationNotice,
+		Metadata:          proc.Metadata,
 	}
 
 	// Envelope takes precedence for fields it provides.

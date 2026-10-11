@@ -269,6 +269,12 @@ schema:
   identifier: nebu.my_processor.v1
   documentation: https://github.com/username/nebu-processor-my-thing/blob/main/SCHEMA.md
 
+metadata:
+  category: stellar
+  tags: [stellar, soroban]
+  input: contract-events JSONL
+  output: nebu.my_processor.v1
+
 docs:
   quick_start: |
     nebu install my-processor
@@ -288,6 +294,7 @@ docs:
 | `install` | no | Prebuilt-binary install method (same InstallConfig as `registry.yaml`, above). Required in practice for non-Go processors, since the fallback is `go install`. `install.version` defaults to `processor.version`. |
 | `proto` | no | Proto descriptor pointer. |
 | `schema` | no | Schema ID and docs pointer. |
+| `metadata` | no | Free-form discovery metadata. It is preserved and surfaced in JSON output. |
 | `docs` | no | Quick-start, examples, and extended prose (rendered by `nebu describe`). |
 
 **`processor` block:**
@@ -309,7 +316,18 @@ docs:
 | Field | Type | Required |
 |---|---|---|
 | `github` | string | yes — in `owner/repo` form |
-| `ref` | string | yes — git tag (preferred), branch, or commit SHA |
+| `ref` | string | no — git tag (preferred), branch, or commit SHA; defaults to `latest` |
+
+For Go processors, `nebu install` passes `repo.ref` to `go install` as the
+module version. Omitting it uses `latest`. The `proto` block is informational;
+the `schema` block is used as the static fallback by `nebu describe`.
+
+### Authoring validation
+
+Registry tooling can call `registry.ValidateExternalDescription` to validate a
+`description.yml` with strict known-field checking. This catches misspelled or
+unsupported keys before publication. Runtime registry loading remains
+forward-compatible and ignores unknown fields, as required below.
 
 ### How external registries are merged
 

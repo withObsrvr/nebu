@@ -15,27 +15,30 @@ var embeddedRegistry []byte
 
 // Registry represents the processor registry.
 type Registry struct {
-	Version    int                `yaml:"version"`
+	Version    int              `yaml:"version"`
 	Processors []ProcessorEntry `yaml:"processors"`
 }
 
 // ProcessorEntry describes a processor in the registry.
 type ProcessorEntry struct {
-	Name            string             `yaml:"name"`
-	Type            string             `yaml:"type"` // origin, transform, sink
-	Description     string             `yaml:"description"`
-	LongDescription string             `yaml:"long_description,omitempty"`
-	Location        ProcessorLocation  `yaml:"location"`
-	Install         *InstallConfig     `yaml:"install,omitempty"`
-	Proto           *ProtoConfig       `yaml:"proto,omitempty"`
-	Schema          *SchemaConfig      `yaml:"schema,omitempty"`
-	Manifest        string             `yaml:"manifest,omitempty"`
-	Maintainer      *MaintainerInfo    `yaml:"maintainer,omitempty"`
-	Events          []EventInfo        `yaml:"events,omitempty"`
-	OutputFields    []FieldInfo        `yaml:"output_fields,omitempty"`
-	Examples        []ExampleInfo      `yaml:"examples,omitempty"`
-	WorksWith       *WorksWithInfo     `yaml:"works_with,omitempty"`
-	Source          string             `yaml:"-"` // "embedded" or "community", not serialized
+	Name              string            `yaml:"name"`
+	Type              string            `yaml:"type"` // origin, transform, sink
+	Description       string            `yaml:"description"`
+	LongDescription   string            `yaml:"long_description,omitempty"`
+	Location          ProcessorLocation `yaml:"location"`
+	Install           *InstallConfig    `yaml:"install,omitempty"`
+	Proto             *ProtoConfig      `yaml:"proto,omitempty"`
+	Schema            *SchemaConfig     `yaml:"schema,omitempty"`
+	Manifest          string            `yaml:"manifest,omitempty"`
+	Maintainer        *MaintainerInfo   `yaml:"maintainer,omitempty"`
+	Events            []EventInfo       `yaml:"events,omitempty"`
+	OutputFields      []FieldInfo       `yaml:"output_fields,omitempty"`
+	Examples          []ExampleInfo     `yaml:"examples,omitempty"`
+	WorksWith         *WorksWithInfo    `yaml:"works_with,omitempty"`
+	Metadata          map[string]any    `yaml:"metadata,omitempty"`
+	Deprecated        bool              `yaml:"deprecated,omitempty"`
+	DeprecationNotice string            `yaml:"deprecation_notice,omitempty"`
+	Source            string            `yaml:"-"` // "embedded" or "community", not serialized
 }
 
 // InstallConfig describes how to install a prebuilt processor binary.
@@ -90,6 +93,7 @@ type ProcessorLocation struct {
 	Type          string `yaml:"type"` // local, git, module
 	Path          string `yaml:"path,omitempty"`
 	ModulePackage string `yaml:"module_package,omitempty"` // Go module path for go install
+	Ref           string `yaml:"ref,omitempty"`            // module version, branch, or commit for go install
 	URL           string `yaml:"url,omitempty"`
 	Package       string `yaml:"package,omitempty"`
 }
