@@ -78,6 +78,25 @@ repo:
 	}
 }
 
+func TestValidateExternalDescriptionRejectsAdditionalDocuments(t *testing.T) {
+	document := []byte(`
+processor:
+  name: example
+  type: origin
+  description: Example
+  version: 1.0.0
+repo:
+  github: example/processors
+---
+processor:
+  unsupported_key: true
+`)
+	err := ValidateExternalDescription(document)
+	if err == nil || !strings.Contains(err.Error(), "multiple YAML documents") {
+		t.Fatalf("ValidateExternalDescription() error = %v, want multiple-document rejection", err)
+	}
+}
+
 func TestExternalDescInstallBlock(t *testing.T) {
 	tests := []struct {
 		name        string

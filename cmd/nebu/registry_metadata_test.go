@@ -63,3 +63,41 @@ func TestPrintDescribeShowsDeprecation(t *testing.T) {
 		}
 	}
 }
+
+func TestVerboseListShowsDeprecationWithoutNotice(t *testing.T) {
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	original := os.Stdout
+	os.Stdout = write
+	t.Cleanup(func() { os.Stdout = original })
+
+	err = printVerboseList([]registry.ProcessorEntry{{
+		Name:        "old-origin",
+		Type:        "origin",
+		Description: "Old origin",
+		Deprecated:  true,
+	}}, "")
+	if err != nil {
+		t.Fatalf("printVerboseList: %v", err)
+	}
+	if err := write.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
+	output, err := io.ReadAll(read)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if err := read.Close(); err != nil {
+		t.Fatalf("close reader: %v", err)
+	}
+
+	got := string(output)
+	if !strings.Contains(got, "Deprecated: yes") {
+		t.Fatalf("verbose list output %q does not contain explicit deprecation status", got)
+	}
+	if strings.Contains(got, "Deprecation notice:") {
+		t.Fatalf("verbose list output %q contains an empty notice", got)
+	}
+}

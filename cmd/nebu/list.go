@@ -185,7 +185,10 @@ func printVerboseList(processors []registry.ProcessorEntry, filterType string) e
 		for _, proc := range procs {
 			fmt.Printf("%s\n", proc.Name)
 			if proc.Deprecated {
-				fmt.Printf("  Deprecated: %s\n", proc.DeprecationNotice)
+				fmt.Println("  Deprecated: yes")
+				if proc.DeprecationNotice != "" {
+					fmt.Printf("  Deprecation notice: %s\n", proc.DeprecationNotice)
+				}
 			}
 
 			// Type and schema

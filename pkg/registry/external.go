@@ -109,6 +109,13 @@ func ValidateExternalDescription(data []byte) error {
 	if err := decoder.Decode(&desc); err != nil {
 		return fmt.Errorf("invalid description.yml: %w", err)
 	}
+	var extra yaml.Node
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err != nil {
+			return fmt.Errorf("invalid trailing YAML document: %w", err)
+		}
+		return fmt.Errorf("invalid description.yml: multiple YAML documents are not supported")
+	}
 	return nil
 }
 

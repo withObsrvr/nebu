@@ -316,7 +316,7 @@ docs:
 | Field | Type | Required |
 |---|---|---|
 | `github` | string | yes — in `owner/repo` form |
-| `ref` | string | yes — git tag (preferred), branch, or commit SHA |
+| `ref` | string | no — git tag (preferred), branch, or commit SHA; defaults to `latest` |
 
 For Go processors, `nebu install` passes `repo.ref` to `go install` as the
 module version. Omitting it uses `latest`. The `proto` block is informational;
