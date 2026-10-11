@@ -1,10 +1,37 @@
 package errors
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
+
+func TestExitCode(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "success", err: nil, want: 0},
+		{name: "unclassified failure", err: errors.New("failed"), want: 1},
+		{name: "usage", err: InvalidMode("bad", []string{"rpc"}), want: 2},
+		{name: "not found", err: ProcessorNotFound("missing", nil), want: 3},
+		{name: "invalid ledger range", err: InvalidLedgerRange(2, 1), want: 3},
+		{name: "unreachable", err: RPCConnectionFailed("http://localhost", errors.New("refused")), want: 4},
+		{name: "interrupted", err: context.Canceled, want: 130},
+		{name: "wrapped interrupted", err: fmt.Errorf("fetch: %w", StreamError(context.Canceled)), want: 130},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ExitCode(test.err); got != test.want {
+				t.Fatalf("ExitCode() = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
 
 func TestNebuError_Error(t *testing.T) {
 	tests := []struct {

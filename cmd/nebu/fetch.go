@@ -202,7 +202,7 @@ Archive Mode Examples:
 				// Force exit after 2 seconds if graceful shutdown fails
 				time.Sleep(2 * time.Second)
 				logInfo("Force shutdown after timeout")
-				os.Exit(1)
+				os.Exit(130)
 			}()
 
 			// Call fetchLedgers with mode-specific configuration

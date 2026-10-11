@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -8,7 +10,38 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 )
+
+func TestCommandExitCodes(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "usage missing argument", args: []string{"--program-status=never", "fetch"}, want: 2},
+		{name: "usage bad flag", args: []string{"--program-status=never", "fetch", "--not-a-flag"}, want: 2},
+		{name: "processor not found", args: []string{"--program-status=never", "install", "does-not-exist"}, want: 3},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			programStatusStarted = false
+			root := newRootCmd()
+			root.SetArgs(test.args)
+			root.SetOut(io.Discard)
+			root.SetErr(io.Discard)
+			if got := nebuErrors.ExitCode(root.Execute()); got != test.want {
+				t.Fatalf("command exit code = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
+func TestUnreachableSourceExitCode(t *testing.T) {
+	err := nebuErrors.StreamError(errors.New("connection refused"))
+	assert.Equal(t, 4, nebuErrors.ExitCode(err))
+}
 
 func TestValidateProgramStatusMode(t *testing.T) {
 	for _, mode := range []string{"auto", "always", "never"} {

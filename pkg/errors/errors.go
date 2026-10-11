@@ -4,18 +4,67 @@
 package errors
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 )
 
+// Kind classifies an error for callers that need stable process exit codes.
+type Kind uint8
+
+const (
+	KindFailure Kind = iota
+	KindUsage
+	KindNotFound
+	KindUnreachable
+)
+
 // NebuError is an error with actionable guidance.
 type NebuError struct {
+	// Kind classifies the error without requiring callers to inspect its text.
+	Kind Kind
 	// Message is the main error description
 	Message string
 	// Suggestion is optional guidance on how to fix the error
 	Suggestion string
 	// Examples are optional example commands
 	Examples []string
+	// Cause preserves an underlying error for errors.Is/errors.As.
+	Cause error
+}
+
+// Unwrap returns the underlying cause, when present.
+func (e *NebuError) Unwrap() error { return e.Cause }
+
+// ExitCode returns the documented nebu process exit code for err.
+func ExitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	if errors.Is(err, context.Canceled) {
+		return 130
+	}
+
+	var nebuErr *NebuError
+	if !errors.As(err, &nebuErr) {
+		return 1
+	}
+	switch nebuErr.Kind {
+	case KindUsage:
+		return 2
+	case KindNotFound:
+		return 3
+	case KindUnreachable:
+		return 4
+	default:
+		return 1
+	}
+}
+
+// Usage wraps a command-line validation error.
+func Usage(err error) *NebuError {
+	return &NebuError{Kind: KindUsage, Message: err.Error(), Cause: err}
 }
 
 // Error implements the error interface.
@@ -74,7 +123,8 @@ func Full(message, suggestion string, examples ...string) *NebuError {
 // InvalidLedgerRange returns an error for when start > end.
 func InvalidLedgerRange(start, end uint32) *NebuError {
 	return &NebuError{
-		Message: fmt.Sprintf("Invalid ledger range: start (%d) must be less than or equal to end (%d)", start, end),
+		Kind:       KindNotFound,
+		Message:    fmt.Sprintf("Invalid ledger range: start (%d) must be less than or equal to end (%d)", start, end),
 		Suggestion: fmt.Sprintf("Swap the values:\n  --start-ledger %d --end-ledger %d", end, start),
 	}
 }
@@ -82,6 +132,7 @@ func InvalidLedgerRange(start, end uint32) *NebuError {
 // LedgerMustBePositive returns an error for ledger == 0.
 func LedgerMustBePositive(which string) *NebuError {
 	return &NebuError{
+		Kind:       KindUsage,
 		Message:    fmt.Sprintf("%s ledger must be greater than 0", which),
 		Suggestion: "Ledger sequences on Stellar start at 1.",
 	}
@@ -90,6 +141,7 @@ func LedgerMustBePositive(which string) *NebuError {
 // InvalidLedgerFormat returns an error for non-numeric ledger input.
 func InvalidLedgerFormat(input, which string) *NebuError {
 	return &NebuError{
+		Kind:       KindUsage,
 		Message:    fmt.Sprintf("Invalid %s ledger: '%s' is not a valid number", which, input),
 		Suggestion: "Ledger sequences are positive integers.",
 		Examples: []string{
@@ -102,6 +154,8 @@ func InvalidLedgerFormat(input, which string) *NebuError {
 // RPCConnectionFailed returns an error for RPC connection issues.
 func RPCConnectionFailed(url string, err error) *NebuError {
 	return &NebuError{
+		Kind:    KindUnreachable,
+		Cause:   err,
 		Message: fmt.Sprintf("Cannot connect to RPC endpoint: %s\n  %v", url, err),
 		Suggestion: `Check that the URL is correct and reachable.
 
@@ -119,6 +173,7 @@ Common fixes:
 // RateLimited returns an error for HTTP 429 responses.
 func RateLimited(url string) *NebuError {
 	return &NebuError{
+		Kind:    KindUnreachable,
 		Message: fmt.Sprintf("Rate limited by RPC endpoint (HTTP 429): %s", url),
 		Suggestion: `The RPC endpoint has usage limits. You can:
   - Add authentication for higher limits
@@ -134,6 +189,7 @@ func RateLimited(url string) *NebuError {
 // AuthRequired returns an error for HTTP 401 responses.
 func AuthRequired(url string) *NebuError {
 	return &NebuError{
+		Kind:    KindUnreachable,
 		Message: fmt.Sprintf("Authentication required by RPC endpoint (HTTP 401): %s", url),
 		Suggestion: `Set up authentication with one of these methods:
 
@@ -153,6 +209,7 @@ func ProcessorNotFound(name string, available []string) *NebuError {
 		suggestion = fmt.Sprintf("Available processors: %s\n\nRun 'nebu list' for details.", strings.Join(available, ", "))
 	}
 	return &NebuError{
+		Kind:       KindNotFound,
 		Message:    fmt.Sprintf("Processor '%s' not found in registry", name),
 		Suggestion: suggestion,
 	}
@@ -161,6 +218,7 @@ func ProcessorNotFound(name string, available []string) *NebuError {
 // ProcessorTypeMismatch returns an error when processor type doesn't match command.
 func ProcessorTypeMismatch(name, gotType, wantType string) *NebuError {
 	return &NebuError{
+		Kind: KindUsage,
 		Message: fmt.Sprintf("Processor '%s' is type '%s', but this command requires type '%s'",
 			name, gotType, wantType),
 		Suggestion: fmt.Sprintf("Use a command appropriate for '%s' processors, or pick a different processor.", gotType),
@@ -171,6 +229,7 @@ func ProcessorTypeMismatch(name, gotType, wantType string) *NebuError {
 func MissingRequiredFlags(flags ...string) *NebuError {
 	flagList := strings.Join(flags, ", ")
 	return &NebuError{
+		Kind:       KindUsage,
 		Message:    fmt.Sprintf("Missing required flags: %s", flagList),
 		Suggestion: "These flags are required when not reading from stdin.",
 		Examples: []string{
@@ -183,6 +242,7 @@ func MissingRequiredFlags(flags ...string) *NebuError {
 // InvalidMode returns an error for unknown mode values.
 func InvalidMode(mode string, validModes []string) *NebuError {
 	return &NebuError{
+		Kind:       KindUsage,
 		Message:    fmt.Sprintf("Invalid mode: '%s'", mode),
 		Suggestion: fmt.Sprintf("Valid modes: %s", strings.Join(validModes, ", ")),
 	}
@@ -191,6 +251,7 @@ func InvalidMode(mode string, validModes []string) *NebuError {
 // MissingBucketPath returns an error when bucket path is required but not set.
 func MissingBucketPath() *NebuError {
 	return &NebuError{
+		Kind:       KindUsage,
 		Message:    "--bucket-path is required when using --mode archive",
 		Suggestion: "Specify the storage location for ledger data.",
 		Examples: []string{
@@ -203,7 +264,9 @@ func MissingBucketPath() *NebuError {
 // FailedToCreateSource returns an error for source creation failures.
 func FailedToCreateSource(sourceType string, err error) *NebuError {
 	return &NebuError{
-		Message: fmt.Sprintf("Failed to create %s source: %v", sourceType, err),
+		Kind:       KindUnreachable,
+		Cause:      err,
+		Message:    fmt.Sprintf("Failed to create %s source: %v", sourceType, err),
 		Suggestion: fmt.Sprintf("Check your %s configuration and credentials.", sourceType),
 	}
 }
@@ -245,6 +308,8 @@ If you have JSON data, use the appropriate tool directly.`
 // StreamError wraps a streaming error.
 func StreamError(err error) *NebuError {
 	return &NebuError{
+		Kind:    KindUnreachable,
+		Cause:   err,
 		Message: fmt.Sprintf("Stream error: %v", err),
 	}
 }
