@@ -2,6 +2,27 @@
 
 All notable changes to nebu are documented here. For full release artifacts, see [GitHub Releases](https://github.com/withObsrvr/nebu/releases).
 
+## v0.6.15
+
+- Correctness: bounded `nebu fetch` runs now fail instead of silently succeeding when the requested range is truncated. Stable exit codes distinguish usage errors, missing processors, invalid ranges, unreachable data sources, general failures, and interruptions.
+- Resume: added opt-in, sink-independent fetch checkpoints with atomic persistence, durable output ordering, range validation, append-on-resume behavior, and protection against checkpoint/output path aliases.
+- Status: added OSC 7501 Program Status Protocol reporting for interactive terminals and an opt-in `nebu.status.v1` NDJSON stream for orchestrators. Fetch and processor helpers report lifecycle, ledger progress, event progress, cancellation, and failures without contaminating stdout data.
+- Processor contract: documented discovery, launch, structured status, cancellation, exit-code, and flowctl integration boundaries while keeping orchestration outside nebu.
+- Registry: external `description.yml` parsing now preserves metadata, examples, schemas, repository refs, and deprecation details; validation is strict across the complete YAML stream.
+- Dependencies: upgraded `github.com/stellar/go-stellar-sdk` to v0.7.3.
+
+## v0.6.14
+
+- Added OSC 7501 Program Status Protocol support to nebu and processor CLI helpers, including `auto`, `always`, and `never` modes.
+
+## v0.6.13
+
+- Upgraded `github.com/stellar/go-stellar-sdk` to v0.7.1.
+
+## v0.6.12
+
+- Corrected GoReleaser configuration and release packaging.
+
 ## v0.6.11
 
 - Protocol 28: upgraded `github.com/stellar/go-stellar-sdk` from v0.6.0 to v0.7.0 in nebu, the hooks example, and all 34 Go processor modules in `nebu-processor-registry`.

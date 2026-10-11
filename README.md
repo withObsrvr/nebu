@@ -23,11 +23,12 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Latest release:** [v0.6.11](https://github.com/withObsrvr/nebu/releases/tag/v0.6.11)
+- **Release being prepared:** `v0.6.15` (the current published release remains [v0.6.14](https://github.com/withObsrvr/nebu/releases/tag/v0.6.14) until this documentation PR is merged and tagged)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **CLI exit codes:** [docs/EXIT_CODES.md](./docs/EXIT_CODES.md)
 - **Checkpoint and resume:** [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md)
 - **Machine-readable status:** [docs/STATUS_STREAM.md](./docs/STATUS_STREAM.md)
+- **Processor/orchestrator boundary:** [docs/FLOWCTL_INTEGRATION.md](./docs/FLOWCTL_INTEGRATION.md)
 
 **Processors:**
 - **Published origins, transforms, and sinks:** [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors)
@@ -78,7 +79,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.6.11","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.6.15","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -628,6 +629,47 @@ nebu fetch 60200000 60200100 > ledgers.xdr
 cat ledgers.xdr | token-transfer | jq 'select(.transfer != null)'
 cat ledgers.xdr | token-transfer | duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"
 ```
+
+### Resume a bounded fetch
+
+Checkpoints are opt-in and independent of downstream processors. When an
+interrupted fetch writes to a file, rerunning the same command appends from the
+last durably completed ledger:
+
+```bash
+nebu fetch --mode archive \
+  --checkpoint ledgers.checkpoint.json \
+  --checkpoint-interval 100 \
+  --output ledgers.xdr \
+  62080000 62180000
+```
+
+The checkpoint and output paths must be different. Nebu synchronizes file
+output before advancing the checkpoint; after a hard crash, at most the most
+recent checkpoint interval may be replayed. See
+[`docs/CHECKPOINTS.md`](./docs/CHECKPOINTS.md) for the complete durability and
+resume contract.
+
+### Program and orchestration status
+
+Interactive status uses OSC 7501 on stderr and is enabled automatically only
+when stderr is a supported terminal. Configure it with
+`--program-status=auto|always|never` or `NEBU_PROGRAM_STATUS`.
+
+Automation should use the separate, stable NDJSON status stream:
+
+```bash
+nebu --status-file run.status.ndjson fetch \
+  --output ledgers.xdr \
+  62080000 62080100
+
+token-transfer --status-file processor.status.ndjson < ledgers.xdr > transfers.jsonl
+```
+
+Data remains on stdout, diagnostics and OSC reports remain on stderr, and
+`nebu.status.v1` records go only to the configured status file. See
+[`docs/STATUS_STREAM.md`](./docs/STATUS_STREAM.md) and
+[`docs/PROCESSOR_CONTRACT.md`](./docs/PROCESSOR_CONTRACT.md).
 
 ### Archive Mode (GCS/S3)
 

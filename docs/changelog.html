@@ -86,6 +86,10 @@
     <nav aria-label="On this page" class="sticky top-24 text-sm">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ VERSIONS ]</div>
       <ul>
+        <li><a href="#v0-6-15"    data-toc="v0-6-15"    class="toc-link">v0.6.15</a></li>
+        <li><a href="#v0-6-14"    data-toc="v0-6-14"    class="toc-link">v0.6.14</a></li>
+        <li><a href="#v0-6-13"    data-toc="v0-6-13"    class="toc-link">v0.6.13</a></li>
+        <li><a href="#v0-6-12"    data-toc="v0-6-12"    class="toc-link">v0.6.12</a></li>
         <li><a href="#v0-6-11"    data-toc="v0-6-11"    class="toc-link">v0.6.11</a></li>
         <li><a href="#v0-6-10"    data-toc="v0-6-10"    class="toc-link">v0.6.10</a></li>
         <li><a href="#v0-6-9"     data-toc="v0-6-9"     class="toc-link">v0.6.9</a></li>
@@ -127,6 +131,10 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+        <a class="text-tertiary hover:underline" href="#v0-6-15">#v0.6.15</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-14">#v0.6.14</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-13">#v0.6.13</a>
+        <a class="text-tertiary hover:underline" href="#v0-6-12">#v0.6.12</a>
         <a class="text-tertiary hover:underline" href="#v0-6-11">#v0.6.11</a>
         <a class="text-tertiary hover:underline" href="#v0-6-10">#v0.6.10</a>
         <a class="text-tertiary hover:underline" href="#v0-6-9">#v0.6.9</a>
@@ -141,6 +149,54 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.6.15 -->
+    <section id="v0-6-15" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.15</h2>
+        <span class="text-[0.6875rem] uppercase text-tertiary tracking-widest">[ RELEASE CANDIDATE ]</span>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Correct fetches:</strong> bounded ranges fail when truncated, interruptions return 130, and documented stable exit codes distinguish usage, range, lookup, and source failures.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Resumable backfills:</strong> opt-in checkpoints resume file output from the last durable ledger with atomic persistence and path-alias protection.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Observable programs:</strong> OSC 7501 serves interactive terminals while the stable <code class="text-on-surface">nebu.status.v1</code> NDJSON stream provides lifecycle and progress to automation.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Processor contract:</strong> origin, transform, and sink helpers now share discovery, cancellation, status, and exit semantics suitable for flowctl integration without moving orchestration into nebu.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Registry and SDK:</strong> strict <code class="text-on-surface">description.yml</code> support preserves metadata and refs; <code class="text-on-surface">go-stellar-sdk</code> is upgraded to <code class="text-tertiary">v0.7.3</code>.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.14 -->
+    <section id="v0-6-14" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.14</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.14" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> Added OSC 7501 Program Status Protocol reporting to nebu and processor CLI helpers, with <code class="text-on-surface">auto</code>, <code class="text-on-surface">always</code>, and <code class="text-on-surface">never</code> modes.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.13 -->
+    <section id="v0-6-13" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.13</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.13" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> Upgraded <code class="text-on-surface">github.com/stellar/go-stellar-sdk</code> to <code class="text-tertiary">v0.7.1</code>.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.12 -->
+    <section id="v0-6-12" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.12</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.12" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> Corrected GoReleaser configuration and release packaging.</li>
+      </ul>
+    </section>
 
     <!-- v0.6.11 -->
     <section id="v0-6-11" class="mb-12">
@@ -503,7 +559,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.11</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.15</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
