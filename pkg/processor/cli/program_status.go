@@ -7,11 +7,13 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"unicode"
 
 	"github.com/spf13/cobra"
 	"github.com/withObsrvr/nebu/pkg/programstatus"
+	statusstream "github.com/withObsrvr/nebu/pkg/status"
 	"golang.org/x/term"
 )
 
@@ -24,6 +26,11 @@ type commandStatus struct {
 	writer     io.Writer
 	isTerminal func() bool
 	canceled   atomic.Bool
+	statusPath string
+	statusFile *os.File
+	structured *statusstream.Writer
+	statusMu   sync.Mutex
+	statusErr  error
 }
 
 func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandStatus {
@@ -34,24 +41,35 @@ func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandSt
 		isTerminal: func() bool { return terminalFile(os.Stderr) },
 	}
 	cmd.Flags().StringVar(&status.mode, programStatusFlagName, programStatusDefault(), "program status reporting: auto, always, or never (or set NEBU_PROGRAM_STATUS)")
+	cmd.Flags().StringVar(&status.statusPath, "status-file", os.Getenv("NEBU_STATUS_FILE"), "write nebu.status.v1 NDJSON updates to a dedicated file (or set NEBU_STATUS_FILE)")
 
 	run := cmd.RunE
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if err := validateProgramStatusMode(status.mode); err != nil {
 			return err
 		}
-		status.write(programstatus.Working, "Running "+app)
+		if err := status.openStructured(); err != nil {
+			return err
+		}
+		status.writeOSC(programstatus.Working, "Running "+app)
+		if err := status.writeStructured(statusstream.Record{State: programstatus.Working, Message: "Running " + app}); err != nil {
+			return errors.Join(err, status.closeStructured())
+		}
 		err := run(cmd, args)
 		switch {
 		case status.canceled.Load():
 			// cancel reports idle immediately, before forced-exit timers can fire.
 		case err == nil:
-			status.write(programstatus.Done, app+" finished")
+			status.writeOSC(programstatus.Done, app+" finished")
+			err = errors.Join(err, status.writeStructured(statusstream.Record{State: programstatus.Done, Message: app + " finished"}))
 		case errors.Is(err, context.Canceled):
-			status.write(programstatus.Idle, app+" canceled")
+			status.writeOSC(programstatus.Idle, app+" canceled")
+			err = errors.Join(err, status.writeStructured(statusstream.Record{State: programstatus.Idle, Message: app + " canceled"}))
 		default:
-			status.write(programstatus.Error, statusText(err.Error()))
+			status.writeOSC(programstatus.Error, statusText(err.Error()))
+			err = errors.Join(err, status.writeStructured(statusstream.Record{State: programstatus.Error, Message: statusText(err.Error())}))
 		}
+		err = errors.Join(err, status.takeStatusError(), status.closeStructured())
 		return err
 	}
 	return status
@@ -63,7 +81,8 @@ func terminalFile(file *os.File) bool {
 
 func (s *commandStatus) cancel() {
 	if s.canceled.CompareAndSwap(false, true) {
-		s.write(programstatus.Idle, s.app+" canceled")
+		s.writeOSC(programstatus.Idle, s.app+" canceled")
+		s.recordStatusError(s.writeStructured(statusstream.Record{State: programstatus.Idle, Message: s.app + " canceled"}))
 	}
 }
 
@@ -90,7 +109,7 @@ func (s *commandStatus) enabled() bool {
 	return s.mode == "always" || (s.mode == "auto" && s.isTerminal())
 }
 
-func (s *commandStatus) write(state programstatus.State, message string) {
+func (s *commandStatus) writeOSC(state programstatus.State, message string) {
 	if !s.enabled() {
 		return
 	}
@@ -101,6 +120,90 @@ func (s *commandStatus) write(state programstatus.State, message string) {
 		// never make the processor fail.
 		_ = err
 	}
+}
+
+func (s *commandStatus) openStructured() error {
+	if s.statusPath == "" {
+		return nil
+	}
+	if statusInfo, err := os.Stat(s.statusPath); err == nil {
+		stdoutInfo, stdoutErr := os.Stdout.Stat()
+		if stdoutErr != nil {
+			return fmt.Errorf("inspect stdout: %w", stdoutErr)
+		}
+		if os.SameFile(statusInfo, stdoutInfo) {
+			return fmt.Errorf("--status-file must not refer to redirected stdout")
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect status file %q: %w", s.statusPath, err)
+	}
+	file, err := os.OpenFile(s.statusPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("open status file %q: %w", s.statusPath, err)
+	}
+	s.statusFile = file
+	s.structured = statusstream.NewWriter(file, s.app)
+	return nil
+}
+
+func (s *commandStatus) closeStructured() error {
+	if s.statusFile == nil {
+		return nil
+	}
+	err := s.statusFile.Close()
+	s.statusFile = nil
+	s.structured = nil
+	if err != nil {
+		return fmt.Errorf("close status file: %w", err)
+	}
+	return nil
+}
+
+func (s *commandStatus) writeStructured(record statusstream.Record) error {
+	if s == nil || s.structured == nil {
+		return nil
+	}
+	if err := s.structured.Write(record); err != nil {
+		return fmt.Errorf("write structured status: %w", err)
+	}
+	return nil
+}
+
+func (s *commandStatus) ledgerProgress(current, target uint32) error {
+	if s == nil {
+		return nil
+	}
+	record := statusstream.Record{State: programstatus.Working, CurrentLedger: &current, Message: "Processing ledgers"}
+	if target > 0 {
+		record.TargetLedger = &target
+	}
+	return s.writeStructured(record)
+}
+
+func (s *commandStatus) eventProgress(count uint64) error {
+	if s == nil {
+		return nil
+	}
+	return s.writeStructured(statusstream.Record{
+		State: programstatus.Working, EventsProcessed: &count, Message: "Processing events",
+	})
+}
+
+func (s *commandStatus) recordStatusError(err error) {
+	if err == nil {
+		return
+	}
+	s.statusMu.Lock()
+	s.statusErr = errors.Join(s.statusErr, err)
+	s.statusMu.Unlock()
+}
+
+func (s *commandStatus) takeStatusError() error {
+	s.statusMu.Lock()
+	defer s.statusMu.Unlock()
+	err := s.statusErr
+	s.statusErr = nil
+	return err
 }
 
 func statusText(value string) string {

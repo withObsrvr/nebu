@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -80,7 +81,7 @@ func RunTransformCLI(config TransformConfig, transformFunc TransformFunc, flags 
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(nebuErrors.ExitCode(err))
 	}
 }
 
@@ -94,7 +95,7 @@ func runTransform(transformFunc TransformFunc, quietMode bool, status *commandSt
 		if !quietMode {
 			fmt.Fprintln(os.Stderr, "\nShutting down...")
 		}
-		os.Exit(0)
+		os.Exit(130)
 	}()
 
 	if !quietMode {
@@ -128,6 +129,9 @@ func runTransform(transformFunc TransformFunc, quietMode bool, status *commandSt
 		transformed := transformFunc(event)
 		if transformed == nil {
 			// Event filtered out
+			if err := status.eventProgress(uint64(eventCount)); err != nil {
+				return err
+			}
 			continue
 		}
 
@@ -137,6 +141,9 @@ func runTransform(transformFunc TransformFunc, quietMode bool, status *commandSt
 		}
 
 		outputCount++
+		if err := status.eventProgress(uint64(eventCount)); err != nil {
+			return err
+		}
 
 		if !quietMode && eventCount%1000 == 0 {
 			fmt.Fprintf(os.Stderr, "Processed %d events (%d output)...\n", eventCount, outputCount)

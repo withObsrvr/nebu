@@ -1,162 +1,86 @@
-# nebu + flowctl Integration (Optional)
+# nebu ↔ flowctl process contract
 
-This document describes how nebu and flowctl can optionally work together. **This integration is NOT required** - both tools work independently.
+Nebu remains a CLI and processor runtime. Flowctl owns discovery, process or
+container supervision, restart policy, health timeouts, and pipeline wiring.
+Nebu does not register with a control plane or require flowctl libraries.
 
-## Quick Overview
+This document defines the nebu side of the integration boundary. A separate
+flowctl implementation can consume it without adding orchestration behavior to
+nebu.
 
-**nebu:** CLI tool for Stellar data extraction with Unix pipes
-**flowctl:** Service orchestrator for complex, distributed pipelines
+## Discovery
 
-You can use nebu alone, flowctl alone, or combine them for specific use cases.
-
-## Use Case: nebu as a flowctl Source Component
-
-If you're building a production pipeline with flowctl and need Stellar data, you can wrap a nebu processor as a flowctl source component.
-
-### Example: Token Transfer Source
-
-**Scenario:** You have a flowctl pipeline that processes token transfers with custom Python analytics and a Kafka sink.
-
-**Architecture:**
-```
-┌────────────────┐
-│ nebu processor │ (Go binary)
-│ token-transfer │ Internal: Protobuf structs
-└───────┬────────┘
-        │ stdout: Newline-delimited JSON
-        ▼
-┌────────────────┐
-│ flowctl wraps  │ (Reads JSON, converts to gRPC protobuf)
-│ as source      │
-└───────┬────────┘
-        │ gRPC: Native protobuf streams
-        ▼
-┌────────────────┐
-│ Python         │
-│ analytics      │
-└───────┬────────┘
-        │ gRPC: Native protobuf streams
-        ▼
-┌────────────────┐
-│ Kafka sink     │
-└────────────────┘
-```
-
-**Wire format transition:**
-- nebu → flowctl: JSON (for CLI compatibility)
-- flowctl components: Native protobuf (for type safety and performance)
-
-### Future: Automated Export (Not Implemented Yet)
-
-In the future, nebu could generate flowctl-compatible configurations:
+Before starting a processor, invoke:
 
 ```bash
-# Generate flowctl component definition from nebu processor
-nebu export token-transfer --format flowctl > token-transfer.yaml
-
-# Use in flowctl pipeline
-flowctl run pipeline.yaml
+token-transfer --describe-json
 ```
 
-**pipeline.yaml:**
-```yaml
-apiVersion: flowctl/v1
-kind: Pipeline
-metadata:
-  name: stellar-analytics
-spec:
-  sources:
-    - id: stellar-source
-      command: ["token-transfer", "--start-ledger", "60200000", "--end-ledger", "60300000"]
-      # flowctl reads stdout (JSON), converts to gRPC Events
-  processors:
-    - id: analytics
-      image: my-python-analytics:latest
-      inputs: ["stellar-source"]
-  sinks:
-    - id: kafka
-      image: kafka-sink:latest
-      inputs: ["analytics"]
-```
+The command prints one `DescribeEnvelope` JSON document to stdout and exits 0
+without requiring runtime flags or starting processing. Flowctl should use the
+manifest's processor type, flags, and input/output JSON Schemas to validate
+wiring. Parsers must ignore unknown fields for forward compatibility.
 
-## When to Combine nebu + flowctl
+## Launch contract
 
-**Good reasons:**
-- You need Stellar data in a flowctl pipeline
-- You want observability/monitoring for nebu processors
-- You're mixing nebu with non-Go components (Python, Rust, etc.)
-- Production deployment requires service management
+Create a dedicated status path for each component, then launch the processor:
 
-**Bad reasons (use nebu CLI instead):**
-- Quick prototyping or ad-hoc analysis
-- Single-machine, simple pipelines
-- No need for service orchestration
-
-## Wrapping nebu Processors for flowctl (Current Manual Method)
-
-Until `nebu export` is implemented, you can manually wrap nebu processors:
-
-### Option 1: Process Driver
-
-flowctl can run nebu processors as local processes:
-
-**pipeline.yaml:**
-```yaml
-apiVersion: flowctl/v1
-kind: Pipeline
-metadata:
-  name: nebu-pipeline
-spec:
-  driver: process
-  sources:
-    - id: token-transfer
-      command: ["token-transfer", "--start-ledger", "60200000", "--end-ledger", "60200100"]
-      env:
-        NEBU_RPC_URL: "https://archive-rpc.lightsail.network"
-      # flowctl captures stdout as source data
-```
-
-### Option 2: Docker Driver
-
-Package nebu processor as a container:
-
-**Dockerfile:**
-```dockerfile
-FROM golang:1.25 AS builder
-WORKDIR /build
-COPY . .
-RUN go build -o token-transfer ./cmd/token-transfer
-
-FROM debian:bookworm-slim
-COPY --from=builder /build/token-transfer /usr/local/bin/
-ENTRYPOINT ["token-transfer"]
-```
-
-**Build and use:**
 ```bash
-docker build -t nebu-token-transfer:latest .
-
-# flowctl pipeline.yaml
-apiVersion: flowctl/v1
-kind: Pipeline
-metadata:
-  name: nebu-docker-pipeline
-spec:
-  driver: docker
-  sources:
-    - id: token-transfer
-      image: nebu-token-transfer:latest
-      args: ["--start-ledger", "60200000", "--end-ledger", "60200100"]
+NEBU_STATUS_FILE=/run/flowctl/token-transfer.status.ndjson \
+NEBU_PROGRAM_STATUS=never \
+token-transfer --start-ledger 60200000 --end-ledger 60200100
 ```
 
-## Links
+The process exposes four independent signals:
 
-- **flowctl Documentation:** https://github.com/withObsrvr/flowctl
-- **nebu Architecture Decision:** [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md)
-- **nebu CLI Guide:** [../README.md](../README.md)
+| Signal | Contract |
+|---|---|
+| stdout | Processor NDJSON data only. |
+| stderr | Human diagnostics and optional OSC 7501. |
+| status file | Versioned `nebu.status.v1` NDJSON lifecycle and progress. |
+| process exit | Authoritative success, failure, or interruption result. |
 
-## Summary
+Flowctl should associate the status path with the child process it created;
+nebu does not require flowctl-specific run or component identifiers.
 
-nebu and flowctl are independent tools that can optionally work together.
+## Status and health
 
-Use nebu CLI for simple, fast pipelines. Use flowctl when you need orchestration, multi-language, or production deployment.
+The status schema is defined in [STATUS_STREAM.md](STATUS_STREAM.md). Origins
+report current ledger and bounded-range lag. Transforms and sinks report the
+number of successfully consumed events.
+
+Terminal states are:
+
+- `done`: successful completion;
+- `idle`: cancellation or interruption;
+- `error`: failed completion.
+
+Status describes semantic state and progress. Flowctl should determine process
+liveness and heartbeat timeouts from the child process it supervises rather
+than requiring nebu to run a control-plane heartbeat client. Exit codes remain
+authoritative if a process terminates before its final status record is read.
+
+## OSC 7501
+
+OSC 7501 is complementary. Set `NEBU_PROGRAM_STATUS=always` when flowctl wants
+to consume terminal-native lifecycle reports from stderr, or `never` when the
+dedicated NDJSON status stream is sufficient. Structured status does not
+disable or replace OSC 7501.
+
+## Cancellation
+
+Flowctl should send SIGINT or SIGTERM, continue draining stdout and the status
+file, and wait for graceful termination. Nebu processor helpers emit `idle` and
+use exit code 130 for forced interruption. Flowctl may escalate termination
+after its own configured grace period.
+
+## Compatibility
+
+- Treat `--describe-json` and `nebu.status.v1` as versioned contracts.
+- Ignore unknown JSON fields.
+- Never parse human stderr text for state or progress.
+- Never mix the status file with stdout, stderr, checkpoint, or data paths.
+- Do not assume a status record is a durable data acknowledgement.
+
+Nebu works normally when neither status nor flowctl is present. The integration
+adds no daemon, scheduler, pipeline registry, or required external service.

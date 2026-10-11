@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 	"github.com/withObsrvr/nebu/pkg/source/rpc"
@@ -113,7 +114,7 @@ func RunProtoOriginCLI[T proto.Message](
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Force shutdown after timeout")
 				}
-				os.Exit(1)
+				os.Exit(130)
 			}()
 
 			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
@@ -169,12 +170,12 @@ func RunProtoOriginCLI[T proto.Message](
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdinProto[T](ctx, origin, os.Stdin)
+				err = processFromStdinProto[T](ctx, origin, os.Stdin, status, 0)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFileProto[T](ctx, origin, inputFile)
+				err = processFromFileProto[T](ctx, origin, inputFile, status, 0)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -185,7 +186,7 @@ func RunProtoOriginCLI[T proto.Message](
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCProto[T](ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
+				err = processFromRPCProto[T](ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger))
 			}
 
 			if err != nil && err != context.Canceled {
@@ -203,7 +204,7 @@ func RunProtoOriginCLI[T proto.Message](
 			if !quietMode {
 				fmt.Fprintf(os.Stderr, "Processed %d events\n", eventCount)
 			}
-			return nil
+			return err
 		},
 	}
 
@@ -222,7 +223,7 @@ func RunProtoOriginCLI[T proto.Message](
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(nebuErrors.ExitCode(err))
 	}
 }
 
@@ -248,7 +249,7 @@ func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOrigi
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
-func processFromStdinProto[T proto.Message](ctx context.Context, origin processor.Origin, input io.Reader) error {
+func processFromStdinProto[T proto.Message](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32) error {
 	reader := bufio.NewReader(input)
 	ledgerCount := 0
 
@@ -271,17 +272,20 @@ func processFromStdinProto[T proto.Message](ctx context.Context, origin processo
 
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
+		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
+			return err
+		}
 	}
 }
 
-func processFromFileProto[T proto.Message](ctx context.Context, origin processor.Origin, filePath string) error {
+func processFromFileProto[T proto.Message](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open input file: %w", err)
 	}
 	defer f.Close()
 
-	return processFromStdinProto[T](ctx, origin, f)
+	return processFromStdinProto[T](ctx, origin, f, status, target)
 }
 
 func isEOFErrorProto(err error) bool {

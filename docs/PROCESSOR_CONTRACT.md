@@ -147,6 +147,19 @@ behind an intermediate pipe. `--quiet` suppresses `auto` reports; an explicit
 `always` overrides quiet mode. `--describe-json` MUST remain JSON-only and MUST
 NOT emit status reports.
 
+### Structured status
+
+Processors SHOULD expose the stable [`nebu.status.v1`](STATUS_STREAM.md)
+NDJSON stream through `--status-file` and the equivalent `NEBU_STATUS_FILE`
+default. The configured file is separate from stdout and stderr: stdout remains
+processor data, while stderr remains diagnostics and optional OSC 7501.
+
+Origin processors report `current_ledger` and, for bounded runs,
+`target_ledger` plus `ledger_lag`. Transforms and sinks report
+`events_processed`. A configured status stream begins with `working` and ends
+with `done`, `idle`, or `error`. Failure to open or write the explicitly
+configured stream is a processor failure.
+
 ## 5. Distribution and registry
 
 A community processor is published by adding a directory with a

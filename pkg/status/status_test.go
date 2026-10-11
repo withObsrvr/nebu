@@ -45,6 +45,18 @@ func TestWriterOmitsUnknownUnboundedProgress(t *testing.T) {
 	assert.NotContains(t, got, "ledger_lag")
 }
 
+func TestWriterEmitsEventProgress(t *testing.T) {
+	var output bytes.Buffer
+	w := NewWriter(&output, "json-file-sink")
+	count := uint64(42)
+	require.NoError(t, w.Write(Record{State: programstatus.Working, EventsProcessed: &count}))
+
+	var got Record
+	require.NoError(t, json.Unmarshal(output.Bytes(), &got))
+	require.NotNil(t, got.EventsProcessed)
+	assert.Equal(t, uint64(42), *got.EventsProcessed)
+}
+
 func TestWriterRejectsInvalidRecords(t *testing.T) {
 	var output bytes.Buffer
 	w := NewWriter(&output, "nebu")

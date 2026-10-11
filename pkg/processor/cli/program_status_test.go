@@ -1,14 +1,19 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/withObsrvr/nebu/pkg/programstatus"
+	statusstream "github.com/withObsrvr/nebu/pkg/status"
 )
 
 func TestCommandStatusLifecycle(t *testing.T) {
@@ -96,4 +101,73 @@ func TestTerminalFileRejectsNonTerminalCharacterDevice(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, devNull.Close()) })
 
 	assert.False(t, terminalFile(devNull))
+}
+
+func TestCommandStructuredStatusLifecycle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	quiet := false
+	cmd := &cobra.Command{Use: "test", RunE: func(*cobra.Command, []string) error { return nil }}
+	commandStatus := attachProgramStatus(cmd, "test-app", &quiet)
+	commandStatus.mode = "never"
+	commandStatus.statusPath = path
+
+	cmd.SetArgs([]string{})
+	require.NoError(t, cmd.Execute())
+	records := readProcessorStatusRecords(t, path)
+	require.Len(t, records, 2)
+	assert.Equal(t, programstatus.Working, records[0].State)
+	assert.Equal(t, programstatus.Done, records[1].State)
+}
+
+func TestCommandStructuredStatusCancellation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	quiet := false
+	var commandStatus *commandStatus
+	cmd := &cobra.Command{Use: "test", RunE: func(*cobra.Command, []string) error {
+		commandStatus.cancel()
+		return errors.New("should remain the command error")
+	}}
+	commandStatus = attachProgramStatus(cmd, "test-app", &quiet)
+	commandStatus.mode = "never"
+	commandStatus.statusPath = path
+
+	cmd.SetArgs([]string{})
+	require.Error(t, cmd.Execute())
+	records := readProcessorStatusRecords(t, path)
+	require.Len(t, records, 2)
+	assert.Equal(t, programstatus.Working, records[0].State)
+	assert.Equal(t, programstatus.Idle, records[1].State)
+}
+
+func TestCommandStructuredProgress(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	commandStatus := &commandStatus{structured: statusstream.NewWriter(file, "test-app"), statusFile: file}
+
+	require.NoError(t, commandStatus.ledgerProgress(100, 110))
+	require.NoError(t, commandStatus.eventProgress(7))
+	require.NoError(t, commandStatus.closeStructured())
+	records := readProcessorStatusRecords(t, path)
+	require.Len(t, records, 2)
+	assert.Equal(t, uint32(100), *records[0].CurrentLedger)
+	assert.Equal(t, uint64(10), *records[0].LedgerLag)
+	assert.Equal(t, uint64(7), *records[1].EventsProcessed)
+}
+
+func readProcessorStatusRecords(t *testing.T, path string) []statusstream.Record {
+	t.Helper()
+	file, err := os.Open(path)
+	require.NoError(t, err)
+	defer file.Close()
+
+	var records []statusstream.Record
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var record statusstream.Record
+		require.NoError(t, json.Unmarshal(scanner.Bytes(), &record))
+		records = append(records, record)
+	}
+	require.NoError(t, scanner.Err())
+	return records
 }

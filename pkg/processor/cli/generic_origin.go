@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 	"github.com/withObsrvr/nebu/pkg/source/rpc"
@@ -133,7 +134,7 @@ Examples:
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Force shutdown after timeout")
 				}
-				os.Exit(1)
+				os.Exit(130)
 			}()
 
 			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
@@ -193,12 +194,12 @@ Examples:
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdinGeneric[T](ctx, origin, os.Stdin)
+				err = processFromStdinGeneric[T](ctx, origin, os.Stdin, status, 0)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFileGeneric[T](ctx, origin, inputFile)
+				err = processFromFileGeneric[T](ctx, origin, inputFile, status, 0)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -209,7 +210,7 @@ Examples:
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
+				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger))
 			}
 
 			if err != nil && err != context.Canceled {
@@ -224,7 +225,7 @@ Examples:
 			if !quietMode {
 				fmt.Fprintf(os.Stderr, "Processed %d events\n", eventCount)
 			}
-			return nil
+			return err
 		},
 	}
 
@@ -237,7 +238,7 @@ Examples:
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(nebuErrors.ExitCode(err))
 	}
 }
 
@@ -263,7 +264,7 @@ func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProce
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
-func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin, input io.Reader) error {
+func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32) error {
 	reader := bufio.NewReader(input)
 	ledgerCount := 0
 
@@ -286,17 +287,20 @@ func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin
 
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
+		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
+			return err
+		}
 	}
 }
 
-func processFromFileGeneric[T any](ctx context.Context, origin processor.Origin, filePath string) error {
+func processFromFileGeneric[T any](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open input file: %w", err)
 	}
 	defer f.Close()
 
-	return processFromStdinGeneric[T](ctx, origin, f)
+	return processFromStdinGeneric[T](ctx, origin, f, status, target)
 }
 
 func isEOFErrorGeneric(err error) bool {
