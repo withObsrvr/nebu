@@ -34,11 +34,13 @@ func newFetchCmd() *cobra.Command {
 		mode string
 
 		// Archive mode flags
-		datastoreType string
-		bucketPath    string
-		region        string
-		bufferSize    int
-		numWorkers    int
+		datastoreType      string
+		bucketPath         string
+		region             string
+		bufferSize         int
+		numWorkers         int
+		checkpointPath     string
+		checkpointInterval uint32
 	)
 
 	cmd := &cobra.Command{
@@ -152,6 +154,25 @@ Archive Mode Examples:
 				return nebuErrors.InvalidMode(modeConfig.Value, []string{"rpc", "archive"})
 			}
 
+			if err := validateCheckpointOutputPaths(checkpointPath, outputFile); err != nil {
+				return nebuErrors.Usage(err)
+			}
+
+			checkpoint, resumedStart, alreadyComplete, err := openCheckpoint(
+				checkpointPath, startLedger, endLedger, checkpointInterval,
+			)
+			if err != nil {
+				return err
+			}
+			if alreadyComplete {
+				logInfo("Checkpoint already covers requested range through ledger %d", endLedger)
+				return nil
+			}
+			if resumedStart != startLedger {
+				logInfo("Resuming from checkpoint at ledger %d", resumedStart)
+				startLedger = resumedStart
+			}
+
 			// Display startup banner
 			outputDest := "stdout"
 			if outputFile != "" {
@@ -217,6 +238,7 @@ Archive Mode Examples:
 					startLedger,
 					endLedger,
 					outputFile,
+					checkpoint,
 				)
 			} else {
 				return fetchLedgersRPC(
@@ -227,6 +249,7 @@ Archive Mode Examples:
 					endLedger,
 					outputFile,
 					authHeader,
+					checkpoint,
 				)
 			}
 		},
@@ -250,6 +273,8 @@ Archive Mode Examples:
 
 	// Common flags
 	cmd.Flags().StringVar(&outputFile, "output", "", "Output file (default: stdout)")
+	cmd.Flags().StringVar(&checkpointPath, "checkpoint", "", "Resume checkpoint file (opt-in)")
+	cmd.Flags().Uint32Var(&checkpointInterval, "checkpoint-interval", 1, "Ledgers between durable checkpoint writes")
 
 	return cmd
 }
@@ -269,7 +294,7 @@ func (t *fetchHeaderTransport) RoundTrip(req *http.Request) (*http.Response, err
 	return t.base.RoundTrip(reqCopy)
 }
 
-func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, outputFile, authHeader string) error {
+func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, outputFile, authHeader string, checkpoint *checkpointWriter) error {
 	if rpcURL == "" {
 		return nebuErrors.FailedToCreateSource("RPC", errors.New("rpcURL cannot be empty"))
 	}
@@ -283,7 +308,7 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, o
 	}
 
 	stream := ledgerbackend.NewRPCStream(options, nil)
-	return fetchRawLedgers(ctx, stream, start, end, outputFile)
+	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
 }
 
 func fetchLedgersArchive(
@@ -292,6 +317,7 @@ func fetchLedgersArchive(
 	bufferSize, numWorkers uint32,
 	start, end uint32,
 	outputFile string,
+	checkpoint *checkpointWriter,
 ) error {
 	datastoreConfig := datastore.DataStoreConfig{
 		Type: datastoreType,
@@ -312,7 +338,7 @@ func fetchLedgersArchive(
 	}
 
 	stream := ledgerbackend.NewBufferedStorageStream(bufferConfig, datastoreConfig, nil)
-	return fetchRawLedgers(ctx, stream, start, end, outputFile)
+	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
 }
 
 func fetchRawLedgers(
@@ -320,6 +346,7 @@ func fetchRawLedgers(
 	stream ledgerbackend.LedgerStream,
 	start, end uint32,
 	outputFile string,
+	checkpoint *checkpointWriter,
 ) error {
 	ledgerRange, err := rawLedgerRange(start, end)
 	if err != nil {
@@ -329,17 +356,45 @@ func fetchRawLedgers(
 	var output io.Writer = os.Stdout
 	var outputFileHandle *os.File
 	if outputFile != "" {
-		outputFileHandle, err = os.Create(outputFile)
+		flags := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
+		if checkpoint.resuming() {
+			flags = os.O_CREATE | os.O_WRONLY | os.O_APPEND
+		}
+		outputFileHandle, err = os.OpenFile(outputFile, flags, 0o644)
 		if err != nil {
 			return nebuErrors.FailedToCreateFile(outputFile, err)
 		}
 		output = outputFileHandle
 	}
 
-	ledgerCount, streamErr := writeRawLedgers(ctx, stream, ledgerRange, output, start, end)
+	outputSyncFailed := false
+	var syncOutput func() error
 	if outputFileHandle != nil {
+		syncOutput = func() error {
+			if err := outputFileHandle.Sync(); err != nil {
+				outputSyncFailed = true
+				return fmt.Errorf("sync output file %q: %w", outputFile, err)
+			}
+			return nil
+		}
+	}
+
+	ledgerCount, streamErr := writeRawLedgersWithCheckpoint(
+		ctx, stream, ledgerRange, output, start, end, checkpoint, syncOutput,
+	)
+	if outputFileHandle != nil {
+		if syncErr := syncOutput(); syncErr != nil {
+			streamErr = errors.Join(streamErr, syncErr)
+		}
 		if closeErr := outputFileHandle.Close(); closeErr != nil {
+			outputSyncFailed = true
 			streamErr = errors.Join(streamErr, fmt.Errorf("failed to close output file %q: %w", outputFile, closeErr))
+		}
+	}
+	if ledgerCount > 0 && checkpoint != nil && !outputSyncFailed {
+		last := uint64(start) + uint64(ledgerCount) - 1
+		if err := checkpoint.advance(uint32(last), true); err != nil {
+			streamErr = errors.Join(streamErr, fmt.Errorf("save final checkpoint after ledger %d: %w", last, err))
 		}
 	}
 	if streamErr != nil {
@@ -379,7 +434,18 @@ func writeRawLedgers(
 	output io.Writer,
 	start, end uint32,
 ) (int, error) {
-	ledgerCount := 0
+	return writeRawLedgersWithCheckpoint(ctx, stream, ledgerRange, output, start, end, nil, nil)
+}
+
+func writeRawLedgersWithCheckpoint(
+	ctx context.Context,
+	stream ledgerbackend.LedgerStream,
+	ledgerRange ledgerbackend.Range,
+	output io.Writer,
+	start, end uint32,
+	checkpoint *checkpointWriter,
+	syncOutput func() error,
+) (ledgerCount int, retErr error) {
 	reportInterval := 10
 	if end == 0 {
 		reportInterval = 100
@@ -409,6 +475,14 @@ func writeRawLedgers(
 		}
 
 		ledgerCount++
+		if checkpoint.willPersist(false) && syncOutput != nil {
+			if err := syncOutput(); err != nil {
+				return ledgerCount, fmt.Errorf("sync output before checkpoint after ledger %d: %w", sequence, err)
+			}
+		}
+		if err := checkpoint.advance(uint32(sequence), false); err != nil {
+			return ledgerCount, fmt.Errorf("save checkpoint after ledger %d: %w", sequence, err)
+		}
 		if ledgerCount%reportInterval == 0 {
 			if end == 0 {
 				logInfo("Streaming... fetched %d ledgers (current: %d)", ledgerCount, sequence)
