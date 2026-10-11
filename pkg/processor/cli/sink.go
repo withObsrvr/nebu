@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -73,7 +74,7 @@ func RunSinkCLI(config SinkConfig, sinkFunc SinkFunc, flags func(*cobra.Command)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(nebuErrors.ExitCode(err))
 	}
 }
 
@@ -87,7 +88,7 @@ func runSink(sinkFunc SinkFunc, quietMode bool, status *commandStatus) error {
 		if !quietMode {
 			fmt.Fprintln(os.Stderr, "\nShutting down...")
 		}
-		os.Exit(0)
+		os.Exit(130)
 	}()
 
 	if !quietMode {
@@ -133,6 +134,9 @@ func runSink(sinkFunc SinkFunc, quietMode bool, status *commandStatus) error {
 		}
 
 		eventCount++
+		if err := status.eventProgress(uint64(eventCount)); err != nil {
+			return err
+		}
 
 		if !quietMode && eventCount%1000 == 0 {
 			fmt.Fprintf(os.Stderr, "Processed %d events...\n", eventCount)

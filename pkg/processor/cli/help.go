@@ -200,6 +200,8 @@ func CommonEnvVars() []HelpEnvVar {
 		{Name: "NEBU_RPC_URL", Description: "Default RPC endpoint"},
 		{Name: "NEBU_RPC_AUTH", Description: "Authorization header (e.g., 'Api-Key xxx')"},
 		{Name: "NEBU_NETWORK", Description: "Network: 'mainnet' or 'testnet'"},
+		{Name: "NEBU_PROGRAM_STATUS", Description: "OSC 7501 mode: auto, always, or never"},
+		{Name: "NEBU_STATUS_FILE", Description: "Dedicated nebu.status.v1 NDJSON output path"},
 	}
 }
 

@@ -33,6 +33,7 @@ Each line is one JSON object:
 | `current_ledger` | uint32 | no | Most recently written ledger. |
 | `target_ledger` | uint32 | no | Requested bounded-range end ledger. |
 | `ledger_lag` | uint64 | no | `max(target_ledger - current_ledger, 0)`. |
+| `events_processed` | uint64 | no | Events consumed successfully by a transform or sink. |
 | `message` | string | no | One-line human-readable context. |
 
 For an unbounded fetch, `current_ledger` is present while `target_ledger` and
@@ -45,3 +46,8 @@ interruption, or `error` after failure. Failure to open or write an explicitly
 configured status file fails the command; it is therefore safe for an
 orchestrator to rely on the configured stream rather than silently losing
 observability.
+
+The `nebu` command and processor binaries built with `pkg/processor/cli` both
+support `--status-file` and `NEBU_STATUS_FILE`. Origin processors report ledger
+progress. Transforms and sinks report `events_processed`. These records use the
+same schema and lifecycle semantics as `nebu fetch`.

@@ -16,14 +16,15 @@ const Schema = "nebu.status.v1"
 
 // Record is one lifecycle or progress update in the nebu status stream.
 type Record struct {
-	Schema        string              `json:"_schema"`
-	State         programstatus.State `json:"state"`
-	App           string              `json:"app"`
-	Timestamp     time.Time           `json:"ts"`
-	CurrentLedger *uint32             `json:"current_ledger,omitempty"`
-	TargetLedger  *uint32             `json:"target_ledger,omitempty"`
-	LedgerLag     *uint64             `json:"ledger_lag,omitempty"`
-	Message       string              `json:"message,omitempty"`
+	Schema          string              `json:"_schema"`
+	State           programstatus.State `json:"state"`
+	App             string              `json:"app"`
+	Timestamp       time.Time           `json:"ts"`
+	CurrentLedger   *uint32             `json:"current_ledger,omitempty"`
+	TargetLedger    *uint32             `json:"target_ledger,omitempty"`
+	LedgerLag       *uint64             `json:"ledger_lag,omitempty"`
+	EventsProcessed *uint64             `json:"events_processed,omitempty"`
+	Message         string              `json:"message,omitempty"`
 }
 
 // Writer serializes status records as newline-delimited JSON.

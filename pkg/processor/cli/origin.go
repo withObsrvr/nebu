@@ -153,7 +153,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Force shutdown after timeout")
 				}
-				os.Exit(1)
+				os.Exit(130)
 			}()
 
 			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
@@ -184,12 +184,12 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdin(ctx, origin, os.Stdin)
+				err = processFromStdin(ctx, origin, os.Stdin, status, 0)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFile(ctx, origin, inputFile)
+				err = processFromFile(ctx, origin, inputFile, status, 0)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -200,7 +200,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, config.Hooks)
+				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger))
 			}
 
 			if err != nil && err != context.Canceled {
@@ -218,7 +218,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 			if !quietMode {
 				fmt.Fprintf(os.Stderr, "Processed %d events\n", eventCount)
 			}
-			return nil
+			return err
 		},
 	}
 
@@ -231,7 +231,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(nebuErrors.ExitCode(err))
 	}
 }
 
@@ -257,7 +257,7 @@ func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string,
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
-func processFromStdin(ctx context.Context, origin processor.Origin, input io.Reader) error {
+func processFromStdin(ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32) error {
 	reader := bufio.NewReader(input)
 	ledgerCount := 0
 
@@ -280,6 +280,9 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
+		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
+			return err
+		}
 	}
 }
 
@@ -294,14 +297,14 @@ func isEOFError(err error) bool {
 	return err == io.EOF || strings.Contains(errMsg, "EOF")
 }
 
-func processFromFile(ctx context.Context, origin processor.Origin, filePath string) error {
+func processFromFile(ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nebuErrors.FailedToOpenFile(filePath, err)
 	}
 	defer f.Close()
 
-	return processFromStdin(ctx, origin, f)
+	return processFromStdin(ctx, origin, f, status, target)
 }
 
 func simplifyEvent(ev *token_transfer.TokenTransferEvent) map[string]interface{} {

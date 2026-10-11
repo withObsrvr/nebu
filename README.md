@@ -760,6 +760,11 @@ disable reports. `NEBU_PROGRAM_STATUS` sets the same default. `--quiet`
 suppresses automatic reports; an explicit `--program-status=always` overrides
 quiet mode.
 
+For headless orchestration, `--status-file PATH` (or `NEBU_STATUS_FILE`) writes
+the stable `nebu.status.v1` NDJSON lifecycle and progress stream separately
+from stdout and stderr. This works for `nebu` commands and processor binaries;
+see [Machine-readable status](docs/STATUS_STREAM.md).
+
 ### Build a Pipeline
 
 Stream events from origin processors into sink processors using Unix pipes:
