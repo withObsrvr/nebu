@@ -17,19 +17,25 @@ import (
 // ExternalProcessorDesc represents a description.yml from an external registry.
 type ExternalProcessorDesc struct {
 	Processor struct {
-		Name        string   `yaml:"name"`
-		Type        string   `yaml:"type"`
-		Description string   `yaml:"description"`
-		Version     string   `yaml:"version"`
-		Language    string   `yaml:"language"`
-		License     string   `yaml:"license"`
-		Maintainers []string `yaml:"maintainers"`
+		Name              string   `yaml:"name"`
+		Type              string   `yaml:"type"`
+		Description       string   `yaml:"description"`
+		Version           string   `yaml:"version"`
+		Language          string   `yaml:"language"`
+		License           string   `yaml:"license"`
+		Maintainers       []string `yaml:"maintainers"`
+		Deprecated        bool     `yaml:"deprecated"`
+		DeprecationNotice string   `yaml:"deprecation_notice"`
 	} `yaml:"processor"`
 	Repo struct {
 		GitHub string `yaml:"github"`
+		Ref    string `yaml:"ref"`
 	} `yaml:"repo"`
-	Install *InstallConfig `yaml:"install"`
-	Docs    struct {
+	Install  *InstallConfig `yaml:"install"`
+	Proto    *ProtoConfig   `yaml:"proto"`
+	Schema   *SchemaConfig  `yaml:"schema"`
+	Metadata map[string]any `yaml:"metadata"`
+	Docs     struct {
 		QuickStart          string `yaml:"quick_start"`
 		Examples            string `yaml:"examples"`
 		ExtendedDescription string `yaml:"extended_description"`
@@ -39,10 +45,15 @@ type ExternalProcessorDesc struct {
 // ToProcessorEntry converts an external description to a ProcessorEntry.
 func (d *ExternalProcessorDesc) ToProcessorEntry() ProcessorEntry {
 	entry := ProcessorEntry{
-		Name:        d.Processor.Name,
-		Type:        d.Processor.Type,
-		Description: d.Processor.Description,
-		Source:      "community",
+		Name:              d.Processor.Name,
+		Type:              d.Processor.Type,
+		Description:       d.Processor.Description,
+		Deprecated:        d.Processor.Deprecated,
+		DeprecationNotice: d.Processor.DeprecationNotice,
+		Proto:             d.Proto,
+		Schema:            d.Schema,
+		Metadata:          d.Metadata,
+		Source:            "community",
 		Location: ProcessorLocation{
 			Type: "module",
 		},
@@ -50,6 +61,12 @@ func (d *ExternalProcessorDesc) ToProcessorEntry() ProcessorEntry {
 
 	if d.Docs.ExtendedDescription != "" {
 		entry.LongDescription = d.Docs.ExtendedDescription
+	}
+	if d.Docs.QuickStart != "" {
+		entry.Examples = append(entry.Examples, ExampleInfo{Comment: "Quick start", Command: strings.TrimSpace(d.Docs.QuickStart)})
+	}
+	if d.Docs.Examples != "" {
+		entry.Examples = append(entry.Examples, ExampleInfo{Comment: "Examples", Command: strings.TrimSpace(d.Docs.Examples)})
 	}
 
 	if len(d.Processor.Maintainers) > 0 || d.Repo.GitHub != "" {
@@ -69,6 +86,7 @@ func (d *ExternalProcessorDesc) ToProcessorEntry() ProcessorEntry {
 			d.Repo.GitHub, d.Processor.Name, d.Processor.Name,
 		)
 	}
+	entry.Location.Ref = d.Repo.Ref
 
 	if d.Install != nil {
 		inst := *d.Install
@@ -79,6 +97,19 @@ func (d *ExternalProcessorDesc) ToProcessorEntry() ProcessorEntry {
 	}
 
 	return entry
+}
+
+// ValidateExternalDescription rejects unknown description.yml fields for
+// registry authors. Runtime parsing remains forward compatible and ignores
+// unknown fields as required by the v1 specification.
+func ValidateExternalDescription(data []byte) error {
+	decoder := yaml.NewDecoder(strings.NewReader(string(data)))
+	decoder.KnownFields(true)
+	var desc ExternalProcessorDesc
+	if err := decoder.Decode(&desc); err != nil {
+		return fmt.Errorf("invalid description.yml: %w", err)
+	}
+	return nil
 }
 
 // ExternalRegistry fetches processor metadata from a GitHub-hosted registry.
@@ -322,7 +353,20 @@ func (r *ExternalRegistry) writeCache(entries []ProcessorEntry) error {
 		desc.Processor.Name = entry.Name
 		desc.Processor.Type = entry.Type
 		desc.Processor.Description = entry.Description
+		desc.Processor.Deprecated = entry.Deprecated
+		desc.Processor.DeprecationNotice = entry.DeprecationNotice
 		desc.Docs.ExtendedDescription = entry.LongDescription
+		for _, example := range entry.Examples {
+			switch example.Comment {
+			case "Quick start":
+				desc.Docs.QuickStart = example.Command
+			case "Examples":
+				desc.Docs.Examples = example.Command
+			}
+		}
+		desc.Proto = entry.Proto
+		desc.Schema = entry.Schema
+		desc.Metadata = entry.Metadata
 		// entry.Install already has Version resolved; persisting it keeps
 		// binary installs working from cache without a registry refetch.
 		desc.Install = entry.Install
@@ -333,6 +377,7 @@ func (r *ExternalRegistry) writeCache(entries []ProcessorEntry) error {
 				desc.Repo.GitHub = strings.TrimPrefix(entry.Maintainer.URL, "https://github.com/")
 			}
 		}
+		desc.Repo.Ref = entry.Location.Ref
 
 		data, err := yaml.Marshal(&desc)
 		if err != nil {

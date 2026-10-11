@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
@@ -91,6 +92,13 @@ func getDefaultInstallPath() string {
 
 // installProcessorSmart auto-detects whether to build locally or use go install
 func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) error {
+	if proc.Deprecated {
+		notice := proc.DeprecationNotice
+		if notice == "" {
+			notice = "no migration guidance was provided"
+		}
+		logWarning("processor %q is deprecated: %s", proc.Name, notice)
+	}
 	// Try local build first (dev mode with cloned repo)
 	if proc.Location.Path != "" {
 		if _, err := os.Stat(proc.Location.Path); err == nil {
@@ -111,7 +119,7 @@ func installProcessorSmart(proc *registry.ProcessorEntry, installPath string) er
 	// Fall back to go install (for users without cloned repo)
 	if proc.Location.ModulePackage != "" {
 		logInfo("Installing %s from Go module...", proc.Name)
-		return installProcessorModule(proc.Name, proc.Location.ModulePackage, installPath)
+		return installProcessorModule(proc.Name, moduleInstallTarget(proc.Location.ModulePackage, proc.Location.Ref), installPath)
 	}
 
 	return nebuErrors.WithSuggestion(
@@ -155,10 +163,14 @@ func installProcessorLocal(name, processorPath, installPath string) error {
 // to the wrapped error for log-forwarded / CI contexts where the
 // live stderr may be truncated or separated from the error message.
 func installProcessorModule(name, modulePackage, installPath string) error {
-	logInfo("Running: go install %s@latest", modulePackage)
+	target := modulePackage
+	if !strings.Contains(target, "@") {
+		target += "@latest"
+	}
+	logInfo("Running: go install %s", target)
 
 	var stderrBuf bytes.Buffer
-	cmd := exec.Command("go", "install", modulePackage+"@latest")
+	cmd := exec.Command("go", "install", target)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
@@ -174,4 +186,11 @@ func installProcessorModule(name, modulePackage, installPath string) error {
 	logInfo("  nebu fetch 60200000 60200100 | %s", name)
 
 	return nil
+}
+
+func moduleInstallTarget(modulePackage, ref string) string {
+	if ref == "" {
+		return modulePackage
+	}
+	return modulePackage + "@" + ref
 }
