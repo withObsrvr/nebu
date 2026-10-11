@@ -154,6 +154,10 @@ Archive Mode Examples:
 				return nebuErrors.InvalidMode(modeConfig.Value, []string{"rpc", "archive"})
 			}
 
+			if err := validateCheckpointOutputPaths(checkpointPath, outputFile); err != nil {
+				return nebuErrors.Usage(err)
+			}
+
 			checkpoint, resumedStart, alreadyComplete, err := openCheckpoint(
 				checkpointPath, startLedger, endLedger, checkpointInterval,
 			)
@@ -363,10 +367,34 @@ func fetchRawLedgers(
 		output = outputFileHandle
 	}
 
-	ledgerCount, streamErr := writeRawLedgersWithCheckpoint(ctx, stream, ledgerRange, output, start, end, checkpoint)
+	outputSyncFailed := false
+	var syncOutput func() error
 	if outputFileHandle != nil {
+		syncOutput = func() error {
+			if err := outputFileHandle.Sync(); err != nil {
+				outputSyncFailed = true
+				return fmt.Errorf("sync output file %q: %w", outputFile, err)
+			}
+			return nil
+		}
+	}
+
+	ledgerCount, streamErr := writeRawLedgersWithCheckpoint(
+		ctx, stream, ledgerRange, output, start, end, checkpoint, syncOutput,
+	)
+	if outputFileHandle != nil {
+		if syncErr := syncOutput(); syncErr != nil {
+			streamErr = errors.Join(streamErr, syncErr)
+		}
 		if closeErr := outputFileHandle.Close(); closeErr != nil {
+			outputSyncFailed = true
 			streamErr = errors.Join(streamErr, fmt.Errorf("failed to close output file %q: %w", outputFile, closeErr))
+		}
+	}
+	if ledgerCount > 0 && checkpoint != nil && !outputSyncFailed {
+		last := uint64(start) + uint64(ledgerCount) - 1
+		if err := checkpoint.advance(uint32(last), true); err != nil {
+			streamErr = errors.Join(streamErr, fmt.Errorf("save final checkpoint after ledger %d: %w", last, err))
 		}
 	}
 	if streamErr != nil {
@@ -406,7 +434,7 @@ func writeRawLedgers(
 	output io.Writer,
 	start, end uint32,
 ) (int, error) {
-	return writeRawLedgersWithCheckpoint(ctx, stream, ledgerRange, output, start, end, nil)
+	return writeRawLedgersWithCheckpoint(ctx, stream, ledgerRange, output, start, end, nil, nil)
 }
 
 func writeRawLedgersWithCheckpoint(
@@ -416,17 +444,8 @@ func writeRawLedgersWithCheckpoint(
 	output io.Writer,
 	start, end uint32,
 	checkpoint *checkpointWriter,
+	syncOutput func() error,
 ) (ledgerCount int, retErr error) {
-	defer func() {
-		if ledgerCount == 0 || checkpoint == nil {
-			return
-		}
-		last := uint64(start) + uint64(ledgerCount) - 1
-		if err := checkpoint.advance(uint32(last), true); err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("save final checkpoint after ledger %d: %w", last, err))
-		}
-	}()
-
 	reportInterval := 10
 	if end == 0 {
 		reportInterval = 100
@@ -456,6 +475,11 @@ func writeRawLedgersWithCheckpoint(
 		}
 
 		ledgerCount++
+		if checkpoint.willPersist(false) && syncOutput != nil {
+			if err := syncOutput(); err != nil {
+				return ledgerCount, fmt.Errorf("sync output before checkpoint after ledger %d: %w", sequence, err)
+			}
+		}
 		if err := checkpoint.advance(uint32(sequence), false); err != nil {
 			return ledgerCount, fmt.Errorf("save checkpoint after ledger %d: %w", sequence, err)
 		}

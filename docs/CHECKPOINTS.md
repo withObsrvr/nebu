@@ -27,7 +27,7 @@ the last ledger accepted by its output before returning. Checkpoints are
 replaced atomically, so a partial state file is never treated as valid.
 
 `--checkpoint-interval N` reduces filesystem synchronization overhead, but a
-hard crash can replay up to `N-1` ledgers from the last durable checkpoint.
+hard crash can replay up to `N` ledgers from the last durable checkpoint.
 This is at-least-once delivery: downstream consumers should use stable event
 keys such as TOIDs when deduplication is required. A Unix pipe has no general
 acknowledgement from an arbitrary sink, so nebu does not claim transactional

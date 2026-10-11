@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,26 +49,92 @@ func TestCheckpointRejectsDifferentRange(t *testing.T) {
 }
 
 func TestInterruptedWriteFlushesCheckpoint(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "fetch.json")
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fetch.json")
+	outputPath := filepath.Join(dir, "ledgers.xdr")
 	w, _, _, err := openCheckpoint(path, 200, 203, 100)
 	require.NoError(t, err)
 
-	count, err := writeRawLedgersWithCheckpoint(
+	err = fetchRawLedgers(
 		context.Background(),
 		fakeRawLedgerStream{records: [][]byte{{1}, {2}}, err: context.Canceled},
-		ledgerbackend.BoundedRange(200, 203),
-		io.Discard,
 		200,
 		203,
+		outputPath,
 		w,
 	)
-	assert.Equal(t, 2, count)
 	assert.ErrorContains(t, err, context.Canceled.Error())
 
 	_, start, complete, err := openCheckpoint(path, 200, 203, 100)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(202), start)
 	assert.False(t, complete)
+}
+
+func TestCheckpointRejectsOutputPathAliases(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "data")
+
+	t.Run("identical cleaned paths", func(t *testing.T) {
+		err := validateCheckpointOutputPaths(path, filepath.Join(dir, ".", "data"))
+		require.ErrorContains(t, err, "must refer to different files")
+	})
+
+	t.Run("hard link aliases", func(t *testing.T) {
+		require.NoError(t, os.WriteFile(path, []byte("data"), 0o644))
+		alias := filepath.Join(dir, "alias")
+		require.NoError(t, os.Link(path, alias))
+
+		err := validateCheckpointOutputPaths(path, alias)
+		require.ErrorContains(t, err, "must refer to different files")
+	})
+}
+
+func TestOutputSyncPrecedesCheckpointPersistence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fetch.json")
+	w, _, _, err := openCheckpoint(path, 400, 400, 1)
+	require.NoError(t, err)
+
+	syncCalls := 0
+	_, err = writeRawLedgersWithCheckpoint(
+		context.Background(),
+		fakeRawLedgerStream{records: [][]byte{{1}}},
+		ledgerbackend.BoundedRange(400, 400),
+		io.Discard,
+		400,
+		400,
+		w,
+		func() error {
+			syncCalls++
+			_, statErr := os.Stat(path)
+			assert.ErrorIs(t, statErr, os.ErrNotExist)
+			return nil
+		},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 1, syncCalls)
+	_, err = os.Stat(path)
+	require.NoError(t, err)
+}
+
+func TestOutputSyncFailureDoesNotAdvanceCheckpoint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fetch.json")
+	w, _, _, err := openCheckpoint(path, 500, 500, 1)
+	require.NoError(t, err)
+
+	_, err = writeRawLedgersWithCheckpoint(
+		context.Background(),
+		fakeRawLedgerStream{records: [][]byte{{1}}},
+		ledgerbackend.BoundedRange(500, 500),
+		io.Discard,
+		500,
+		500,
+		w,
+		func() error { return errors.New("sync failed") },
+	)
+	require.ErrorContains(t, err, "sync failed")
+	_, err = os.Stat(path)
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestFetchRawLedgersAppendsWhenResuming(t *testing.T) {
