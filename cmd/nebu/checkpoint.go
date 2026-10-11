@@ -103,31 +103,41 @@ func validateCheckpointOutputPaths(checkpointPath, outputPath string) error {
 	if checkpointPath == "" || outputPath == "" {
 		return nil
 	}
-
-	checkpointAbs, err := filepath.Abs(filepath.Clean(checkpointPath))
+	same, err := pathsReferToSameFile(checkpointPath, outputPath)
 	if err != nil {
-		return fmt.Errorf("resolve checkpoint path %q: %w", checkpointPath, err)
+		return err
 	}
-	outputAbs, err := filepath.Abs(filepath.Clean(outputPath))
-	if err != nil {
-		return fmt.Errorf("resolve output path %q: %w", outputPath, err)
-	}
-	if checkpointAbs == outputAbs {
+	if same {
 		return fmt.Errorf("--checkpoint and --output must refer to different files")
-	}
-
-	checkpointInfo, checkpointErr := os.Stat(checkpointAbs)
-	outputInfo, outputErr := os.Stat(outputAbs)
-	if checkpointErr == nil && outputErr == nil && os.SameFile(checkpointInfo, outputInfo) {
-		return fmt.Errorf("--checkpoint and --output must refer to different files")
-	}
-	if checkpointErr != nil && !os.IsNotExist(checkpointErr) {
-		return fmt.Errorf("inspect checkpoint path %q: %w", checkpointPath, checkpointErr)
-	}
-	if outputErr != nil && !os.IsNotExist(outputErr) {
-		return fmt.Errorf("inspect output path %q: %w", outputPath, outputErr)
 	}
 	return nil
+}
+
+func pathsReferToSameFile(firstPath, secondPath string) (bool, error) {
+	firstAbs, err := filepath.Abs(filepath.Clean(firstPath))
+	if err != nil {
+		return false, fmt.Errorf("resolve path %q: %w", firstPath, err)
+	}
+	secondAbs, err := filepath.Abs(filepath.Clean(secondPath))
+	if err != nil {
+		return false, fmt.Errorf("resolve path %q: %w", secondPath, err)
+	}
+	if firstAbs == secondAbs {
+		return true, nil
+	}
+
+	firstInfo, firstErr := os.Stat(firstAbs)
+	secondInfo, secondErr := os.Stat(secondAbs)
+	if firstErr == nil && secondErr == nil && os.SameFile(firstInfo, secondInfo) {
+		return true, nil
+	}
+	if firstErr != nil && !os.IsNotExist(firstErr) {
+		return false, fmt.Errorf("inspect path %q: %w", firstPath, firstErr)
+	}
+	if secondErr != nil && !os.IsNotExist(secondErr) {
+		return false, fmt.Errorf("inspect path %q: %w", secondPath, secondErr)
+	}
+	return false, nil
 }
 
 func writeCheckpointAtomically(path string, state fetchCheckpoint) error {

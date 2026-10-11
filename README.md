@@ -27,6 +27,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **CLI exit codes:** [docs/EXIT_CODES.md](./docs/EXIT_CODES.md)
 - **Checkpoint and resume:** [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md)
+- **Machine-readable status:** [docs/STATUS_STREAM.md](./docs/STATUS_STREAM.md)
 
 **Processors:**
 - **Published origins, transforms, and sinks:** [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors)
