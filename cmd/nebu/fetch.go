@@ -202,7 +202,7 @@ Archive Mode Examples:
 				// Force exit after 2 seconds if graceful shutdown fails
 				time.Sleep(2 * time.Second)
 				logInfo("Force shutdown after timeout")
-				os.Exit(1)
+				os.Exit(130)
 			}()
 
 			// Call fetchLedgers with mode-specific configuration
@@ -387,17 +387,14 @@ func writeRawLedgers(
 
 	for raw, streamErr := range stream.RawLedgers(ctx, ledgerRange) {
 		if streamErr != nil {
-			if end == 0 && errors.Is(streamErr, context.Canceled) {
-				return ledgerCount, nil
+			if errors.Is(streamErr, context.Canceled) {
+				return ledgerCount, context.Canceled
 			}
 			return ledgerCount, nebuErrors.StreamError(streamErr)
 		}
 
 		select {
 		case <-ctx.Done():
-			if end == 0 {
-				return ledgerCount, nil
-			}
 			return ledgerCount, ctx.Err()
 		default:
 		}

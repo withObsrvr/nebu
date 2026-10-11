@@ -142,6 +142,36 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 	})
+
+	t.Run("unbounded stream cancellation is preserved", func(t *testing.T) {
+		count, err := writeRawLedgers(
+			context.Background(),
+			fakeRawLedgerStream{err: context.Canceled},
+			ledgerbackend.UnboundedRange(70),
+			io.Discard,
+			70,
+			0,
+		)
+
+		assert.Zero(t, count)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("unbounded context cancellation is preserved", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		count, err := writeRawLedgers(
+			ctx,
+			fakeRawLedgerStream{records: [][]byte{{1}}},
+			ledgerbackend.UnboundedRange(80),
+			io.Discard,
+			80,
+			0,
+		)
+
+		assert.Zero(t, count)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
 }
 
 func TestWriteFetchFailureSummary(t *testing.T) {

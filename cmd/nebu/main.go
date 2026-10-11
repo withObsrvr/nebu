@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/programstatus"
 	"github.com/withObsrvr/nebu/pkg/version"
 	"golang.org/x/term"
@@ -19,6 +20,10 @@ var (
 )
 
 func main() {
+	os.Exit(execute(newRootCmd()))
+}
+
+func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "nebu",
 		Short: "nebu - modular streaming runtime for Stellar",
@@ -86,14 +91,36 @@ ENVIRONMENT:
 	rootCmd.AddCommand(newListCmd())
 	rootCmd.AddCommand(newDescribeCmd())
 	rootCmd.AddCommand(newResumeCmd())
+	markUsageErrors(rootCmd)
+	return rootCmd
+}
 
+func execute(rootCmd *cobra.Command) int {
 	if err := rootCmd.Execute(); err != nil {
 		writeProgramStatus(programstatus.Error, oneLine(err.Error()))
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return nebuErrors.ExitCode(err)
 	}
 	if programStatusStarted {
 		writeProgramStatus(programstatus.Done, "Command finished")
+	}
+	return 0
+}
+
+func markUsageErrors(command *cobra.Command) {
+	if validateArgs := command.Args; validateArgs != nil {
+		command.Args = func(cmd *cobra.Command, args []string) error {
+			if err := validateArgs(cmd, args); err != nil {
+				return nebuErrors.Usage(err)
+			}
+			return nil
+		}
+	}
+	command.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return nebuErrors.Usage(err)
+	})
+	for _, child := range command.Commands() {
+		markUsageErrors(child)
 	}
 }
 
@@ -109,7 +136,7 @@ func validateProgramStatusMode(mode string) error {
 	case "auto", "always", "never":
 		return nil
 	default:
-		return fmt.Errorf("invalid --program-status value %q: expected auto, always, or never", mode)
+		return nebuErrors.Usage(fmt.Errorf("invalid --program-status value %q: expected auto, always, or never", mode))
 	}
 }
 

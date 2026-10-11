@@ -12,6 +12,7 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/spf13/cobra"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 )
 
 // identifierRegexp validates SQL identifiers to prevent injection.
@@ -47,8 +48,17 @@ Examples:
   # Resume using a custom column name
   nebu resume --dsn postgres://localhost/mydb --table events --ledger-column sequence_num \
     --fallback-start 60000000 \
-    -- "token-transfer --end-ledger 0 | postgres-sink --dsn postgres://localhost/mydb"`,
+			-- "token-transfer --end-ledger 0 | postgres-sink --dsn postgres://localhost/mydb"`,
 		Args: cobra.MinimumNArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			if resumeDSN == "" {
+				return nebuErrors.Usage(fmt.Errorf("required flag(s) \"dsn\" not set"))
+			}
+			if fallbackStart <= 0 {
+				return nebuErrors.Usage(fmt.Errorf("--fallback-start must be greater than zero"))
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pipeline := strings.Join(args, " ")
 
@@ -91,16 +101,6 @@ Examples:
 	cmd.Flags().DurationVar(&queryTimeout, "query-timeout", 30*time.Second,
 		"Timeout for the max ledger query")
 
-	// MarkFlagRequired returns an error if the flag name doesn't exist.
-	// Since we just registered these flags above, this should never fail,
-	// but we handle it to fail fast on wiring mistakes.
-	if err := cmd.MarkFlagRequired("dsn"); err != nil {
-		panic(fmt.Sprintf("failed to mark flag required: %v", err))
-	}
-	if err := cmd.MarkFlagRequired("fallback-start"); err != nil {
-		panic(fmt.Sprintf("failed to mark flag required: %v", err))
-	}
-
 	return cmd
 }
 
@@ -108,7 +108,10 @@ Examples:
 func queryMaxLedger(dsn, table, ledgerColumn string, timeout time.Duration) (int64, error) {
 	// Validate table name
 	if !identifierRegexp.MatchString(table) {
-		return 0, fmt.Errorf("invalid table name %q: must match [a-zA-Z_][a-zA-Z0-9_]*", table)
+		return 0, nebuErrors.Usage(fmt.Errorf("invalid table name %q: must match [a-zA-Z_][a-zA-Z0-9_]*", table))
+	}
+	if ledgerColumn != "" && ledgerColumn != "jsonb" && !identifierRegexp.MatchString(ledgerColumn) {
+		return 0, nebuErrors.Usage(fmt.Errorf("invalid column name %q: must match [a-zA-Z_][a-zA-Z0-9_]*", ledgerColumn))
 	}
 
 	db, err := sql.Open("postgres", dsn)
@@ -139,9 +142,6 @@ func queryMaxLedger(dsn, table, ledgerColumn string, timeout time.Duration) (int
 		), 0) FROM %s`, quotedTable)
 	case ledgerColumn != "":
 		// Use a custom explicit column
-		if !identifierRegexp.MatchString(ledgerColumn) {
-			return 0, fmt.Errorf("invalid column name %q: must match [a-zA-Z_][a-zA-Z0-9_]*", ledgerColumn)
-		}
 		quotedCol := pq.QuoteIdentifier(ledgerColumn)
 		query = fmt.Sprintf(`SELECT COALESCE(MAX(%s), 0) FROM %s`, quotedCol, quotedTable)
 	default:
