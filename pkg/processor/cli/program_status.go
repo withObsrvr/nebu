@@ -59,6 +59,7 @@ func attachProgramStatus(cmd *cobra.Command, app string, quiet *bool) *commandSt
 		switch {
 		case status.canceled.Load():
 			// cancel reports idle immediately, before forced-exit timers can fire.
+			err = errors.Join(err, context.Canceled)
 		case err == nil:
 			status.writeOSC(programstatus.Done, app+" finished")
 			err = errors.Join(err, status.writeStructured(statusstream.Record{State: programstatus.Done, Message: app + " finished"}))

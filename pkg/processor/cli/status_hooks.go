@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/stellar/go-stellar-sdk/xdr"
+	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
 )
 
@@ -12,11 +13,10 @@ func withStructuredStatusHook(hooks []runtime.Hooks, commandStatus *commandStatu
 		return hooks
 	}
 	statusHook := runtime.Hooks{
-		BeforeLedger: func(_ context.Context, _ xdr.LedgerCloseMeta) error {
-			return commandStatus.takeStatusError()
-		},
-		AfterLedger: func(_ context.Context, ledger xdr.LedgerCloseMeta, _ runtime.LedgerStats) {
-			commandStatus.recordStatusError(commandStatus.ledgerProgress(ledger.LedgerSequence(), target))
+		AfterLedger: func(ctx context.Context, ledger xdr.LedgerCloseMeta, _ runtime.LedgerStats) {
+			if err := commandStatus.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
+				processor.ReportFatal(ctx, "structured-status", err)
+			}
 		},
 	}
 	return append(hooks, statusHook)
