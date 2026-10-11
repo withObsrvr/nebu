@@ -113,6 +113,70 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 		assert.ErrorIs(t, err, io.ErrShortWrite)
 		assert.ErrorContains(t, err, "ledger 40")
 	})
+
+	t.Run("truncated bounded range", func(t *testing.T) {
+		count, err := writeRawLedgers(
+			context.Background(),
+			fakeRawLedgerStream{records: [][]byte{{1}, {2}}},
+			ledgerbackend.BoundedRange(50, 52),
+			io.Discard,
+			50,
+			52,
+		)
+
+		assert.Equal(t, 2, count)
+		assert.ErrorContains(t, err, "incomplete fetch")
+		assert.ErrorContains(t, err, "2 of 3 ledgers")
+	})
+
+	t.Run("unbounded range may end without a target count", func(t *testing.T) {
+		count, err := writeRawLedgers(
+			context.Background(),
+			fakeRawLedgerStream{records: [][]byte{{1}, {2}}},
+			ledgerbackend.UnboundedRange(60),
+			io.Discard,
+			60,
+			0,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+}
+
+func TestWriteFetchFailureSummary(t *testing.T) {
+	tests := []struct {
+		name    string
+		fetched int
+		want    string
+	}{
+		{
+			name:    "partial range",
+			fetched: 2,
+			want:    "fetched 2/3 ledgers, last=51, reason=archive object missing\n",
+		},
+		{
+			name: "no ledgers",
+			want: "fetched 0/3 ledgers, last=none, reason=archive object missing\n",
+		},
+		{
+			name:    "multiline reason",
+			fetched: 1,
+			want:    "fetched 1/3 ledgers, last=50, reason=archive request failed retry exhausted\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			reason := errors.New("archive object missing")
+			if tt.name == "multiline reason" {
+				reason = errors.New("archive request failed\nretry exhausted")
+			}
+			require.NoError(t, writeFetchFailureSummary(&output, 50, 52, tt.fetched, reason))
+			assert.Equal(t, tt.want, output.String())
+		})
+	}
 }
 
 func TestRawLedgerRange(t *testing.T) {
