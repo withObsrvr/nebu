@@ -287,7 +287,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
           <span class="code-head__lang">bash · fan-out</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-sink-2" type="button">[ COPY ]</button>
         </div>
-        <pre id="qs-sink-2" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 --follow \
+        <pre id="qs-sink-2" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 \
   | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
   | tee &gt;(json-file-sink --out archive.jsonl) \
   | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre>
@@ -327,7 +327,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
     <section id="follow" class="mb-16">
       <h2 class="text-on-surface font-bold text-2xl mb-4">## 06_FOLLOW_LIVE</h2>
       <p class="text-secondary mb-6">
-        Omit <span class="text-tertiary">--end-ledger</span> or pass <span class="text-tertiary">--follow</span> to stream continuously — like <span class="text-on-surface">tail -f</span> for the chain.
+        Omit <span class="text-tertiary">--end-ledger</span> to stream continuously, or compose <span class="text-tertiary">nebu fetch --follow</span> with the processor over stdin.
       </p>
 
       <div class="bg-surface-container-low border border-outline-variant">
@@ -335,7 +335,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="qs-follow" type="button">[ COPY ]</button>
         </div>
-        <pre id="qs-follow" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 --follow \
+        <pre id="qs-follow" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 \
   | jq -c 'select(.transfer.assetCode == "USDC" and (.transfer.amount | tonumber) &gt; 1000000)'</pre>
       </div>
     </section>

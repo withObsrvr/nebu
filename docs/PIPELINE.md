@@ -153,7 +153,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
 ### Real-time monitoring
 
 ```bash
-token-transfer --start-ledger 60200000 --follow | \
+nebu fetch 60200000 --follow | token-transfer | \
   jq -c 'select(.transfer != null) | {
     ledger: .meta.ledgerSequence,
     from: .transfer.from,

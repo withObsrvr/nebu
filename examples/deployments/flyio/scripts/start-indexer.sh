@@ -209,6 +209,6 @@ eval "contract-events \
         --table contract_events \
         --batch-size \"$BATCH_SIZE\""
 
-# If we reach here, the pipeline exited (shouldn't happen with --follow)
+# If we reach here, the unbounded pipeline exited unexpectedly.
 echo "ERROR: Pipeline exited unexpectedly"
 exit 1

@@ -92,7 +92,7 @@ checks for non-empty, valid output rather than a fixed count.
 - **Ledger fetch fails:** retry with a fresh `LATEST` value; RPC servers retain
   only a limited recent ledger window.
 - **The output file is empty:** increase the bounded range modestly, for example
-  by setting `START=$((END - 9))`. Do not use `--follow` for this test.
+  by setting `START=$((END - 9))`. Do not use `nebu fetch --follow` for this test.
 - **Schema validation fails:** find the offending event with
   `jq -c 'select(._schema != "nebu.token_transfer.v1" or ._nebu_version == null)' "$EVENTS"`
   and confirm that the processor binary matches the checked-out nebu version.

@@ -137,7 +137,7 @@ func DefaultOriginExamples(name string) []HelpExample {
 		},
 		{
 			Comment: "Stream continuously (like tail -f)",
-			Command: fmt.Sprintf("%s --start-ledger 60200000 --follow", name),
+			Command: fmt.Sprintf("nebu fetch 60200000 --follow | %s", name),
 		},
 		{
 			Comment: "Read from stdin (piped from nebu fetch)",

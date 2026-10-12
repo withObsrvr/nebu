@@ -166,7 +166,7 @@
       <div><span class="text-primary-container">nebu</span> <span class="text-on-surface">list</span></div>
       <div><span class="text-primary-container">nebu</span> <span class="text-on-surface">install</span> <span class="text-secondary">&lt;processor&gt;</span></div>
       <div><span class="text-primary-container">nebu</span> <span class="text-on-surface">fetch</span> [<span class="text-secondary">--mode rpc|archive</span>] <span class="text-secondary">&lt;start&gt; &lt;end&gt;</span></div>
-      <div><span class="text-primary-container">&lt;processor&gt;</span> <span class="text-secondary">--start-ledger N [--end-ledger N | --follow]</span></div>
+      <div><span class="text-primary-container">&lt;processor&gt;</span> <span class="text-secondary">--start-ledger N [--end-ledger N]</span></div>
     </div>
   </section>
 
@@ -230,12 +230,12 @@ $ cat ledgers.xdr | token-transfer | jq</pre>
       </div>
 
       <div>
-        <div class="text-primary-container font-bold mb-2">&lt;processor&gt; --start-ledger N [--end-ledger N | --follow]</div>
+        <div class="text-primary-container font-bold mb-2">&lt;processor&gt; --start-ledger N [--end-ledger N]</div>
         <p class="mb-2">Run an installed processor. Origins read ledgers (from RPC or stdin) and emit typed events as NDJSON on stdout. Transforms and sinks read NDJSON from stdin.</p>
         <div class="copy-block bg-surface-container-low p-4 text-sm border border-outline-variant">
           <button class="copy-btn" data-copy-target="cmd-run" type="button">[ COPY ]</button>
           <pre id="cmd-run">$ token-transfer --start-ledger 60200000 --end-ledger 60200001
-$ token-transfer --start-ledger 60200000 --follow</pre>
+$ token-transfer --start-ledger 60200000</pre>
         </div>
       </div>
 
@@ -269,11 +269,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
       </div>
       <div class="flex flex-col md:flex-row md:gap-8">
         <span class="font-bold text-secondary w-44 shrink-0">--end-ledger N</span>
-        <span>Ending ledger sequence (inclusive). Omit or use <span class="font-bold">--follow</span> for unbounded streaming.</span>
-      </div>
-      <div class="flex flex-col md:flex-row md:gap-8">
-        <span class="font-bold text-secondary w-44 shrink-0">--follow</span>
-        <span>Stream continuously from the start ledger — like <span class="font-bold">tail -f</span>.</span>
+        <span>Ending ledger sequence (inclusive). Omit it for unbounded streaming.</span>
       </div>
       <div class="flex flex-col md:flex-row md:gap-8">
         <span class="font-bold text-secondary w-44 shrink-0">--quiet</span>
@@ -370,7 +366,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-02" type="button">[ COPY ]</button>
           </div>
-          <pre id="ex-02" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 --follow \
+          <pre id="ex-02" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 \
     | jq -c 'select(.transfer.assetCode == "USDC")' \
     | dedup --key meta.txHash \
     | json-file-sink --out usdc.jsonl</pre>
@@ -405,7 +401,7 @@ $ token-transfer --start-ledger 60200000 --follow</pre>
             <span class="code-head__lang">bash</span>
             <button class="copy-btn copy-btn--inline" data-copy-target="ex-04" type="button">[ COPY ]</button>
           </div>
-          <pre id="ex-04" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 --follow \
+          <pre id="ex-04" class="overflow-x-auto p-4 text-sm">$ token-transfer --start-ledger 60200000 \
     | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
     | tee &gt;(json-file-sink --out archive.jsonl) \
     | jq -r '"Ledger \(.meta.ledgerSequence): \(.transfer.amount)"'</pre>

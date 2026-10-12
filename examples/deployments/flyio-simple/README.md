@@ -131,7 +131,6 @@ Edit `start.sh` to use a different processor:
 exec token-transfer \
   --start-ledger "$START_LEDGER" \
   --rpc-url "$RPC_URL" \
-  --follow \
   | postgres-sink \
       --dsn "$DATABASE_URL" \
       --table token_transfers \
@@ -148,7 +147,6 @@ Add each additional processor to the `go install` command in `Dockerfile`, then 
 exec contract-events \
   --start-ledger "$START_LEDGER" \
   --rpc-url "$RPC_URL" \
-  --follow \
   | tee >(postgres-sink --dsn "$DATABASE_URL" --table contract_events) \
   | json-file-sink --out /data/events.jsonl
 ```

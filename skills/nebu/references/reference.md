@@ -162,7 +162,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
 Live stream only when explicitly requested:
 
 ```bash
-token-transfer --start-ledger 60200000 --follow \
+nebu fetch 60200000 --follow | token-transfer \
   | nats-sink --subject "stellar.transfers" --jetstream
 ```
 
