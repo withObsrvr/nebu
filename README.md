@@ -140,7 +140,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
 **Stream continuously from a ledger (like `tail -f`):**
 
 ```bash
-token-transfer --start-ledger 60200000 --follow
+nebu fetch 60200000 --follow | token-transfer
 ```
 
 **Send events to multiple destinations (NATS, file, and terminal):**
@@ -196,7 +196,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
 **Build a complete pipeline (extract → filter → dedupe → store):**
 
 ```bash
-token-transfer --start-ledger 60200000 --follow | \
+nebu fetch 60200000 --follow | token-transfer | \
   jq -c 'select(.transfer.assetCode == "USDC")' | \
   dedup --key meta.txHash | \
   json-file-sink --out usdc-transfers.jsonl
@@ -453,11 +453,11 @@ Bridge the gap between CLI and Cloud. Use `nats-sink` to turn your local pipelin
 
 ```bash
 # Stream live events to NATS for your application
-token-transfer --start-ledger 60200000 --follow | \
+nebu fetch 60200000 --follow | token-transfer | \
   nats-sink --subject "stellar.transfers" --jetstream
 
 # Multiple destinations with tee
-token-transfer --start-ledger 60200000 --follow | \
+nebu fetch 60200000 --follow | token-transfer | \
   tee >(nats-sink --subject "stellar.live") | \
   tee >(json-file-sink --out archive.jsonl) | \
   jq 'select(.transfer != null and (.transfer.amount | tonumber) > 1000000)'

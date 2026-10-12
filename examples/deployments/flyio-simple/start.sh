@@ -53,7 +53,6 @@ echo "========================================"
 exec contract-events \
   --start-ledger "$START_LEDGER" \
   --rpc-url "$RPC_URL" \
-  --follow \
   | postgres-sink \
       --dsn "$DATABASE_URL" \
       --table contract_events \

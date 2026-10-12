@@ -154,7 +154,7 @@
     <section id="origins" class="mb-8">
       <h2 class="text-2xl font-bold text-on-surface mb-2">## ORIGINS</h2>
       <p class="text-secondary text-sm">
-        Consume ledger XDR, emit typed events as NDJSON. Accept <span class="text-primary-container">--start-ledger</span>, optional <span class="text-primary-container">--end-ledger</span> or <span class="text-primary-container">--follow</span>, plus the standard env chain (<span class="text-tertiary">NEBU_RPC_URL</span>, <span class="text-tertiary">NEBU_NETWORK</span>, <span class="text-tertiary">NEBU_RPC_AUTH</span>).
+        Consume ledger XDR, emit typed events as NDJSON. Accept <span class="text-primary-container">--start-ledger</span> and optional <span class="text-primary-container">--end-ledger</span>; omitting the end ledger selects unbounded RPC streaming. They also support the standard env chain (<span class="text-tertiary">NEBU_RPC_URL</span>, <span class="text-tertiary">NEBU_NETWORK</span>, <span class="text-tertiary">NEBU_RPC_AUTH</span>).
       </p>
     </section>
 
@@ -227,7 +227,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001 | jq</pre>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ce" type="button">[ COPY ]</button>
         </div>
         <pre id="pr-ce" class="overflow-x-auto p-3 text-xs">nebu install contract-events
-contract-events --start-ledger 60200000 --follow \
+contract-events --start-ledger 60200000 \
   | jq 'select(.event.contractAddress == "CAQ...")'</pre>
       </div>
     </section>
@@ -359,7 +359,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-af" type="button">[ COPY ]</button>
         </div>
-        <pre id="pr-af" class="overflow-x-auto p-3 text-xs">token-transfer --follow --start-ledger 60200000 | amount-filter --min 1000000</pre>
+        <pre id="pr-af" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 | amount-filter --min 1000000</pre>
       </div>
     </section>
 
@@ -377,7 +377,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-dd" type="button">[ COPY ]</button>
         </div>
-        <pre id="pr-dd" class="overflow-x-auto p-3 text-xs">token-transfer --follow --start-ledger 60200000 | dedup --key meta.txHash</pre>
+        <pre id="pr-dd" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 | dedup --key meta.txHash</pre>
       </div>
     </section>
 
@@ -460,7 +460,7 @@ transaction-stats --start-ledger 60200000 --end-ledger 60200100 \
           <span class="code-head__lang">bash</span>
           <button class="copy-btn copy-btn--inline" data-copy-target="pr-ns" type="button">[ COPY ]</button>
         </div>
-        <pre id="pr-ns" class="overflow-x-auto p-3 text-xs">token-transfer --follow --start-ledger 60200000 \
+        <pre id="pr-ns" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 \
   | nats-sink --subject "stellar.transfers" --jetstream</pre>
       </div>
     </section>

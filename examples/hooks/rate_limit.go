@@ -14,7 +14,7 @@ import (
 // processing to at most `ledgersPerSecond` ledgers per second, using
 // a simple token-bucket algorithm in BeforeLedger.
 //
-// Unlike --follow-style RPC throttling (which happens at the source),
+// Unlike unbounded RPC throttling (which happens at the source),
 // this hook gates the processor itself — useful when your downstream
 // sink has a throughput limit (e.g. a Postgres upsert budget, a
 // webhook target with a published rate limit) and you need the whole

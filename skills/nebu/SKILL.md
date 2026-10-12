@@ -32,7 +32,7 @@ Use other tools for current-state lookup (`data`), tx building (`dapp`), non-Ste
 
 - Installed binaries are truth. Inspect before commands; do not guess names/flags/schemas/community processors.
 - Community processors vary. Mention only after `nebu list` shows them.
-- Prefer bounded ranges. `--follow`/unbounded only if user asks live stream.
+- Prefer bounded ranges. Use `nebu fetch --follow` or an unbounded processor range only if the user asks for a live stream.
 - Broad scans/backfills: prefer `nebu fetch --mode archive` from public archive → pipe XDR into processors. RPC still good for latest ledgers + targeted `getEvents` by known contract/topic.
 - `contract-events` works from `nebu fetch` stdin, including S3 archive mode; it decodes contract events + diagnostics without processor RPC calls.
 - Use `NEBU_RPC_AUTH` from env; never paste secrets.
@@ -50,7 +50,7 @@ nebu describe <processor>
 1. Confirm data type, range, network, destination, live vs bounded.
 2. `nebu list`; inspect each stage with `nebu describe` / `--describe-json`.
 3. Pick one source (`nebu fetch` or origin), transforms, sinks/fan-out.
-4. Start bounded tracer bullet. Ask before `--follow`, prod writes, or large backfills.
+4. Start with a bounded tracer bullet. Ask before `nebu fetch --follow`, prod writes, or large backfills.
 5. Answer with: exact command, one-line stage notes, verification cmd, assumptions/unverified bits.
 
 ## Model

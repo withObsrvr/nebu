@@ -380,7 +380,7 @@ nebu install token-transfer</pre>
             <span class="text-on-surface font-bold">COMPOSE_A_PIPELINE</span>
             <div class="copy-block mt-2 bg-surface-container-low p-3 border border-outline-variant text-sm">
               <button class="copy-btn" data-copy-target="qs-04" type="button">[ COPY ]</button>
-              <pre id="qs-04">token-transfer --start-ledger 60200000 --follow \
+              <pre id="qs-04">token-transfer --start-ledger 60200000 \
   | jq -c 'select(.transfer.assetCode == "USDC")' \
   | dedup --key meta.txHash \
   | json-file-sink --out usdc.jsonl</pre>
@@ -451,7 +451,7 @@ token-transfer \
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-03" type="button">[ COPY ]</button>
             </div>
-            <pre id="cb-03" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --follow \
+            <pre id="cb-03" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 \
   | jq -c 'select(.transfer.assetCode == "USDC")' \
   | dedup --key meta.txHash \
   | json-file-sink --out usdc.jsonl</pre>
@@ -470,7 +470,7 @@ token-transfer \
               <span class="code-head__lang">bash</span>
               <button class="copy-btn copy-btn--inline" data-copy-target="cb-04" type="button">[ COPY ]</button>
             </div>
-            <pre id="cb-04" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 --follow \
+            <pre id="cb-04" class="overflow-x-auto p-3 text-xs">token-transfer --start-ledger 60200000 \
   | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
   | tee &gt;(json-file-sink --out archive.jsonl) \
   | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre>

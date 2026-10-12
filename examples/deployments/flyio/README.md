@@ -191,7 +191,6 @@ Customize the pipeline for your needs:
 # Default pipeline
 contract-events \
     --start-ledger "$START_LEDGER" \
-    --follow \
     --rpc-url "$RPC_URL" \
     | postgres-sink \
         --table contract_events \
@@ -448,10 +447,10 @@ Edit `scripts/start-indexer.sh` to use them:
 
 ```bash
 # Run multiple pipelines in parallel
-token-transfer --follow --rpc-url "$RPC_URL" \
+token-transfer --start-ledger "$START_LEDGER" --rpc-url "$RPC_URL" \
     | postgres-sink --table token_transfers --dsn "$DATABASE_URL" &
 
-contract-events --follow --rpc-url "$RPC_URL" \
+contract-events --start-ledger "$START_LEDGER" --rpc-url "$RPC_URL" \
     | postgres-sink --table contract_events --dsn "$DATABASE_URL" &
 
 wait  # Wait for all background processes
@@ -913,8 +912,8 @@ fly volumes extend <volume-id> --size 25
 **A:** Yes! Edit `scripts/start-indexer.sh` to run multiple pipelines:
 
 ```bash
-contract-events --follow | postgres-sink --table contract_events &
-token-transfer --follow | postgres-sink --table token_transfers &
+contract-events --start-ledger "$START_LEDGER" | postgres-sink --table contract_events &
+token-transfer --start-ledger "$START_LEDGER" | postgres-sink --table token_transfers &
 wait
 ```
 
