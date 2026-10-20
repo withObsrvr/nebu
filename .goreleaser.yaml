@@ -20,6 +20,13 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=0
+    # BUILD-3: reproducible releases. -trimpath strips local filesystem
+    # paths from the binary, and mod_timestamp pins every archive and
+    # binary mtime to the commit time instead of the build time, so the
+    # same tag rebuilds to the same bytes.
+    flags:
+      - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
     ldflags:
       - -s -w
       - -X github.com/withObsrvr/nebu/pkg/version.Version={{.Version}}
@@ -33,6 +40,9 @@ archives:
       - nebu
     files:
       - README.md
+      - LICENSE
+      - SECURITY.md
+      - CHANGELOG.md
 
 checksum:
   name_template: checksums.txt
@@ -63,6 +73,8 @@ dockers_v2:
       org.opencontainers.image.title: "{{ .ProjectName }}"
       org.opencontainers.image.revision: "{{ .FullCommit }}"
       org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: "https://github.com/withObsrvr/nebu"
+      org.opencontainers.image.licenses: "Apache-2.0"
 
 release:
   github:
