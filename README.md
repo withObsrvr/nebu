@@ -342,7 +342,7 @@ Run an example:
 go run examples/simple_origin/main.go
 ```
 
-**💡 Want to see Unix-style pipeline examples?** Check out [PIPELINE.md](./PIPELINE.md) for examples using `jq`, `tee`, filtering, and multi-sink fanouts.
+**💡 Want to see Unix-style pipeline examples?** Check out [PIPELINE.md](docs/PIPELINE.md) for examples using `jq`, `tee`, filtering, and multi-sink fanouts.
 
 See the [Processor Registry](#processor-registry) section to learn how processors are discovered and run.
 
@@ -982,7 +982,7 @@ See the [Processor Contribution Guide](https://github.com/withObsrvr/nebu-proces
 
 ## License
 
-MIT
+[Apache License 2.0](LICENSE)
 
 ## About OBSRVR
 
