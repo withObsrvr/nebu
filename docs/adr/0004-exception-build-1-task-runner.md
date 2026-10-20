@@ -1,7 +1,6 @@
 # 0004. Exception: BUILD-1 `just` task runner
 
-- **Status:** Proposed — needs the owner's sign-off on the expiry date before it
-  counts as a live exception under CONF-1
+- **Status:** Accepted (2026-10-20)
 - **Date:** 2026-10-20
 - **Owner:** Tillman Mosley III
 - **Rule excepted:** BUILD-1 (`just` as the task runner, with `build`, `test`,

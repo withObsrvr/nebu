@@ -147,13 +147,16 @@ produces the records those rules govern.
 
 | Rule | Record | Reason | Compensating control | Expiry |
 |---|---|---|---|---|
-| **CLI-12**, limited to out-of-band addressing (`inspect <id>`, `cancel <id>`) and the `queued` state | [ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md) — Proposed | Addressing a run from outside the executing process needs a durable run registry — the orchestrator role N-1 forbids. nebu has no queue, so `queued` has nothing to report | `--status-file` lets a third party follow a run it did not start; `--checkpoint` resumability; CLI-11 in-process cancellation | 2027-04-20 |
-| **BUILD-1** (`just` task runner) | [ADR 0004](adr/0004-exception-build-1-task-runner.md) — Proposed | BUILD-1 grandfathers existing Makefiles until the repo is next reworked | `make ci` runs exactly what the gate runs; both documented in `AGENTS.md` and `CONTRIBUTING.md` | 2027-04-20 |
+| **CLI-12**, limited to out-of-band addressing (`inspect <id>`, `cancel <id>`) and the `queued` state | [ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md) — Accepted | Addressing a run from outside the executing process needs a durable run registry — the orchestrator role N-1 forbids. nebu has no queue, so `queued` has nothing to report | `--status-file` lets a third party follow a run it did not start; `--checkpoint` resumability; CLI-11 in-process cancellation | 2027-04-20 |
+| **BUILD-1** (`just` task runner) | [ADR 0004](adr/0004-exception-build-1-task-runner.md) — Accepted | BUILD-1 grandfathers existing Makefiles until the repo is next reworked | `make ci` runs exactly what the gate runs; both documented in `AGENTS.md` and `CONTRIBUTING.md` | 2027-04-20 |
 | **CLI-15** (exit-code table) | [ADR 0002](adr/0002-adopt-standard-exit-codes.md) — Accepted | Not an exception: a scheduled breaking fix. nebu's `4` means "data source unavailable"; the standard reserves `4` for auth and `7` for dependency-unavailable | Codes documented in EXIT_CODES.md and covered by table tests; migration and rollback specified in the ADR | Fix due before the next minor release |
 
-Both exception ADRs are **Proposed**, not Accepted. CONF-1 requires an owner's
-sign-off on the reason, risk, compensating control and expiry date; until that
-happens these are unrecorded exceptions, which counts as non-conformance.
+Both exception ADRs are **Accepted** as of 2026-10-20, so these are live
+exceptions under CONF-1 rather than unrecorded non-conformance. Each expires
+**2027-04-20**, within CONF-1's six-month ceiling. They are reviewed at the
+quarterly profile review on 2027-01-20 (CONF-2), which falls before expiry; an
+expired exception counts as non-conformance, so neither date should be allowed
+to pass unexamined.
 
 CLI-12 is **partially excepted only.** Its lifecycle-vocabulary and
 domain-state clauses are now satisfied (ADR 0005); its "accepting a job is not
@@ -197,7 +200,9 @@ CI merge gate (build, `gofmt`, `go vet`, `go test -race -short`, API snapshot,
 `govulncheck`) · 10 reachable vulnerabilities cleared · Go toolchain pinned and
 aligned with the flake (BUILD-2) · `LICENSE` (Apache-2.0, resolving the
 MIT/Apache contradiction) · `SECURITY.md` (SEC-12) · `CONTRIBUTING.md` ·
-`docs/adr/` with four records (DOC-4) · this profile (§13) · CLI-surface
+`docs/adr/` with five records (DOC-4), including two accepted exceptions
+that make the CLI-12 and BUILD-1 gaps live under CONF-1 rather than unrecorded ·
+this profile (§13) · CLI-surface
 contract conflict resolved (ADR 0001) · VER-6 deprecation floor · `-trimpath`
 and `mod_timestamp` (BUILD-3) · OCI `image.source` (BUILD-4) · Keep a Changelog
 form (VER-11) · `gofmt` clean · `make lint` no longer silently passes.
@@ -230,23 +235,21 @@ unmet too. This is a breaking change and needs its own ADR.
    (CLI-15), which completes `wait --for --timeout` for a foreground process;
    and give the status stream a documented `events --follow` spelling. Overlaps
    Priority 9 of [CLI_QUALITY_ROADMAP.md](CLI_QUALITY_ROADMAP.md).
-5. **Accept or amend ADRs 0003 and 0004** so the exceptions become live under
-   CONF-1.
-6. **Real-ledger fixtures** (TEST-1) captured from testnet and pubnet with the
+5. **Real-ledger fixtures** (TEST-1) captured from testnet and pubnet with the
    ledger range recorded, golden tests for every machine-readable output
    (TEST-2.3) and for exit codes, and fuzz seeds for the XDR, JSONL and
    registry-YAML decoders (TEST-3). The largest item here.
-7. **Structured logging** — `log/slog` to stderr with `service`, `version`,
+6. **Structured logging** — `log/slog` to stderr with `service`, `version`,
    `network` and `ledger` (OBS-1) — and the missing pipeline signals: lag in
    ledgers *and* seconds, last checkpointed ledger, gap count (OBS-3).
-8. **Declare CAP and SEP compliance** in schema metadata (STL-1) and mark
+7. **Declare CAP and SEP compliance** in schema metadata (STL-1) and mark
    pre-protocol-23 reconstructed events as derived (STL-3).
-9. **Restore tag signing.** `v0.6.14` and `v0.6.15` are unsigned; `v0.6.12` and
+8. **Restore tag signing.** `v0.6.14` and `v0.6.15` are unsigned; `v0.6.12` and
    `v0.6.13` were signed. Then add Sigstore signing, SBOM attachment and SLSA
    provenance to the release path (SEC-10, VER-12).
-10. **Remove argument-borne secrets** (CLI-10): `--rpc-header` and `--dsn`
+9. **Remove argument-borne secrets** (CLI-10): `--rpc-header` and `--dsn`
    should read from the environment, a file path, or stdin only.
-11. **CLI-3 and CLI-6 conventions** — `--output json|ndjson` superseding
+10. **CLI-3 and CLI-6 conventions** — `--output json|ndjson` superseding
     `--json`, freeing `--output` from its current file meaning, plus
     `--config`, `--timeout`, `--no-color`, `--yes` and `NO_COLOR` (CLI-7).
     Overlaps [CLI_QUALITY_ROADMAP.md](CLI_QUALITY_ROADMAP.md); plan it there.

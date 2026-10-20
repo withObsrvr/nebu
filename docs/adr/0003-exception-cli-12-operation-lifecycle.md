@@ -1,7 +1,6 @@
 # 0003. Exception: CLI-12 out-of-band operation addressing
 
-- **Status:** Proposed — needs the owner's sign-off on the expiry date before it
-  counts as a live exception under CONF-1
+- **Status:** Accepted (2026-10-20)
 - **Date:** 2026-10-20
 - **Owner:** Tillman Mosley III
 - **Rule partially excepted:** CLI-12, limited to addressing a run from outside

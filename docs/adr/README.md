@@ -18,8 +18,8 @@ quarterly alongside the profile (CONF-2).
 |---|---|---|
 | [0001](0001-cli-surface-is-a-contract.md) | The nebu CLI surface is a contract | Accepted |
 | [0002](0002-adopt-standard-exit-codes.md) | Adopt the standard exit-code table | Accepted |
-| [0003](0003-exception-cli-12-operation-lifecycle.md) | Exception: CLI-12 out-of-band operation addressing | Proposed |
-| [0004](0004-exception-build-1-task-runner.md) | Exception: BUILD-1 `just` task runner | Proposed |
+| [0003](0003-exception-cli-12-operation-lifecycle.md) | Exception: CLI-12 out-of-band operation addressing | Accepted |
+| [0004](0004-exception-build-1-task-runner.md) | Exception: BUILD-1 `just` task runner | Accepted |
 | [0005](0005-status-stream-carries-cli-12-lifecycle.md) | The status stream carries the CLI-12 lifecycle vocabulary | Accepted |
 
 Next number: 0006.
