@@ -147,13 +147,20 @@ produces the records those rules govern.
 
 | Rule | Record | Reason | Compensating control | Expiry |
 |---|---|---|---|---|
-| **CLI-12** (operation ID, `inspect`, `events --follow`, `wait`, `cancel`) | [ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md) — Proposed | Owning operation identity and durable job state is the orchestrator role N-1 forbids; nebu runs synchronously in the caller's process | `nebu.status.v1` stream, OSC 7501 reports, `--checkpoint` resumability, CLI-11 shutdown | 2027-04-20 |
+| **CLI-12**, limited to out-of-band addressing (`inspect <id>`, `cancel <id>`) and the `queued` state | [ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md) — Proposed | Addressing a run from outside the executing process needs a durable run registry — the orchestrator role N-1 forbids. nebu has no queue, so `queued` has nothing to report | `--status-file` lets a third party follow a run it did not start; `--checkpoint` resumability; CLI-11 in-process cancellation | 2027-04-20 |
 | **BUILD-1** (`just` task runner) | [ADR 0004](adr/0004-exception-build-1-task-runner.md) — Proposed | BUILD-1 grandfathers existing Makefiles until the repo is next reworked | `make ci` runs exactly what the gate runs; both documented in `AGENTS.md` and `CONTRIBUTING.md` | 2027-04-20 |
 | **CLI-15** (exit-code table) | [ADR 0002](adr/0002-adopt-standard-exit-codes.md) — Accepted | Not an exception: a scheduled breaking fix. nebu's `4` means "data source unavailable"; the standard reserves `4` for auth and `7` for dependency-unavailable | Codes documented in EXIT_CODES.md and covered by table tests; migration and rollback specified in the ADR | Fix due before the next minor release |
 
 Both exception ADRs are **Proposed**, not Accepted. CONF-1 requires an owner's
 sign-off on the reason, risk, compensating control and expiry date; until that
 happens these are unrecorded exceptions, which counts as non-conformance.
+
+CLI-12 is **partially excepted only.** Its lifecycle-vocabulary and
+domain-state clauses are now satisfied (ADR 0005); its "accepting a job is not
+completing it" clause always was. The operation ID, the `--timeout` form of
+`wait`, and the `events --follow` spelling are missing work with no
+architectural obstacle, tracked in the backlog below — not excepted. ADR 0003
+has the clause-by-clause disposition.
 
 The **TEST-2.1** exception previously anticipated here is not needed: the
 network-dependent tests in `pkg/source/rpc` already guard with
@@ -217,23 +224,29 @@ unmet too. This is a breaking change and needs its own ADR.
    Additive, so a minor bump covers it.
 3. **Remap exit codes** per [ADR 0002](adr/0002-adopt-standard-exit-codes.md),
    including `143` on SIGTERM (CLI-11).
-4. **Accept or amend ADRs 0003 and 0004** so the exceptions become live under
+4. **Close the non-excepted CLI-12 clauses**, none of which need operation
+   state: mint a per-invocation run ID and carry it in the status stream and
+   diagnostics; add `--timeout` (CLI-3) returning exit code 6 on expiry
+   (CLI-15), which completes `wait --for --timeout` for a foreground process;
+   and give the status stream a documented `events --follow` spelling. Overlaps
+   Priority 9 of [CLI_QUALITY_ROADMAP.md](CLI_QUALITY_ROADMAP.md).
+5. **Accept or amend ADRs 0003 and 0004** so the exceptions become live under
    CONF-1.
-5. **Real-ledger fixtures** (TEST-1) captured from testnet and pubnet with the
+6. **Real-ledger fixtures** (TEST-1) captured from testnet and pubnet with the
    ledger range recorded, golden tests for every machine-readable output
    (TEST-2.3) and for exit codes, and fuzz seeds for the XDR, JSONL and
    registry-YAML decoders (TEST-3). The largest item here.
-6. **Structured logging** — `log/slog` to stderr with `service`, `version`,
+7. **Structured logging** — `log/slog` to stderr with `service`, `version`,
    `network` and `ledger` (OBS-1) — and the missing pipeline signals: lag in
    ledgers *and* seconds, last checkpointed ledger, gap count (OBS-3).
-7. **Declare CAP and SEP compliance** in schema metadata (STL-1) and mark
+8. **Declare CAP and SEP compliance** in schema metadata (STL-1) and mark
    pre-protocol-23 reconstructed events as derived (STL-3).
-8. **Restore tag signing.** `v0.6.14` and `v0.6.15` are unsigned; `v0.6.12` and
+9. **Restore tag signing.** `v0.6.14` and `v0.6.15` are unsigned; `v0.6.12` and
    `v0.6.13` were signed. Then add Sigstore signing, SBOM attachment and SLSA
    provenance to the release path (SEC-10, VER-12).
-9. **Remove argument-borne secrets** (CLI-10): `--rpc-header` and `--dsn`
+10. **Remove argument-borne secrets** (CLI-10): `--rpc-header` and `--dsn`
    should read from the environment, a file path, or stdin only.
-10. **CLI-3 and CLI-6 conventions** — `--output json|ndjson` superseding
+11. **CLI-3 and CLI-6 conventions** — `--output json|ndjson` superseding
     `--json`, freeing `--output` from its current file meaning, plus
     `--config`, `--timeout`, `--no-color`, `--yes` and `NO_COLOR` (CLI-7).
     Overlaps [CLI_QUALITY_ROADMAP.md](CLI_QUALITY_ROADMAP.md); plan it there.

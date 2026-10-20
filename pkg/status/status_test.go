@@ -64,3 +64,65 @@ func TestWriterRejectsInvalidRecords(t *testing.T) {
 	require.ErrorContains(t, w.Write(Record{State: programstatus.Working, LedgerLag: &lag}), "requires")
 	require.ErrorContains(t, w.Write(Record{State: "unknown"}), "invalid")
 }
+
+func TestWriterDerivesCLI12Lifecycle(t *testing.T) {
+	tests := []struct {
+		name  string
+		state programstatus.State
+		want  Lifecycle
+	}{
+		{name: "working is running", state: programstatus.Working, want: Running},
+		{name: "blocked is still running", state: programstatus.Blocked, want: Running},
+		{name: "done is succeeded", state: programstatus.Done, want: Succeeded},
+		{name: "error is failed", state: programstatus.Error, want: Failed},
+		// CLI-17 reports idle "when interrupted", which is the only case in
+		// which nebu emits it, so it maps to cancelled rather than queued.
+		{name: "idle is cancelled", state: programstatus.Idle, want: Cancelled},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output bytes.Buffer
+			w := NewWriter(&output, "nebu")
+			require.NoError(t, w.Write(Record{State: tt.state}))
+
+			var got Record
+			require.NoError(t, json.Unmarshal(output.Bytes(), &got))
+			assert.Equal(t, tt.state, got.State, "7501 state must be preserved on the wire")
+			assert.Equal(t, tt.want, got.Lifecycle)
+		})
+	}
+}
+
+func TestWriterOverwritesCallerSuppliedLifecycle(t *testing.T) {
+	// The two fields must never disagree, so a caller cannot set one
+	// independently of the other.
+	var output bytes.Buffer
+	w := NewWriter(&output, "nebu")
+	require.NoError(t, w.Write(Record{State: programstatus.Done, Lifecycle: Failed}))
+
+	var got Record
+	require.NoError(t, json.Unmarshal(output.Bytes(), &got))
+	assert.Equal(t, Succeeded, got.Lifecycle)
+}
+
+func TestWriterAlwaysEmitsLifecycle(t *testing.T) {
+	// lifecycle is required, not optional: it carries no omitempty, so it is
+	// present on every record a consumer sees.
+	var output bytes.Buffer
+	w := NewWriter(&output, "nebu")
+	require.NoError(t, w.Write(Record{State: programstatus.Working}))
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(output.Bytes(), &got))
+	assert.Contains(t, got, "lifecycle")
+	assert.Equal(t, "running", got["lifecycle"])
+}
+
+func TestWriterRejectsUnknownStateWithoutLifecycle(t *testing.T) {
+	var output bytes.Buffer
+	w := NewWriter(&output, "nebu")
+	err := w.Write(Record{State: programstatus.State("bogus")})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bogus")
+	assert.Empty(t, output.String(), "an invalid record must not be written")
+}
