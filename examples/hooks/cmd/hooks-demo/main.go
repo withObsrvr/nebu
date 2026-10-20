@@ -45,8 +45,8 @@ import (
 // lifecycle, not any real event extraction.
 type tinyOrigin struct{ count int }
 
-func (o *tinyOrigin) Name() string          { return "hooks-demo" }
-func (o *tinyOrigin) Type() processor.Type  { return processor.TypeOrigin }
+func (o *tinyOrigin) Name() string         { return "hooks-demo" }
+func (o *tinyOrigin) Type() processor.Type { return processor.TypeOrigin }
 
 func (o *tinyOrigin) ProcessLedger(_ context.Context, ledger xdr.LedgerCloseMeta) {
 	o.count++
@@ -101,9 +101,9 @@ func main() {
 
 	// --- Wire up all three hooks -----------------------------------
 	rt := runtime.NewRuntime()
-	rt.Use(refhooks.RateLimitHook(10))                  // 10 ledgers/sec cap
-	rt.Use(refhooks.PrometheusHook(reg, proc.Name()))   // /metrics counters
-	rt.Use(refhooks.OTelTracingHook(tp))                // span per ledger
+	rt.Use(refhooks.RateLimitHook(10))                // 10 ledgers/sec cap
+	rt.Use(refhooks.PrometheusHook(reg, proc.Name())) // /metrics counters
+	rt.Use(refhooks.OTelTracingHook(tp))              // span per ledger
 
 	// A small bounded range so the demo finishes in a few seconds.
 	const startLedger, endLedger uint32 = 62080000, 62080010

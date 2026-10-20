@@ -50,10 +50,10 @@ func (s *fakeSource) Close() error { return nil }
 // individual tests inject behavior (report warnings, report fatals,
 // sleep to make duration observable, etc.).
 type recordingOrigin struct {
-	name       string
-	mu         sync.Mutex
-	seen       []uint32
-	onProcess  func(ctx context.Context, ledger xdr.LedgerCloseMeta)
+	name      string
+	mu        sync.Mutex
+	seen      []uint32
+	onProcess func(ctx context.Context, ledger xdr.LedgerCloseMeta)
 }
 
 func (o *recordingOrigin) Name() string         { return o.name }

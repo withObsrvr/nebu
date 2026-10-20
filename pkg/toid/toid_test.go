@@ -3,8 +3,8 @@ package toid_test
 import (
 	"testing"
 
-	"github.com/withObsrvr/nebu/pkg/toid"
 	stellarToid "github.com/stellar/go-stellar-sdk/toid"
+	"github.com/withObsrvr/nebu/pkg/toid"
 )
 
 func TestFromEvent(t *testing.T) {
@@ -143,10 +143,10 @@ func TestFromEvent(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	tests := []struct {
-		name           string
-		ledger         int32
-		tx             int32
-		op             int32
+		name   string
+		ledger int32
+		tx     int32
+		op     int32
 	}{
 		{
 			name:   "known TOID from Stellar testnet",

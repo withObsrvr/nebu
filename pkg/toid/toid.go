@@ -17,23 +17,25 @@ import (
 // Uses the official Stellar SDK implementation (SEP-35 compliant).
 //
 // Supports two formats:
-//   1. Token-transfer format (with "meta" wrapper):
-//      event := map[string]interface{}{
-//          "meta": map[string]interface{}{
-//              "ledgerSequence": 60200000,
-//              "transactionIndex": 5,
-//              "operationIndex": 2,
-//          },
-//      }
 //
-//   2. Contract-events format (top-level fields):
-//      event := map[string]interface{}{
-//          "ledgerSequence": 60200100,
-//          "transactionIndex": 3,
-//          "operationIndex": 0,
-//      }
+//  1. Token-transfer format (with "meta" wrapper):
+//     event := map[string]interface{}{
+//     "meta": map[string]interface{}{
+//     "ledgerSequence": 60200000,
+//     "transactionIndex": 5,
+//     "operationIndex": 2,
+//     },
+//     }
+//
+//  2. Contract-events format (top-level fields):
+//     event := map[string]interface{}{
+//     "ledgerSequence": 60200100,
+//     "transactionIndex": 3,
+//     "operationIndex": 0,
+//     }
 //
 // Example:
+//
 //	id, err := toid.FromEvent(event)
 func FromEvent(event map[string]interface{}) (int64, error) {
 	// Try to extract from "meta" wrapper first (token-transfer format)
