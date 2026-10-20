@@ -8,17 +8,34 @@ Keep this file lean. Add rules only when agents repeatedly get something wrong.
 
 ## Build & verify
 
+- Everything the CI merge gate enforces: `make ci`
+  (gofmt, vet, build, `go test -race -short`, stable-API snapshot check).
+  Run this before claiming a change is done.
 - Build: `make build`
-- Test: `make test`
-  - Current note: `pkg/source/rpc` has network/RPC-dependent tests that may fail.
-    Report the exact failure; do not hide it.
+- Test: `make test` (race detector on)
+  - `pkg/source/rpc` has network/RPC-dependent tests. They skip under
+    `-short`, which is what `make ci` uses; `make test` runs them and can
+    fail on an unreachable or rate-limited endpoint. Report the exact
+    failure; do not hide it.
 - Vet: `make vet`
 - Stable API check: `make api-check`
 - Processor binaries: `make build-processors`
 - Proto changes: `make gen-protos`
 - Docs/CLI examples: `make docs-smoke`
-- Lint, if installed: `golangci-lint run ./...`
-  - Do not rely on `make lint` until its missing-binary behavior is fixed.
+- Lint: `make lint`. Provided by the dev shell. Not in `make ci` yet —
+  its findings are untriaged, so do not treat them as regressions from
+  your change without checking `main`.
+- Vulnerabilities: `govulncheck ./...` must report none reachable.
+
+## Governing docs
+
+- `docs/engineering-profile.md` — which OBSRVR Engineering Standard rules
+  apply to nebu, the contracts nebu owns, and its recorded exceptions.
+- `docs/STABILITY.md` — what is promised to stay stable, and the
+  deprecation window.
+- `docs/adr/` — decisions that changed a contract. Accepted ADRs are never
+  edited; supersede them instead.
+- `CONTRIBUTING.md` — the human-facing version of these rules.
 
 ## Project model
 

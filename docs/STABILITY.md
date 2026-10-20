@@ -13,8 +13,19 @@ This document says what is and is not covered by that commitment. If you're writ
 | **`registry.yaml` v1** | The field set and types defined by the v1 schema are permanent. External registries may author YAML against this schema. |
 | **`--describe-json` protocol** | Every processor binary must implement a `--describe-json` flag that prints a [`DescribeEnvelope`](../pkg/processor/describe.go) to stdout and exits 0. The envelope shape is permanent; nebu may add new optional fields in minor releases but will not rename or remove existing ones without a major version bump. |
 | **`nebu.status.v1` protocol** | The opt-in NDJSON status record defined in [STATUS_STREAM.md](STATUS_STREAM.md) is stable. Consumers must ignore unknown fields; existing fields and meanings will not be renamed or removed without a schema-version change. |
+| **`nebu` CLI flags and subcommands** | Flag names, their meanings, and subcommand names are a contract. They follow the deprecation process below; they are not renamed or removed without notice. |
+| **`nebu` machine-readable output** | The JSON documents emitted by `nebu list --json`, `nebu describe --json` and `nebu describe --schema` are a contract. Consumers must ignore unknown fields. These flags are scheduled to be superseded by the standard `--output json\|ndjson` spelling (CLI-6); when that lands, `--json` is deprecated under the window below rather than removed. |
+| **`nebu` exit codes** | The codes in [EXIT_CODES.md](EXIT_CODES.md) are a contract. A code's meaning does not change without a major version bump. |
 
-**"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver. As of the streams-never-throw landing (see below), **no further breaking changes to the stable surface are planned before 1.0**.
+**"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver.
+
+**One breaking change to the stable surface is planned before 1.0:** the exit-code
+remap required by CLI-15 of the OBSRVR Engineering Standard, which moves
+"dependency unavailable" from code `4` to code `7` and reserves `4` for
+authentication and permission failures. It is tracked in
+[ADR 0002](adr/0002-adopt-standard-exit-codes.md). Apart from that, and apart
+from the streams-never-throw landing already described below, no further
+breaking changes to the stable surface are planned before 1.0.
 
 ### Enforcement
 
@@ -93,16 +104,16 @@ Explicit non-commitments. These can and will change without notice in the 0.x li
 - **`pkg/source/rpc`, `pkg/source/storage`** — concrete `LedgerSource` implementations. Constructor signatures, option types, and defaults can change.
 - **`pkg/runtime`** — the execution engine is a stub. Expect `Runtime` to grow methods, fields, hooks, and configuration.
 - **`pkg/registry` (Go API)** — the `registry.yaml` protocol is stable; the Go parser that reads it isn't. Import `pkg/registry` at your own risk.
-- **`cmd/nebu` CLI flags and subcommands** — the CLI is a product UI, not a contract. Flags can be renamed, subcommands can be reshaped, output formats can change.
+- **`cmd/nebu` human-readable output** — tables, headings, column order, colour, and wording in the default (non-JSON) output are a product UI, not a contract. They can be reshaped at any time. Scripts must use the machine-readable output instead.
 - **`examples/processors/*`** — reference implementations, not API. They exist to show contributors what good processors look like.
-- **`pkg/errors`, `pkg/logging`, `pkg/metrics`, `pkg/toid`, `pkg/version`** — internal utilities. Not intended for external use.
+- **`pkg/errors`, `pkg/metrics`, `pkg/toid`, `pkg/version`** — internal utilities. Not intended for external use.
 
 ## Deprecation process
 
 When we need to remove something from the stable surface (rare, and only at major version boundaries):
 
 1. Add a `// Deprecated:` godoc comment pointing to the replacement, in the same release the replacement ships.
-2. The deprecated symbol keeps working for **at least two minor releases**, or until the next major version, whichever comes later.
+2. The deprecated interface keeps working for **at least 90 days and at least two minor releases, whichever is longer**, counted from the release that carries the notice. (This is the window required by VER-6 of the OBSRVR Engineering Standard; the previous wording omitted the 90-day floor, so a fast run of minor releases could have closed the window in days.)
 3. Removal only happens in a major version.
 
 ```go
