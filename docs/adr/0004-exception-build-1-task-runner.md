@@ -43,8 +43,13 @@ Someone moving between OBSRVR repos types `just test` and gets
 - `CONTRIBUTING.md` documents the two-command clone-to-tests path explicitly.
 - `make ci` exists and runs exactly what the CI merge gate runs, which is the
   substantive requirement behind BUILD-1's recipe list.
-- CI invokes the Makefile through the repo's own flake, so developers and CI run
-  the same commands against the same toolchain (BUILD-2).
+- CI invokes the same `make ci` target that developers run, so the gate and the
+  local command cannot diverge. Note that CI does *not* currently run it through
+  the flake — it resolves Go from `go.mod`'s `toolchain` line instead, so the
+  compiler matches but the rest of the dev shell is not reproduced. That is a
+  separate open BUILD-2 gap, tracked in the
+  [engineering profile](../engineering-profile.md), and it is not compensated
+  for by this exception.
 
 ## Review at expiry
 
