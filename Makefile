@@ -1,4 +1,4 @@
-.PHONY: all test build lint clean fmt vet build-cli install gen-protos build-processors test-integration api-snapshot api-check docs-smoke sync-skill-docs
+.PHONY: all test test-short ci build lint clean fmt vet fmt-check build-cli install gen-protos build-processors test-integration api-snapshot api-check docs-smoke sync-skill-docs
 
 # Force bash for all recipes. The api-check target uses process
 # substitution (diff -u file <(cmd)), which is a bash extension and
@@ -19,7 +19,32 @@ LDFLAGS = -X github.com/withObsrvr/nebu/pkg/version.Version=$(VERSION)
 all: test build
 
 test:
-	go test -v ./...
+	go test -race -v ./...
+
+# Same suite without the network-dependent pkg/source/rpc integration
+# tests, which skip under -short. This is what CI runs, so a green CI
+# run never depends on a reachable Stellar RPC endpoint.
+test-short:
+	go test -race -short ./...
+
+# Fail if any file is not gofmt-clean. `gofmt -l` prints offenders and
+# exits 0, so the exit status has to be derived from its output.
+fmt-check:
+	@unformatted="$$(gofmt -l . | grep -v '^.direnv/' || true)"; \
+	if [ -n "$$unformatted" ]; then \
+		echo "ERROR: these files are not gofmt-clean:"; \
+		echo "$$unformatted"; \
+		echo ""; \
+		echo "Fix with: make fmt"; \
+		exit 1; \
+	fi
+	@echo "✓ All files are gofmt-clean"
+
+# Everything the CI merge gate enforces, in the order a developer wants
+# to hit failures: cheap static checks first, then the test suite, then
+# the contract snapshot. Run this before pushing.
+ci: fmt-check vet build test-short api-check
+	@echo "✓ CI checks passed"
 
 build: build-cli
 	go build -v ./...
@@ -32,8 +57,15 @@ install: build-cli
 	@echo "Installing nebu to $(GOPATH)/bin (or ~/go/bin)"
 	go install ./cmd/nebu
 
+# Not part of `make ci` yet: the existing findings have not been triaged,
+# so wiring it into the merge gate would block every PR. It is provided by
+# the Nix dev shell, so it runs out of the box after `direnv allow`.
 lint:
-	@which golangci-lint > /dev/null || (echo "golangci-lint not installed, skipping"; exit 0)
+	@command -v golangci-lint > /dev/null || { \
+		echo "ERROR: golangci-lint not found."; \
+		echo "It is provided by the dev shell — run 'direnv allow' or 'nix develop'."; \
+		exit 1; \
+	}
 	golangci-lint run ./...
 
 fmt:

@@ -1,0 +1,67 @@
+name: CI
+
+# The merge gate required by §9 of the OBSRVR Engineering Standard. Until
+# this existed, nothing built or tested nebu on a pull request — only the
+# narrow api-stability, release-check and sbom workflows ran, so a PR that
+# broke the build or the tests could merge green.
+#
+# Every job here must stay green for a PR to merge. `make ci` runs the same
+# checks locally, in the same order, so a contributor can reproduce a
+# failure without pushing.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Build, test and static checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          # Read the version from go.mod's toolchain line rather than
+          # hardcoding it, so CI, the Nix dev shell and go.mod can never
+          # drift apart (BUILD-2).
+          go-version-file: go.mod
+          cache: true
+
+      # fmt-check, vet, build, test -race -short, api-check. Kept as one
+      # make invocation so the local command and the gate cannot diverge.
+      - name: Run merge gate
+        run: make ci
+
+  govulncheck:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # SEC-9: fail on reachable known vulnerabilities. Pinned rather than
+      # @latest so a new govulncheck release cannot turn an unrelated PR red.
+      # Bump deliberately, in its own PR.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+
+      - name: Scan for reachable vulnerabilities
+        run: govulncheck ./...

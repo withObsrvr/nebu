@@ -41,6 +41,7 @@
 
             # Build tools
             gnumake
+            golangci-lint
 
             # Database tools (for testing)
             duckdb
@@ -73,7 +74,7 @@
         # Package the nebu CLI and processors
         packages.default = pkgs.buildGoModule {
           pname = "nebu";
-          version = "0.6.3";
+          version = "0.6.15";
           src = ./.;
           vendorHash = null;
 
