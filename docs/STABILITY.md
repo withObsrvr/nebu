@@ -34,7 +34,7 @@ The promises above are mechanically enforced by a CI check ([`.github/workflows/
 When the check fails, the PR diff shows exactly which symbol or signature changed. The expected workflow on intentional contract changes is:
 
 1. Verify the change is acceptable per this document.
-2. Run `make api-snapshot` locally to regenerate the snapshots.
+2. Run `just api-snapshot` locally to regenerate the snapshots.
 3. Commit the updated `.api/` files alongside the code change.
 
 The reviewer then sees both the code change and the snapshot diff in the PR, giving a clear "this PR is moving the contract surface" signal that's hard to miss in code review.

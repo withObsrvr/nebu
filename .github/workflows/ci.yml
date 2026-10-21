@@ -39,10 +39,18 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # Third-party action, so pinned to a commit SHA rather than a moving
+      # tag. just-version matches the flake's just (1.51.0) so CI and the
+      # dev shell run the same task runner (BUILD-2).
+      - name: Install just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: '1.51.0'
+
       # fmt-check, vet, build, test -race -short, api-check. Kept as one
-      # make invocation so the local command and the gate cannot diverge.
+      # just invocation so the local command and the gate cannot diverge.
       - name: Run merge gate
-        run: make ci
+        run: just ci
 
   govulncheck:
     name: Vulnerability scan

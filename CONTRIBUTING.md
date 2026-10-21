@@ -14,8 +14,12 @@ Two commands from a fresh clone:
 
 ```bash
 direnv allow     # or: nix develop
-make test
+just test
 ```
+
+`just` with no arguments lists every recipe. A `Makefile` still forwards to
+`just` for one release, so old muscle memory keeps working — but it warns, and
+it is going away.
 
 The flake pins the dev-shell tooling. The Go compiler itself is pinned by the
 `toolchain` line in `go.mod`, which Go fetches automatically — it is ahead of
@@ -27,20 +31,20 @@ compiler you do.
 
 | Command | What it does |
 |---|---|
-| `make build` | Build the `nebu` binary into `bin/` |
-| `make test` | Full test suite with the race detector |
-| `make ci` | Exactly what the merge gate runs — use this before pushing |
-| `make vet` | `go vet` |
-| `make fmt` | `gofmt` the tree |
-| `make api-check` | Verify the stable Go API matches the committed snapshots |
-| `make api-snapshot` | Regenerate those snapshots after an intentional change |
-| `make build-processors` | Install published processors and build the in-repo examples |
-| `make test-integration` | Run pipelines end to end against installed processors |
-| `make docs-smoke` | Verify the CLI examples in the docs still work |
-| `make gen-protos` | Regenerate protobuf code |
+| `just build` | Build the `nebu` binary into `bin/` |
+| `just test` | Full test suite with the race detector |
+| `just ci` | Exactly what the merge gate runs — use this before pushing |
+| `just vet` | `go vet` |
+| `just fmt` | `gofmt` the tree |
+| `just api-check` | Verify the stable Go API matches the committed snapshots |
+| `just api-snapshot` | Regenerate those snapshots after an intentional change |
+| `just build-processors` | Install published processors and build the in-repo examples |
+| `just test-integration` | Run pipelines end to end against installed processors |
+| `just docs-smoke` | Verify the CLI examples in the docs still work |
+| `just gen-protos` | Regenerate protobuf code |
 
 Network-dependent tests in `pkg/source/rpc` skip under `-short`, which is what
-`make ci` uses. `make test` runs them, so it needs network and can fail on a
+`just ci` uses. `just test` runs them, so it needs network and can fail on a
 rate-limited RPC endpoint. That is expected; report the exact failure rather
 than working around it.
 
@@ -101,8 +105,8 @@ If your change touches one:
    breaking, or semantic. "Semantic" means the wire format is unchanged but the
    meaning is not: a decoding fix, a changed unit, a new protocol rule. Semantic
    changes are treated as breaking.
-2. **Run `make api-check`.** If `pkg/processor` or `pkg/source` drifted and the
-   drift is intended, run `make api-snapshot` and commit the `.api/` diff in the
+2. **Run `just api-check`.** If `pkg/processor` or `pkg/source` drifted and the
+   drift is intended, run `just api-snapshot` and commit the `.api/` diff in the
    same pull request. Reviewers use that diff as the signal that the contract
    moved.
 3. **Write an ADR** for anything breaking or semantic —

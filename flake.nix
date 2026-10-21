@@ -40,7 +40,8 @@
             protoc-gen-go-grpc
 
             # Build tools
-            gnumake
+            just
+            gnumake # only for the Makefile->just compatibility shim
             golangci-lint
 
             # Database tools (for testing)

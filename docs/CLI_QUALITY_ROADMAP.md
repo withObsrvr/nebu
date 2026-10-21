@@ -189,7 +189,7 @@ checkpoints, status reporting, and resume semantics.
 - Existing CLI syntax, exit codes, XDR output, checkpoint semantics, OSC
   reports, and structured status remain unchanged.
 - Cancellation and final output/checkpoint ordering retain regression tests.
-- `make test`, `make vet`, `make docs-smoke`, and `make api-check` pass.
+- `just test`, `just vet`, `just docs-smoke`, and `just api-check` pass.
 
 ### Priority 2: Make all command I/O injectable
 
@@ -523,7 +523,7 @@ drift from actual commands, flags, processor versions, and schemas.
 
 #### Work
 
-- Extend `make docs-smoke` to validate commands and flags appearing in root and
+- Extend `just docs-smoke` to validate commands and flags appearing in root and
   subcommand help.
 - Validate processor example flags against `--describe-json` envelopes.
 - Syntax-check shell snippets where practical.
@@ -685,9 +685,9 @@ Every implementation PR should select the relevant checks below.
 
 | Area | Required verification |
 |---|---|
-| Go implementation | `make build`, `make test`, `make vet` |
-| Stable packages | `make api-check` |
-| Help or examples | `make docs-smoke` |
+| Go implementation | `just build`, `just test`, `just vet` |
+| Stable packages | `just api-check` |
+| Help or examples | `just docs-smoke` |
 | Processor helpers | helper unit tests plus representative origin, transform, and sink tests |
 | JSON contract | schema/golden tests and unknown-field compatibility test |
 | Exit/error behavior | table-driven command exit-code tests |

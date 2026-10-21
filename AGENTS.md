@@ -8,21 +8,23 @@ Keep this file lean. Add rules only when agents repeatedly get something wrong.
 
 ## Build & verify
 
-- Everything the CI merge gate enforces: `make ci`
+- Task runner is the justfile; `just` alone lists recipes. The `Makefile`
+  is a deprecated shim that forwards to `just`. Do not add task logic to it.
+- Everything the CI merge gate enforces: `just ci`
   (gofmt, vet, build, `go test -race -short`, stable-API snapshot check).
   Run this before claiming a change is done.
-- Build: `make build`
-- Test: `make test` (race detector on)
+- Build: `just build`
+- Test: `just test` (race detector on)
   - `pkg/source/rpc` has network/RPC-dependent tests. They skip under
-    `-short`, which is what `make ci` uses; `make test` runs them and can
+    `-short`, which is what `just ci` uses; `just test` runs them and can
     fail on an unreachable or rate-limited endpoint. Report the exact
     failure; do not hide it.
-- Vet: `make vet`
-- Stable API check: `make api-check`
-- Processor binaries: `make build-processors`
-- Proto changes: `make gen-protos`
-- Docs/CLI examples: `make docs-smoke`
-- Lint: `make lint`. Provided by the dev shell. Not in `make ci` yet —
+- Vet: `just vet`
+- Stable API check: `just api-check`
+- Processor binaries: `just build-processors`
+- Proto changes: `just gen-protos`
+- Docs/CLI examples: `just docs-smoke`
+- Lint: `just lint`. Provided by the dev shell. Not in `just ci` yet —
   its findings are untriaged, so do not treat them as regressions from
   your change without checking `main`.
 - Vulnerabilities: `govulncheck ./...` must report none reachable.
@@ -55,9 +57,9 @@ Treat these as compatibility-sensitive:
 - processor `--describe-json` protocol
 - committed API snapshots under `.api/`
 
-If changing `pkg/processor` or `pkg/source`, run `make api-check`.
+If changing `pkg/processor` or `pkg/source`, run `just api-check`.
 If API drift is intentional and acceptable per `docs/STABILITY.md`, run
-`make api-snapshot` and commit the `.api/` diff with the code change.
+`just api-snapshot` and commit the `.api/` diff with the code change.
 
 ## Processor conventions
 

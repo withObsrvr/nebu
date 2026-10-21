@@ -7,7 +7,7 @@
   the process executing it (`inspect <id>`, `cancel <id>`) and to the `queued`
   lifecycle state
 - **Expiry:** 2027-04-20
-- **Relates to:** [ADR 0005](0005-status-stream-carries-cli-12-lifecycle.md)
+- **Relates to:** [ADR 0004](0004-status-stream-carries-cli-12-lifecycle.md)
 
 ## Context
 
@@ -27,8 +27,8 @@ the rest to the backlog as ordinary work.
 | CLI-12 clause | nebu | Disposition |
 |---|---|---|
 | "Accepting a job is not completing it" | Work runs in the caller's process; the exit code is the real outcome | **Satisfied** |
-| Lifecycle state vocabulary | `lifecycle` field carries the CLI-12 values | **Satisfied** — [ADR 0005](0005-status-stream-carries-cli-12-lifecycle.md) |
-| Domain states carry a definition | `blocked` is defined in [STATUS_STREAM.md](../STATUS_STREAM.md) | **Satisfied** — ADR 0005 |
+| Lifecycle state vocabulary | `lifecycle` field carries the CLI-12 values | **Satisfied** — [ADR 0004](0004-status-stream-carries-cli-12-lifecycle.md) |
+| Domain states carry a definition | `blocked` is defined in [STATUS_STREAM.md](../STATUS_STREAM.md) | **Satisfied** — ADR 0004 |
 | `events --follow` | `nebu.status.v1` is a followable NDJSON event stream carrying state, ledger progress, lag and counts | **Substantially satisfied**; only the subcommand spelling is missing. Backlog |
 | `wait --for <state> --timeout <d>` | A foreground process *is* the wait and the exit code *is* the terminal state; `--timeout` and exit code 6 are missing | **Partial.** Backlog, no architectural obstacle |
 | Operation ID | Not emitted. A per-invocation run ID is a label on the current run, not durable job state | **Gap.** Backlog, no architectural obstacle |

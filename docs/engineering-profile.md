@@ -116,7 +116,7 @@ in review; `AGENTS.md` carries the agent-facing short form.
   explicitly requested. Archive mode for historical backfills, RPC for recent
   ledgers and live streams.
 - **N-8 Agent docs are versioned with the tool.** `SKILL.md` and `skills/` ship
-  and version with nebu, and `make docs-smoke` mechanically verifies the CLI
+  and version with nebu, and `just docs-smoke` mechanically verifies the CLI
   examples in docs. This is DOC-7 plus an executable check.
 
 ## 4. Rules not triggered, and exceptions
@@ -148,18 +148,24 @@ produces the records those rules govern.
 | Rule | Record | Reason | Compensating control | Expiry |
 |---|---|---|---|---|
 | **CLI-12**, limited to out-of-band addressing (`inspect <id>`, `cancel <id>`) and the `queued` state | [ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md) — Accepted | Addressing a run from outside the executing process needs a durable run registry — the orchestrator role N-1 forbids. nebu has no queue, so `queued` has nothing to report | `--status-file` lets a third party follow a run it did not start; `--checkpoint` resumability; CLI-11 in-process cancellation | 2027-04-20 |
-| **BUILD-1** (`just` task runner) | [ADR 0004](adr/0004-exception-build-1-task-runner.md) — Accepted | BUILD-1 grandfathers existing Makefiles until the repo is next reworked | `make ci` runs exactly what the gate runs; both documented in `AGENTS.md` and `CONTRIBUTING.md` | 2027-04-20 |
 | **CLI-15** (exit-code table) | [ADR 0002](adr/0002-adopt-standard-exit-codes.md) — Accepted | Not an exception: a scheduled breaking fix. nebu's `4` means "data source unavailable"; the standard reserves `4` for auth and `7` for dependency-unavailable | Codes documented in EXIT_CODES.md and covered by table tests; migration and rollback specified in the ADR | Fix due before the next minor release |
 
-Both exception ADRs are **Accepted** as of 2026-10-20, so these are live
-exceptions under CONF-1 rather than unrecorded non-conformance. Each expires
-**2027-04-20**, within CONF-1's six-month ceiling. They are reviewed at the
-quarterly profile review on 2027-01-20 (CONF-2), which falls before expiry; an
-expired exception counts as non-conformance, so neither date should be allowed
-to pass unexamined.
+nebu carries **one** exception. [ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md)
+is Accepted as of 2026-10-20 and expires **2027-04-20**, within CONF-1's
+six-month ceiling. It is reviewed at the quarterly profile review on 2027-01-20
+(CONF-2), which falls before expiry; an expired exception counts as
+non-conformance, so neither date should pass unexamined.
+
+A **BUILD-1** exception for the Makefile was drafted and then discarded in
+favour of conforming: nebu's task runner is now a justfile. The grandfather
+clause would have permitted the Makefile to stay, but it also requires new task
+logic to go in the justfile — and the same change added three new targets, so
+the exception would have been incoherent from the day it was written.
+`Makefile` survives as a shim that forwards to `just` and warns, scheduled for
+removal one release later.
 
 CLI-12 is **partially excepted only.** Its lifecycle-vocabulary and
-domain-state clauses are now satisfied (ADR 0005); its "accepting a job is not
+domain-state clauses are now satisfied (ADR 0004); its "accepting a job is not
 completing it" clause always was. The operation ID, the `--timeout` form of
 `wait`, and the `events --follow` spelling are missing work with no
 architectural obstacle, tracked in the backlog below — not excepted. ADR 0003
@@ -184,7 +190,7 @@ merge gate that holds everything else in place now exists.
 | 7 | Security and supply chain | Partial | `SECURITY.md`, `govulncheck` in CI, 10 reachable vulns cleared |
 | 8 | Observability | **Fails** | — |
 | 9 | Testing and quality gates | Partial | CI merge gate added; `-race` on by default |
-| 10 | Builds and reproducibility | Partial | `-trimpath`, `mod_timestamp`, OCI `.source`, toolchain pinned |
+| 10 | Builds and reproducibility | Partial | `just` task runner (BUILD-1), `-trimpath`, `mod_timestamp`, OCI `.source`, toolchain pinned |
 | 11 | Stellar domain | **Fails** | — |
 | 12 | Documentation and ADRs | Partial | `LICENSE`, `CONTRIBUTING.md`, `docs/adr/`, this profile |
 
@@ -200,12 +206,13 @@ CI merge gate (build, `gofmt`, `go vet`, `go test -race -short`, API snapshot,
 `govulncheck`) · 10 reachable vulnerabilities cleared · Go toolchain pinned and
 aligned with the flake (BUILD-2) · `LICENSE` (Apache-2.0, resolving the
 MIT/Apache contradiction) · `SECURITY.md` (SEC-12) · `CONTRIBUTING.md` ·
-`docs/adr/` with five records (DOC-4), including two accepted exceptions
-that make the CLI-12 and BUILD-1 gaps live under CONF-1 rather than unrecorded ·
+`docs/adr/` with four records (DOC-4), including the accepted exception that
+makes the CLI-12 out-of-band gap live under CONF-1 rather than unrecorded ·
 this profile (§13) · CLI-surface
 contract conflict resolved (ADR 0001) · VER-6 deprecation floor · `-trimpath`
 and `mod_timestamp` (BUILD-3) · OCI `image.source` (BUILD-4) · Keep a Changelog
-form (VER-11) · `gofmt` clean · `make lint` no longer silently passes.
+form (VER-11) · `gofmt` clean · lint no longer silently passes · BUILD-1 `just`
+task runner, with the Makefile reduced to a deprecated forwarding shim.
 
 ### The next gap to close
 
@@ -273,11 +280,11 @@ Recorded so they are not mistaken for conformance:
   which is free for public repositories and is a repository-settings change
   rather than a workflow. It has not been enabled yet.
 - **`golangci-lint` is not in the gate** (§9 names `staticcheck` or
-  `golangci-lint`). It is now provided by the dev shell and `make lint` runs it,
+  `golangci-lint`). It is now provided by the dev shell and `just lint` runs it,
   but its findings are untriaged and wiring it in today would block every PR.
   Triage, then add.
 - **No change-classification gate** (VER-3). `CONTRIBUTING.md` asks for a
   classification on contract-touching PRs; nothing enforces it. A pull-request
   template is the cheap next step.
-- **`make docs-smoke` and `make test-integration` are not in the gate.** Both
+- **`just docs-smoke` and `just test-integration` are not in the gate.** Both
   need network and installed processor binaries.

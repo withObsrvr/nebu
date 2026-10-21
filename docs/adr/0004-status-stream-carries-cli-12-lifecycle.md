@@ -1,4 +1,4 @@
-# 0005. The status stream carries the CLI-12 lifecycle vocabulary
+# 0004. The status stream carries the CLI-12 lifecycle vocabulary
 
 - **Status:** Accepted
 - **Date:** 2026-10-20
