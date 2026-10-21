@@ -8,7 +8,7 @@ This document says what is and is not covered by that commitment. If you're writ
 
 | Surface | Commitment |
 |---|---|
-| **`pkg/processor`** | The types `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, the `Type` enum (`TypeOrigin`, `TypeTransform`, `TypeSink`), and the describe-protocol types (`DescribeEnvelope`, `DescribeSchema`, `DescribeFlag`, `DescribeExample`) are permanent. They exist at this path with these names. |
+| **`pkg/processor`** | The types `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, the `Type` enum (`TypeOrigin`, `TypeTransform`, `TypeSink`), the describe-protocol types (`DescribeEnvelope`, `DescribeSchema`, `DescribeFlag`, `DescribeExample`), and the function `LedgerCloseTimeMs` are permanent. They exist at this path with these names. |
 | **`pkg/source`** | The `LedgerSource` interface is permanent. It exists at this path with this name. |
 | **`registry.yaml` v1** | The field set and types defined by the v1 schema are permanent. External registries may author YAML against this schema. |
 | **`--describe-json` protocol** | Every processor binary must implement a `--describe-json` flag that prints a [`DescribeEnvelope`](../pkg/processor/describe.go) to stdout and exits 0. The envelope shape is permanent; nebu may add new optional fields in minor releases but will not rename or remove existing ones without a major version bump. |

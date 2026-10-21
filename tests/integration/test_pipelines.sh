@@ -55,7 +55,7 @@ build_binaries() {
     local required=(token-transfer usdc-filter amount-filter dedup json-file-sink)
     for name in "${required[@]}"; do
         if [[ ! -x "$BIN_DIR/$name" ]]; then
-            echo -e "${RED}✗${NC} Missing $BIN_DIR/$name; run make build-processors first"
+            echo -e "${RED}✗${NC} Missing $BIN_DIR/$name; run just build-processors first"
             TESTS_FAILED=$((TESTS_FAILED + 1))
             return 1
         fi
