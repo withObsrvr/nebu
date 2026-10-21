@@ -11,7 +11,7 @@ name: API stability
 #
 #   1. If the change is unintentional, revert it.
 #   2. If the change is intentional and acceptable per the stability
-#      policy, run `make api-snapshot` locally and commit the updated
+#      policy, run `just api-snapshot` locally and commit the updated
 #      .api/ files alongside the code change. The PR diff will then
 #      show exactly which symbol changed, giving reviewers a clear
 #      signal that the contract surface moved.
@@ -22,7 +22,8 @@ on:
       - 'pkg/processor/**'
       - 'pkg/source/**'
       - '.api/**'
-      - 'Makefile'
+      - 'justfile'
+      - 'Makefile' # the deprecated just-forwarding shim
       - '.github/workflows/api-stability.yml'
   push:
     branches:
@@ -45,5 +46,12 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # Pinned by commit SHA (third-party action) at the same version the
+      # flake provides, matching ci.yml.
+      - name: Install just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: '1.51.0'
+
       - name: Verify stable API snapshots
-        run: make api-check
+        run: just api-check

@@ -5,7 +5,7 @@ name: CI
 # narrow api-stability, release-check and sbom workflows ran, so a PR that
 # broke the build or the tests could merge green.
 #
-# Every job here must stay green for a PR to merge. `make ci` runs the same
+# Every job here must stay green for a PR to merge. `just ci` runs the same
 # checks locally, in the same order, so a contributor can reproduce a
 # failure without pushing.
 
