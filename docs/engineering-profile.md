@@ -82,6 +82,13 @@ STABILITY.md promised "at least two minor releases, or until the next major
 version". VER-6 requires **90 days *and* two minor releases, whichever is
 longer**. The 90-day floor has been added.
 
+### Active protocol upgrade
+
+Protocol 30 ("Bell") votes on testnet 2026-11-03 and pubnet 2026-11-23. The
+STL-2 impact review is at
+[protocol-30-impact-review.md](protocol-30-impact-review.md); it is a draft
+pending owner sign-off and pending assessment of the systems outside this repo.
+
 ## 3. Product-specific rules that tighten the standard
 
 These are nebu's own rules. They are additive to the standard and are enforced
