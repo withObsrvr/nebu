@@ -6,6 +6,15 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+
+- **Protocol 30 ("Bell"): upgraded `github.com/stellar/go-stellar-sdk` to v0.8.0** in nebu (from v0.7.3) and the hooks example (from v0.7.1). This is required, not optional. CAP-88 adds two arms to the `StellarValueExt` union — `STELLAR_VALUE_SIGNED_MS` (3) and `STELLAR_VALUE_EMPTY_TX_SET_MS` (4) — and an SDK that does not know those discriminants fails to decode any Protocol 30 ledger. Testnet votes 2026-11-03, pubnet 2026-11-23.
+  - No nebu source changes were needed, and the committed stable-API snapshots are unchanged.
+  - `nebu fetch` never decoded ledgers (it streams raw bytes and derives sequences arithmetically), so raw archival was never exposed to this; the five `xdr.Unmarshal` decode paths were.
+  - Verified on mainnet ledgers 60200000-60200050: `fetch` output is byte-identical to the previous release, and a 39,652-event pipeline through a processor still pinned to v0.7.3 is unchanged.
+  - **Not yet addressed:** CAP-88 gives close times millisecond resolution, so consecutive ledgers can close within the same whole second. Any consumer using whole-second close times for ordering or windowing becomes ambiguous — including the `closed_at_unix` field defined in the processor registry's protos, which `time-window` and `aggregator` filter on. That is a registry-side schema decision, tracked separately. The SDK's own `LedgerCloseMeta.ClosedAt()` also truncates to seconds; the millisecond value lives in the new union arms.
+  - **Not yet addressed:** CAP-84 muxed contract addresses add an `SCAddress` variant and the `W` strkey prefix. nebu passes SDK-produced address strings through unmodified, but processors that parse, filter, or re-encode addresses need review.
+
 ### Added
 
 - `LICENSE` (Apache-2.0), `SECURITY.md` and `CONTRIBUTING.md`. nebu previously shipped no license file at all, and the two claims in the tree disagreed — `README.md` said MIT while `flake.nix` declared Apache-2.0.
