@@ -40,6 +40,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The dev shell's greeting, the integration suite's error message, and the `Makefile` shim's own comment still referred to `make` targets or to an unrelated ADR after the justfile conversion. The CI workflows also pinned `just` 1.51.0 while this repo's `flake.lock` resolves to 1.43.1 — the opposite of the BUILD-2 alignment the pin exists for. CI now pins 1.43.1, and the comment records that the version must be read with `nix develop --command just --version` rather than `nix eval nixpkgs#just.version`, which reads the live registry instead of this repo's lock.
+
 - `flake.nix` declared `version = "0.6.3"` on a v0.6.15 tree.
 - `docs/STABILITY.md` listed a `pkg/logging` package that no longer exists.
 - Nine files were not `gofmt`-clean.
