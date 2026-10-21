@@ -34,8 +34,10 @@ either network, which bounds what can be tested before 2026-11-03 (see
 | **CAP-87** ML-DSA host functions | **None** | Additive, opt-in; no effect on read-only pipelines |
 
 The decoder half of CAP-88 is mechanical and already done for nebu. The
-**semantic half is the real work**, it is not solved by a version bump, and it
-has one decision that should be made before the testnet vote rather than after.
+**semantic half is the real work** and is not solved by a version bump. Its one
+open decision — how to carry millisecond close times — was resolved on
+2026-10-21 in favour of **Option A, an additive millisecond field**; see
+[the decision](#decision-option-a--add-a-millisecond-field).
 
 ## Method, and what this review does not cover
 
@@ -142,20 +144,72 @@ Confirmed exposure:
   millisecond value means reading `ScpValue.Ext.SignedMsValue.CloseTimeMs`
   (`TimePointMs`).
 
-### Decision required
+### Decision: Option A — add a millisecond field
 
-| Option | Change class (VER-3) | Notes |
+**Decided 2026-10-21.** A new millisecond field is added beside
+`closed_at_unix`; the existing field keeps its meaning and its units.
+
+| Option | Change class (VER-3) | |
 |---|---|---|
-| **A. Add a millisecond field** beside `closed_at_unix` | Additive — minor release | Existing consumers keep working; `time-window` and `aggregator` migrate to the new field deliberately. **Recommended.** |
-| B. Change `closed_at_unix` to milliseconds | Breaking + **semantic** (VER-4) | Same wire type, different meaning — the worst kind of change to ship quietly. Needs an ADR, a schema-ID bump, a parity test and a replay decision (DATA-10). |
-| C. Do nothing | — | Silent mis-bucketing in `time-window` and `aggregator` from the first same-second ledger pair. Not acceptable under P-1. |
+| **A. Add a millisecond field** beside `closed_at_unix` | Additive — minor release | **Chosen.** Existing consumers keep working; `time-window` and `aggregator` migrate to the new field deliberately |
+| B. Change `closed_at_unix` to milliseconds | Breaking + **semantic** (VER-4) | Rejected. Same wire type, different meaning. VER-6 requires 90 days *and* two minor releases, which lands in late January — two months past the pubnet vote, so B cannot be done compliantly in the time available |
+| C. Do nothing | — | Rejected. Silent mis-bucketing in `time-window` and `aggregator` from the first same-second ledger pair. Not acceptable under P-1 |
 
-Option A is recommended, and the window to choose it cheaply closes at the
-pubnet vote. This is a **registry-owned schema decision** and needs its own ADR
-in that repo. DATA-3 of the standard also wants RFC 3339 in UTC rather than an
-epoch integer; if the field is being revisited anyway, that is the moment to fix
-both — tracked as backlog item 2 of
-[nebu's engineering profile](engineering-profile.md).
+Grounding for the premise: across pubnet ledgers 60200000-60200060, all 61 have
+distinct whole-second close times, spaced 5-7 seconds apart, with zero
+collisions. `closed_at_unix` is **lossless for every ledger that exists today**,
+which is why A is purely forward-looking — there is no historical ambiguity to
+remediate, provided it lands before the pubnet vote.
+
+This decision needs an ADR in the processor registry, which owns the schema.
+DATA-3 of the standard also wants RFC 3339 in UTC rather than an epoch integer;
+if the field is being revisited, that is the moment to fix both — tracked as
+backlog item 2 of [nebu's engineering profile](engineering-profile.md).
+
+### Implementing Option A: the union arm that will be missed
+
+Reading a millisecond close time is not a one-liner, and the obvious
+implementation is wrong. The SDK offers **no** helper —
+`LedgerCloseMeta.ClosedAt()` truncates to seconds via
+`time.Unix(LedgerCloseTime(), 0)`. The value must be read out of the
+`StellarValueExt` union, whose arms map like this
+(`xdr_generated.go:12693`):
+
+| `StellarValueType` | Arm | Carries `CloseTimeMs`? |
+|---|---|---|
+| 0 `BASIC` | (void) | no |
+| 1 `SIGNED` | `LcValueSignature` | no |
+| 2 `EMPTY_TX_SET` | `ProposedValue` | no |
+| **3 `SIGNED_MS`** | `SignedMsValue` | **yes** |
+| **4 `EMPTY_TX_SET_MS`** | `ProposedMsValue` | **yes** |
+
+**Two arms carry the millisecond value, not one.** An implementation that
+reaches for `Ext.GetSignedMsValue()` alone — the natural first guess — silently
+falls back to seconds on every empty Protocol 30 ledger, which is exactly the
+case a fixture taken from a busy ledger never exercises. This is the same defect
+as the missing `EMPTY_TX_SET_MS` test ledger, seen from the code side rather
+than the fixture side.
+
+Correct shape, with the pre-Protocol-30 fallback:
+
+```go
+scp := ledger.LedgerHeaderHistoryEntry().Header.ScpValue
+if v, ok := scp.Ext.GetSignedMsValue(); ok {
+    return uint64(v.CloseTimeMs)        // arm 3
+}
+if v, ok := scp.Ext.GetProposedMsValue(); ok {
+    return uint64(v.CloseTimeMs)        // arm 4 — do not omit
+}
+return uint64(scp.CloseTime) * 1000     // arms 0-2: pre-P30, seconds
+```
+
+Thirteen origin processors need this. Thirteen independent copies of a
+five-branch union read, where one branch is easy to miss and its absence is
+silent, is the wrong shape. It belongs in one shared helper that nebu owns —
+nebu already owns the processor contract — with a table test over all five
+discriminants. Open question: whether that helper goes in `pkg/processor` (the
+stable surface external processors already import, so permanent under
+STABILITY.md) or in a non-stable package that can evolve.
 
 ## 3. CAP-84 — muxed contract addresses
 
@@ -254,8 +308,9 @@ the standard.
    a nebu release. It is the dependency for every registry module.
 2. **Now — answer the owner-assessment table above.** It is the part of STL-2
    this draft cannot complete, and the validator row has its own lead time.
-3. **Now — decide CAP-88 option A vs B** and write the ADR in the registry repo.
-   Deciding before the testnet vote keeps option A available.
+3. **Now — write the Option A ADR in the registry repo** (decision made
+   2026-10-21) and land a shared millisecond-close-time helper so the 13 origin
+   processors do not each re-implement the five-arm union read.
 4. **By 2026-10-31 — bump the registry modules** to SDK v0.8.0 and the new nebu
    release; regression-test each against pubnet 60200000-60200050.
 5. **2026-11-03, immediately post-vote — capture the four testnet fixtures** and
