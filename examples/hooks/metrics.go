@@ -18,22 +18,22 @@ import (
 // # Metrics emitted
 //
 //   - nebu_ledgers_processed_total{processor="..."}
-//         counter — incremented once per AfterLedger call
+//     counter — incremented once per AfterLedger call
 //
 //   - nebu_ledger_duration_seconds{processor="..."}
-//         histogram — seconds spent inside origin.ProcessLedger,
-//         buckets tuned for sub-second ledger processing
-//         (1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s, 10s)
+//     histogram — seconds spent inside origin.ProcessLedger,
+//     buckets tuned for sub-second ledger processing
+//     (1ms, 5ms, 10ms, 50ms, 100ms, 500ms, 1s, 5s, 10s)
 //
 //   - nebu_warnings_total{processor="...", severity="..."}
-//         counter — incremented per OnWarning call
+//     counter — incremented per OnWarning call
 //
 //   - nebu_fatals_total{processor="...", severity="..."}
-//         counter — incremented per OnFatal call (typically 0 or 1)
+//     counter — incremented per OnFatal call (typically 0 or 1)
 //
 //   - nebu_pipeline_duration_seconds{processor="...", outcome="..."}
-//         histogram observation made once on OnEnd; outcome is "ok"
-//         for clean completion, "error" for any non-nil FatalErr
+//     histogram observation made once on OnEnd; outcome is "ok"
+//     for clean completion, "error" for any non-nil FatalErr
 //
 // # Arguments
 //

@@ -4,8 +4,8 @@ Use a bounded RPC end-to-end smoke test to verify that the built application can
 contact a live Stellar RPC server, fetch recent ledgers, decode their XDR, and
 emit schema-versioned JSONL through a processor.
 
-This is separate from `make test`, which runs the automated Go test suite, and
-`make docs-smoke`, which validates documented CLI examples.
+This is separate from `just test`, which runs the automated Go test suite, and
+`just docs-smoke`, which validates documented CLI examples.
 
 ## Prerequisites
 
@@ -17,8 +17,8 @@ This is separate from `make test`, which runs the automated Go test suite, and
 Build the required binaries:
 
 ```bash
-make build-cli
-make build-processors
+just build-cli
+just build-processors
 ```
 
 ## Bounded live RPC end-to-end test

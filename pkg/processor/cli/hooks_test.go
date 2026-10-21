@@ -35,15 +35,15 @@ func (s *noopSource) Stream(ctx context.Context, start, end uint32, out chan<- x
 	return nil
 }
 func (s *noopSource) Close() error { return nil }
-func newNoopSource() *noopSource    { return &noopSource{} }
+func newNoopSource() *noopSource   { return &noopSource{} }
 
 // noopOrigin is a do-nothing origin used to drive runtime.RunOrigin.
 type noopOrigin struct{ name string }
 
-func (o *noopOrigin) Name() string                                                       { return o.name }
-func (o *noopOrigin) Type() processor.Type                                               { return processor.TypeOrigin }
-func (o *noopOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta)      {}
-func newNoopOrigin(name string) *noopOrigin                                              { return &noopOrigin{name: name} }
+func (o *noopOrigin) Name() string                                                  { return o.name }
+func (o *noopOrigin) Type() processor.Type                                          { return processor.TypeOrigin }
+func (o *noopOrigin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {}
+func newNoopOrigin(name string) *noopOrigin                                         { return &noopOrigin{name: name} }
 
 func TestAttachHooks_NoHooks(t *testing.T) {
 	rt := runtime.NewRuntime()

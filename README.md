@@ -70,7 +70,7 @@ For development inside this repo:
 
 ```bash
 git clone https://github.com/withObsrvr/nebu && cd nebu
-make install
+just install
 export PATH="$HOME/go/bin:$PATH"
 
 nebu install token-transfer
@@ -242,10 +242,10 @@ git clone https://github.com/withObsrvr/nebu
 cd nebu
 
 # Install nebu CLI
-make install
+just install
 
 # Or build locally without installing
-make build-cli
+just build-cli
 ./bin/nebu --version
 ```
 
@@ -342,7 +342,7 @@ Run an example:
 go run examples/simple_origin/main.go
 ```
 
-**💡 Want to see Unix-style pipeline examples?** Check out [PIPELINE.md](./PIPELINE.md) for examples using `jq`, `tee`, filtering, and multi-sink fanouts.
+**💡 Want to see Unix-style pipeline examples?** Check out [PIPELINE.md](docs/PIPELINE.md) for examples using `jq`, `tee`, filtering, and multi-sink fanouts.
 
 See the [Processor Registry](#processor-registry) section to learn how processors are discovered and run.
 
@@ -378,16 +378,16 @@ All processors communicate via Unix pipes (stdin/stdout)
 
 ```bash
 # Run tests
-make test
+just test
 
 # Run all tests including integration
 go test -v ./...
 
 # Format code
-make fmt
+just fmt
 
 # Lint (requires golangci-lint)
-make lint
+just lint
 
 # Run example
 make run-example
@@ -982,7 +982,7 @@ See the [Processor Contribution Guide](https://github.com/withObsrvr/nebu-proces
 
 ## License
 
-MIT
+[Apache License 2.0](LICENSE)
 
 ## About OBSRVR
 

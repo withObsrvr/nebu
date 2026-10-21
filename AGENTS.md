@@ -8,17 +8,36 @@ Keep this file lean. Add rules only when agents repeatedly get something wrong.
 
 ## Build & verify
 
-- Build: `make build`
-- Test: `make test`
-  - Current note: `pkg/source/rpc` has network/RPC-dependent tests that may fail.
-    Report the exact failure; do not hide it.
-- Vet: `make vet`
-- Stable API check: `make api-check`
-- Processor binaries: `make build-processors`
-- Proto changes: `make gen-protos`
-- Docs/CLI examples: `make docs-smoke`
-- Lint, if installed: `golangci-lint run ./...`
-  - Do not rely on `make lint` until its missing-binary behavior is fixed.
+- Task runner is the justfile; `just` alone lists recipes. The `Makefile`
+  is a deprecated shim that forwards to `just`. Do not add task logic to it.
+- Everything the CI merge gate enforces: `just ci`
+  (gofmt, vet, build, `go test -race -short`, stable-API snapshot check).
+  Run this before claiming a change is done.
+- Build: `just build`
+- Test: `just test` (race detector on)
+  - `pkg/source/rpc` has network/RPC-dependent tests. They skip under
+    `-short`, which is what `just ci` uses; `just test` runs them and can
+    fail on an unreachable or rate-limited endpoint. Report the exact
+    failure; do not hide it.
+- Vet: `just vet`
+- Stable API check: `just api-check`
+- Processor binaries: `just build-processors`
+- Proto changes: `just gen-protos`
+- Docs/CLI examples: `just docs-smoke`
+- Lint: `just lint`. Provided by the dev shell. Not in `just ci` yet —
+  its findings are untriaged, so do not treat them as regressions from
+  your change without checking `main`.
+- Vulnerabilities: `govulncheck ./...` must report none reachable.
+
+## Governing docs
+
+- `docs/engineering-profile.md` — which OBSRVR Engineering Standard rules
+  apply to nebu, the contracts nebu owns, and its recorded exceptions.
+- `docs/STABILITY.md` — what is promised to stay stable, and the
+  deprecation window.
+- `docs/adr/` — decisions that changed a contract. Accepted ADRs are never
+  edited; supersede them instead.
+- `CONTRIBUTING.md` — the human-facing version of these rules.
 
 ## Project model
 
@@ -38,9 +57,9 @@ Treat these as compatibility-sensitive:
 - processor `--describe-json` protocol
 - committed API snapshots under `.api/`
 
-If changing `pkg/processor` or `pkg/source`, run `make api-check`.
+If changing `pkg/processor` or `pkg/source`, run `just api-check`.
 If API drift is intentional and acceptable per `docs/STABILITY.md`, run
-`make api-snapshot` and commit the `.api/` diff with the code change.
+`just api-snapshot` and commit the `.api/` diff with the code change.
 
 ## Processor conventions
 

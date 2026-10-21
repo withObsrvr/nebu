@@ -2,6 +2,44 @@
 
 All notable changes to nebu are documented here. For full release artifacts, see [GitHub Releases](https://github.com/withObsrvr/nebu/releases).
 
+This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Changes are grouped under Added, Changed, Deprecated, Removed, Fixed and Security. Entries before v0.6.15 predate that convention and are left as written.
+
+## Unreleased
+
+### Added
+
+- `LICENSE` (Apache-2.0), `SECURITY.md` and `CONTRIBUTING.md`. nebu previously shipped no license file at all, and the two claims in the tree disagreed — `README.md` said MIT while `flake.nix` declared Apache-2.0.
+- `docs/engineering-profile.md`: nebu's project profile under the OBSRVR Engineering Standard v2.0 — applicable rules, the contracts nebu owns, its product-specific rules, its exceptions, and its conformance status.
+- `docs/adr/`: architecture decision records in MADR form, with an index. ADR 0001 resolves whether the CLI surface is a contract; ADR 0002 schedules the exit-code remap; ADR 0003 records the narrowed CLI-12 exception and ADR 0004 the task-runner exception — both accepted, so those gaps are live exceptions under CONF-1 expiring 2027-04-20 rather than unrecorded non-conformance; ADR 0004 adds the lifecycle vocabulary below.
+- `nebu.status.v1` records carry a required `lifecycle` field holding the CLI-12 operation lifecycle (`running`, `succeeded`, `failed`, `cancelled`) alongside the existing Program Status Protocol `state` token. One consumer state machine now reads nebu, flowctl and the `obsrvr` CLI. Additive — consumers are already required to ignore unknown fields, so the schema version does not move. The mapping is derived on write and cannot be set independently, so the two fields can never disagree. Note that `state: idle` maps to `lifecycle: cancelled`: CLI-17 specifies `idle` for interruption, which is the only case nebu emits it. See ADR 0004 and `docs/STATUS_STREAM.md`.
+- CI merge gate (`.github/workflows/ci.yml`): build, `gofmt`, `go vet`, `go test -race -short`, the stable-API snapshot check, and `govulncheck`. No workflow previously built or tested nebu on a pull request.
+- A `justfile` as the task runner (BUILD-1), with `just ci` running exactly what the merge gate runs, plus `just test-short` and `just fmt-check`. `just` with no arguments lists every recipe.
+
+### Changed
+
+- **The task runner is now a `justfile`, not the Makefile** (BUILD-1). `Makefile` remains as a shim that forwards every target to `just` and prints a deprecation note; it is scheduled for removal one release after this one. Do not add task logic to it. The dev shell and CI both provide `just` 1.51.0.
+- `blocked` is now a documented domain state in `docs/STATUS_STREAM.md`, as CLI-12 requires for any state outside its five-value lifecycle: the operation is running but cannot progress until it receives input. It maps to `lifecycle: running` because it is not terminal. nebu does not emit it yet; it is retained so that adding an interactive confirmation (CLI-8 `--yes`) needs no schema change.
+
+- **Go 1.26 is now required** (`go.mod` declares `go 1.26.0`, `toolchain go1.26.10`). The module previously declared Go 1.25.4 while the Nix dev shell already provided Go 1.26.6. The toolchain is pinned to 1.26.10 rather than the dev shell's 1.26.6 because 1.26.6's standard library carries 11 reachable vulnerabilities fixed in 1.26.9 — the pinned toolchain governs, and Go fetches it automatically. `go.work` and `examples/hooks/go.mod` move with it.
+- CLI flags, subcommands, machine-readable output documents and exit codes are now part of nebu's stable surface and follow the deprecation process. `docs/STABILITY.md` previously declared them non-contractual, which contradicted the engineering standard. Human-readable table output remains explicitly non-contractual. See ADR 0001.
+- The deprecation window in `docs/STABILITY.md` is now "at least 90 days and two minor releases, whichever is longer". The previous wording omitted the 90-day floor, so a fast run of minor releases could close the window in days.
+- `just test` runs with the race detector.
+- All GitHub workflows resolve the Go version from `go.mod` instead of hardcoding it. They had drifted apart — `1.25` in the API-stability workflow, `1.25.4` in the release workflows.
+- Release builds are reproducible: `-trimpath` and a commit-derived `mod_timestamp` are set, so the same tag rebuilds to the same bytes.
+- Release archives now include `LICENSE`, `SECURITY.md` and `CHANGELOG.md`.
+- Container images carry `org.opencontainers.image.source` and `.licenses` labels. `.source` is required and was missing.
+
+### Fixed
+
+- `flake.nix` declared `version = "0.6.3"` on a v0.6.15 tree.
+- `docs/STABILITY.md` listed a `pkg/logging` package that no longer exists.
+- Nine files were not `gofmt`-clean.
+
+### Security
+
+- Updated dependencies to clear **10 reachable vulnerabilities** reported by `govulncheck`: `golang.org/x/net` v0.53.0 → v0.60.0 (five HTTP/2 issues plus an IDNA Punycode issue), `golang.org/x/text` v0.36.0 → v0.42.0 (infinite loop on invalid input), `google.golang.org/grpc` v1.80.0 → v1.83.1 (HTTP/2 DATA-frame memory exhaustion, xDS RBAC) and `go.opentelemetry.io/otel/sdk` v1.43.0 → v1.45.0 (exporter endpoint URLs in logs). `govulncheck` now reports no reachable vulnerabilities, and runs on every pull request.
+- `SECURITY.md` documents how to report a vulnerability, what is in scope, and two known gaps that are not yet fixed: secrets can still be passed as command-line arguments (`--rpc-header`, `--dsn`), and `nebu` still defaults to the Stellar public network.
+
 ## v0.6.15
 
 - Correctness: bounded `nebu fetch` runs now fail instead of silently succeeding when the requested range is truncated. Stable exit codes distinguish usage errors, missing processors, invalid ranges, unreachable data sources, general failures, and interruptions.

@@ -214,14 +214,14 @@ func buildOriginLongHelp(config OriginConfig) string {
 
 	// Otherwise, build default help
 	helpConfig := HelpConfig{
-		Name:     config.Name,
-		Short:    config.Description,
-		Version:  config.Version,
-		IsOrigin: true,
+		Name:              config.Name,
+		Short:             config.Description,
+		Version:           config.Version,
+		IsOrigin:          true,
 		OutputDescription: "Newline-delimited JSON (JSONL) to stdout. Each line is one event.",
-		Examples: DefaultOriginExamples(config.Name),
-		EnvVars:  CommonEnvVars(),
-		SeeAlso:  []string{"nebu fetch", "nebu list", "jq"},
+		Examples:          DefaultOriginExamples(config.Name),
+		EnvVars:           CommonEnvVars(),
+		SeeAlso:           []string{"nebu fetch", "nebu list", "jq"},
 	}
 
 	return BuildLongHelp(helpConfig)
@@ -244,8 +244,8 @@ func buildTransformLongHelp(config TransformConfig) string {
 Transform processors read events from stdin and output filtered/modified events to stdout.
 They are designed to be chained in Unix pipelines.`, config.Description),
 		OutputDescription: "Filtered/modified events as newline-delimited JSON.",
-		Examples: DefaultTransformExamples("token-transfer", config.Name),
-		SeeAlso:  []string{"token-transfer", "json-file-sink"},
+		Examples:          DefaultTransformExamples("token-transfer", config.Name),
+		SeeAlso:           []string{"token-transfer", "json-file-sink"},
 	}
 
 	return BuildLongHelp(helpConfig)

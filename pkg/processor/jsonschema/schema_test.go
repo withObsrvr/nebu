@@ -307,4 +307,3 @@ func TestFromMessage_EmptyMessage_NoFields(t *testing.T) {
 	_, hasProps := top["properties"]
 	assert.False(t, hasProps, "empty message should not emit properties key")
 }
-
