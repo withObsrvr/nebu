@@ -229,11 +229,21 @@ unmet too. This is a breaking change and needs its own ADR.
 ### Ordered backlog
 
 1. **BUILD-7**, as above.
-2. **Enrich the event envelope** (`pkg/processor/cli/origin.go:311-373`): add
-   `network` (DATA-6), `closed_at` from `EventMeta.ClosedAt` (DATA-3), and a
-   `(ledger, tx_index, op_index)` cursor from the SDK's SEP-35 indices
-   (DATA-7). All three are already in `EventMeta` and currently discarded.
-   Additive, so a minor bump covers it.
+2. **Fix the event envelope's network and timestamp fields.** Two separate
+   changes with different change classes, in the two live emission paths —
+   `pkg/processor/cli/proto_origin.go:153-162` (`RunProtoOriginCLI`, used by 26
+   registry processors) and `generic_origin.go:155-170` (`RunGenericOriginCLI`,
+   used by 4):
+   - **DATA-6, additive.** Records carry `_schema` and `_nebu_version` but no
+     `network`. Verified against 39,652 real token-transfer events: none
+     carries one. The passphrase is in scope at the emission point. A minor
+     bump covers it.
+   - **DATA-3, breaking.** Ledger close time is present but wrongly typed:
+     `meta.closedAtUnix` is a Unix epoch *string* (`"1765158311"`), where
+     DATA-3 requires RFC 3339 in UTC with a `Z` suffix. This is a format
+     change to an existing field, not an addition, so it is breaking and needs
+     an ADR, a schema-ID bump, and a migration window — not the minor bump an
+     added field would get.
 3. **Remap exit codes** per [ADR 0002](adr/0002-adopt-standard-exit-codes.md),
    including `143` on SIGTERM (CLI-11).
 4. **Close the non-excepted CLI-12 clauses**, none of which need operation
@@ -260,6 +270,37 @@ unmet too. This is a breaking change and needs its own ADR.
     `--json`, freeing `--output` from its current file meaning, plus
     `--config`, `--timeout`, `--no-color`, `--yes` and `NO_COLOR` (CLI-7).
     Overlaps [CLI_QUALITY_ROADMAP.md](CLI_QUALITY_ROADMAP.md); plan it there.
+
+### Verified satisfied — do not re-raise
+
+Checked against a real pipeline run (39,652 token-transfer events over mainnet
+ledgers 60200000-60200050) rather than by reading the code, after an earlier
+audit pass misread which code path actually runs:
+
+- **DATA-7 cursor.** Events carry `meta.ledgerSequence`,
+  `meta.transactionIndex` and `meta.operationIndex` — the ledger sequence plus
+  an ordinal within the ledger that the rule requires. The SEP-35 1-indexed
+  convention is preserved from the SDK.
+- **DATA-7 delivery semantics.** Stated in
+  [CHECKPOINTS.md](CHECKPOINTS.md#delivery-semantics): at-least-once, with
+  TOIDs named as the stable key for deduplication, and an explicit statement
+  that nebu does not claim exactly-once across a Unix pipe.
+- **DATA-2 amounts.** Carried as integer strings in the asset's smallest unit
+  (`"amount":"100"`), never floating point.
+
+`RunOriginCLI` and its `simplifyEvent` helper
+(`pkg/processor/cli/origin.go:80,310`) **do** drop close time and the
+intra-ledger indices, but nothing calls them: there are no in-repo callers, and
+the processor registry's own authoring guide marks `RunOriginCLI` as "legacy:
+token_transfer.TokenTransferEvent only". It is exported, so an unknown external
+processor could still use it. Confirm that before deleting it; auditing it as
+though it were the live path is what produced the earlier error.
+
+Three emission paths now each build the envelope separately
+(`origin.go`, `generic_origin.go`, `proto_origin.go`), which is a latent
+**DATA-5** problem — one record type, three places that decide its shape. Worth
+collapsing when the DATA-6 field lands, since that change has to touch all of
+them anyway.
 
 ### Known gaps in the gate itself
 
