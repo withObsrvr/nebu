@@ -268,9 +268,18 @@ unmet too. This is a breaking change and needs its own ADR.
    ledgers *and* seconds, last checkpointed ledger, gap count (OBS-3).
 7. **Declare CAP and SEP compliance** in schema metadata (STL-1) and mark
    pre-protocol-23 reconstructed events as derived (STL-3).
-8. **Restore tag signing.** `v0.6.14` and `v0.6.15` are unsigned; `v0.6.12` and
-   `v0.6.13` were signed. Then add Sigstore signing, SBOM attachment and SLSA
-   provenance to the release path (SEC-10, VER-12).
+8. **Start signing tags.** No nebu tag has ever been signed: `v0.6.12`,
+   `v0.6.13` and `v0.6.16` are lightweight tags pointing straight at commits,
+   so there is no tag object to sign, and `v0.6.14`, `v0.6.15` and `v0.6.17`
+   are annotated but unsigned. The "Verified" badges on GitHub belong to the
+   *commits*, which GitHub signs with its own key when a pull request is
+   merged through the web UI (`committer GitHub <noreply@github.com>`) — that
+   is not the maintainer's key and it does not cover tags. Signing tags needs
+   a signing key configured locally: either GPG, or SSH via
+   `gpg.format = ssh` plus `user.signingkey`, with the public key registered
+   on GitHub as a **signing** key, which is a separate list from the account's
+   three authentication keys. Then add Sigstore signing, SBOM attachment and
+   SLSA provenance to the release path (SEC-10, VER-12).
 9. **Remove argument-borne secrets** (CLI-10): `--rpc-header` and `--dsn`
    should read from the environment, a file path, or stdin only.
 10. **CLI-3 and CLI-6 conventions** — `--output json|ndjson` superseding
