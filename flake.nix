@@ -64,10 +64,12 @@
             echo "  duckdb version: $(duckdb --version)"
             echo ""
             echo "Quick start:"
-            echo "  make build-processors  - Build all processor binaries"
-            echo "  make test              - Run tests"
-            echo "  make gen-protos        - Generate protobuf code"
-            echo "  make test-integration  - Run integration tests"
+            echo "  just                   - List every recipe"
+            echo "  just ci                - Everything the CI merge gate enforces"
+            echo "  just test              - Run tests"
+            echo "  just build-processors  - Build all processor binaries"
+            echo "  just gen-protos        - Generate protobuf code"
+            echo "  just test-integration  - Run integration tests"
             echo ""
           '';
         };

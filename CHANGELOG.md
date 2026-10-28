@@ -6,17 +6,11 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-### Changed
-
-- **Protocol 30 ("Bell"): upgraded `github.com/stellar/go-stellar-sdk` to v0.8.0** in nebu (from v0.7.3) and the hooks example (from v0.7.1). This is required, not optional. CAP-88 adds two arms to the `StellarValueExt` union — `STELLAR_VALUE_SIGNED_MS` (3) and `STELLAR_VALUE_EMPTY_TX_SET_MS` (4) — and an SDK that does not know those discriminants fails to decode any Protocol 30 ledger. Testnet votes 2026-11-03, pubnet 2026-11-23.
-  - No nebu source changes were needed, and the committed stable-API snapshots are unchanged.
-  - `nebu fetch` never decoded ledgers (it streams raw bytes and derives sequences arithmetically), so raw archival was never exposed to this; the five `xdr.Unmarshal` decode paths were.
-  - Verified on mainnet ledgers 60200000-60200050: `fetch` output is byte-identical to the previous release, and a 39,652-event pipeline through a processor still pinned to v0.7.3 is unchanged.
-  - **Not yet addressed:** CAP-88 gives close times millisecond resolution, so consecutive ledgers can close within the same whole second. Any consumer using whole-second close times for ordering or windowing becomes ambiguous — including the `closed_at_unix` field defined in the processor registry's protos, which `time-window` and `aggregator` filter on. That is a registry-side schema decision, tracked separately. The SDK's own `LedgerCloseMeta.ClosedAt()` also truncates to seconds; the millisecond value lives in the new union arms.
-  - **Not yet addressed:** CAP-84 muxed contract addresses add an `SCAddress` variant and the `W` strkey prefix. nebu passes SDK-produced address strings through unmodified, but processors that parse, filter, or re-encode addresses need review.
-
 ### Added
 
+- **`processor.LedgerCloseTimeMs(ledger)`** returns a ledger's close time in milliseconds since the Unix epoch. Added to the stable surface, because every origin processor needs it and the obvious implementation is wrong. Protocol 30's CAP-88 puts the millisecond value in the `StellarValueExt` union, and **two** arms carry it — `SIGNED_MS` (3) via `SignedMsValue` and `EMPTY_TX_SET_MS` (4) via `ProposedMsValue`. Code that reads only `GetSignedMsValue()`, the natural first guess, silently falls back to second resolution on every *empty* Protocol 30 ledger — a case no fixture taken from a busy ledger exercises. Pre-Protocol-30 ledgers (arms 0-2) have their whole-second close time promoted, losing nothing, since those close times are seconds apart. Covered by a table test over all five discriminants.
+  - Prefer it over the SDK's `LedgerCloseMeta.ClosedAt()` and `LedgerCloseTime()` whenever a close time is emitted, stored, ordered, or used to bucket events: those return whole seconds, and from Protocol 30 onward consecutive ledgers can close within the same second, so second-resolution windowing produces wrong answers rather than errors.
+  - For the RFC 3339 UTC form that OBSRVR data contracts require (DATA-3): `time.UnixMilli(processor.LedgerCloseTimeMs(ledger)).UTC().Format(time.RFC3339Nano)`.
 - `LICENSE` (Apache-2.0), `SECURITY.md` and `CONTRIBUTING.md`. nebu previously shipped no license file at all, and the two claims in the tree disagreed — `README.md` said MIT while `flake.nix` declared Apache-2.0.
 - `docs/engineering-profile.md`: nebu's project profile under the OBSRVR Engineering Standard v2.0 — applicable rules, the contracts nebu owns, its product-specific rules, its exceptions, and its conformance status.
 - `docs/adr/`: architecture decision records in MADR form, with an index. ADR 0001 resolves whether the CLI surface is a contract; ADR 0002 schedules the exit-code remap; ADR 0003 records the narrowed CLI-12 exception and ADR 0004 the task-runner exception — both accepted, so those gaps are live exceptions under CONF-1 expiring 2027-04-20 rather than unrecorded non-conformance; ADR 0004 adds the lifecycle vocabulary below.
@@ -26,6 +20,12 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Protocol 30 ("Bell"): upgraded `github.com/stellar/go-stellar-sdk` to v0.8.0** in nebu (from v0.7.3) and the hooks example (from v0.7.1). This is required, not optional. CAP-88 adds two arms to the `StellarValueExt` union — `STELLAR_VALUE_SIGNED_MS` (3) and `STELLAR_VALUE_EMPTY_TX_SET_MS` (4) — and an SDK that does not know those discriminants fails to decode any Protocol 30 ledger. Testnet votes 2026-11-03, pubnet 2026-11-23.
+  - No nebu source changes were needed, and the committed stable-API snapshots are unchanged.
+  - `nebu fetch` never decoded ledgers (it streams raw bytes and derives sequences arithmetically), so raw archival was never exposed to this; the five `xdr.Unmarshal` decode paths were.
+  - Verified on mainnet ledgers 60200000-60200050: `fetch` output is byte-identical to the previous release, and a 39,652-event pipeline through a processor still pinned to v0.7.3 is unchanged.
+  - **Not yet addressed:** CAP-88 gives close times millisecond resolution, so consecutive ledgers can close within the same whole second. Any consumer using whole-second close times for ordering or windowing becomes ambiguous — including the `closed_at_unix` field defined in the processor registry's protos, which `time-window` and `aggregator` filter on. That is a registry-side schema decision, tracked separately. The SDK's own `LedgerCloseMeta.ClosedAt()` also truncates to seconds; the millisecond value lives in the new union arms.
+  - **Not yet addressed:** CAP-84 muxed contract addresses add an `SCAddress` variant and the `W` strkey prefix. nebu passes SDK-produced address strings through unmodified, but processors that parse, filter, or re-encode addresses need review.
 - **The task runner is now a `justfile`, not the Makefile** (BUILD-1). `Makefile` remains as a shim that forwards every target to `just` and prints a deprecation note; it is scheduled for removal one release after this one. Do not add task logic to it. The dev shell and CI both provide `just` 1.51.0.
 - `blocked` is now a documented domain state in `docs/STATUS_STREAM.md`, as CLI-12 requires for any state outside its five-value lifecycle: the operation is running but cannot progress until it receives input. It maps to `lifecycle: running` because it is not terminal. nebu does not emit it yet; it is retained so that adding an interactive confirmation (CLI-8 `--yes`) needs no schema change.
 
@@ -39,6 +39,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Container images carry `org.opencontainers.image.source` and `.licenses` labels. `.source` is required and was missing.
 
 ### Fixed
+
+- The dev shell's greeting, the integration suite's error message, and the `Makefile` shim's own comment still referred to `make` targets or to an unrelated ADR after the justfile conversion. The CI workflows also pinned `just` 1.51.0 while this repo's `flake.lock` resolves to 1.43.1 — the opposite of the BUILD-2 alignment the pin exists for. CI now pins 1.43.1, and the comment records that the version must be read with `nix develop --command just --version` rather than `nix eval nixpkgs#just.version`, which reads the live registry instead of this repo's lock.
 
 - `flake.nix` declared `version = "0.6.3"` on a v0.6.15 tree.
 - `docs/STABILITY.md` listed a `pkg/logging` package that no longer exists.
