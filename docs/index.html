@@ -547,21 +547,26 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
         <button class="copy-btn" data-copy-target="sample-event" type="button">[ COPY ]</button>
         <pre id="sample-event" class="text-sm text-secondary overflow-x-auto leading-relaxed"><span class="text-on-surface">{</span>
   <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.token_transfer.v1"</span>,
-  <span class="text-tertiary">"_nebu_version"</span>: <span class="text-on-surface">"v0.6.15"</span>,
+  <span class="text-tertiary">"_nebu_version"</span>:  <span class="text-on-surface">"v0.6.16"</span>,
+  <span class="text-tertiary">"network"</span>:        <span class="text-on-surface">"pubnet"</span>,
   <span class="text-tertiary">"meta"</span>: {
-    <span class="text-tertiary">"ledgerSequence"</span>: <span class="text-on-surface">60200000</span>,
-    <span class="text-tertiary">"closedAtUnix"</span>:   <span class="text-on-surface">"1765158311"</span>,
-    <span class="text-tertiary">"txHash"</span>:         <span class="text-on-surface">"abc..."</span>,
-    <span class="text-tertiary">"contractAddress"</span>: <span class="text-on-surface">"CA..."</span>
+    <span class="text-tertiary">"ledgerSequence"</span>:    <span class="text-on-surface">60200000</span>,
+    <span class="text-tertiary">"closedAtUnix"</span>:      <span class="text-on-surface">"1765158311"</span>,
+    <span class="text-tertiary">"txHash"</span>:            <span class="text-on-surface">"165fee89..."</span>,
+    <span class="text-tertiary">"transactionIndex"</span>:  <span class="text-on-surface">1</span>,
+    <span class="text-tertiary">"operationIndex"</span>:    <span class="text-on-surface">0</span>,
+    <span class="text-tertiary">"contractAddress"</span>:   <span class="text-on-surface">"CAS3J7GY..."</span>,
+    <span class="text-tertiary">"inSuccessfulTx"</span>:    <span class="text-on-surface">true</span>
   },
   <span class="text-primary-container">"transfer"</span>: {
-    <span class="text-primary-container">"from"</span>:      <span class="text-on-surface">"GA..."</span>,
-    <span class="text-primary-container">"to"</span>:        <span class="text-on-surface">"GB..."</span>,
-    <span class="text-primary-container">"assetCode"</span>: <span class="text-on-surface">"USDC"</span>,
-    <span class="text-primary-container">"amount"</span>:    <span class="text-on-surface">"1000000"</span>
+    <span class="text-primary-container">"from"</span>:         <span class="text-on-surface">"GA3HLUKH..."</span>,
+    <span class="text-primary-container">"to"</span>:           <span class="text-on-surface">"CC3TDKJD..."</span>,
+    <span class="text-primary-container">"assetCode"</span>:    <span class="text-on-surface">"USDC"</span>,
+    <span class="text-primary-container">"assetIssuer"</span>:  <span class="text-on-surface">"GAGVZMOD..."</span>,
+    <span class="text-primary-container">"amount"</span>:       <span class="text-on-surface">"95667990"</span>
   }
 <span class="text-on-surface">}</span>
-<span class="text-tertiary opacity-70">// teal = nebu meta · coral = payload data</span></pre>
+<span class="text-tertiary opacity-70">// teal = nebu envelope · coral = payload data</span></pre>
       </div>
     </section>
 

@@ -120,6 +120,10 @@ func RunProtoOriginCLI[T proto.Message](
 			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
 			networkPass = normalizeNetworkPassphrase(networkPass)
 
+			// Derive the network from ledger data rather than trusting
+			// the flag, so the "network" field states provenance.
+			resolver := newNetworkResolver(networkPass)
+
 			// Create processor
 			origin := createProcessor(networkPass)
 
@@ -148,16 +152,27 @@ func RunProtoOriginCLI[T proto.Message](
 						return
 					}
 
-					// Simple approach: prepend schema fields to JSON
-					// This avoids complex map manipulation
-					fmt.Printf(`{"_schema":"%s","_nebu_version":"%s",`,
-						schemaID, version.Version)
+					// Prepend the nebu envelope keys to the marshalled
+					// payload rather than round-tripping through a map, so
+					// the payload's own field order is preserved exactly as
+					// protojson emitted it.
+					//
+					// %q, not %s: these values are interpolated straight into
+					// a JSON document, so they must be JSON-escaped. A schema
+					// ID or network label containing a quote would otherwise
+					// produce an unparseable line.
+					prefix := fmt.Sprintf(`{"_schema":%q,"_nebu_version":%q,"network":%q`,
+						schemaID, version.Version, resolver.label())
 
-					// Print the rest of the JSON (skip opening brace)
-					if len(jsonBytes) > 2 { // More than just {}
-						fmt.Print(string(jsonBytes[1:])) // Skip opening { and print rest
+					if len(jsonBytes) > 2 { // payload has fields; splice them in
+						// jsonBytes[1:] drops protojson's opening brace and
+						// keeps its closing one.
+						fmt.Print(prefix + "," + string(jsonBytes[1:]))
 					} else {
-						fmt.Print("}") // Empty object case
+						// Empty payload ("{}"). Closing the envelope directly
+						// avoids the trailing comma that a naive splice
+						// produced here, which made the line invalid JSON.
+						fmt.Print(prefix + "}")
 					}
 					fmt.Println()
 				}
@@ -170,12 +185,12 @@ func RunProtoOriginCLI[T proto.Message](
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdinProto[T](ctx, origin, os.Stdin, status, 0)
+				err = processFromStdinProto[T](ctx, origin, os.Stdin, status, 0, resolver)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFileProto[T](ctx, origin, inputFile, status, 0)
+				err = processFromFileProto[T](ctx, origin, inputFile, status, 0, resolver)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -186,7 +201,7 @@ func RunProtoOriginCLI[T proto.Message](
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCProto[T](ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger))
+				err = processFromRPCProto[T](ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -227,7 +242,7 @@ func RunProtoOriginCLI[T proto.Message](
 	}
 }
 
-func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
+func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -244,12 +259,13 @@ func processFromRPCProto[T proto.Message](ctx context.Context, origin ProtoOrigi
 	}
 	defer src.Close()
 
+	hooks = withNetworkResolverHook(hooks, resolver)
 	rt := runtime.NewRuntime()
 	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
-func processFromStdinProto[T proto.Message](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32) error {
+func processFromStdinProto[T proto.Message](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32, resolver *networkResolver) error {
 	reader := bufio.NewReader(input)
 	ledgerCount := 0
 
@@ -270,6 +286,7 @@ func processFromStdinProto[T proto.Message](ctx context.Context, origin processo
 			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
 		}
 
+		resolver.observe(ctx, ledger)
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
@@ -278,14 +295,14 @@ func processFromStdinProto[T proto.Message](ctx context.Context, origin processo
 	}
 }
 
-func processFromFileProto[T proto.Message](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32) error {
+func processFromFileProto[T proto.Message](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32, resolver *networkResolver) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open input file: %w", err)
 	}
 	defer f.Close()
 
-	return processFromStdinProto[T](ctx, origin, f, status, target)
+	return processFromStdinProto[T](ctx, origin, f, status, target, resolver)
 }
 
 func isEOFErrorProto(err error) bool {

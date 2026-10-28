@@ -8,6 +8,13 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Event envelopes carry a `network` field** (DATA-6), so records from different networks are no longer indistinguishable in one stream or table. The value is `pubnet`, `testnet`, or an unrecognised passphrase verbatim — never a placeholder, so a standalone network is identified rather than mislabelled as a known one.
+  - **The label is derived from the ledger, not from `--network`.** A transaction's hash commits to the network passphrase, and the ledger records that hash, so hashing any envelope under a candidate passphrase and finding it among the stored hashes identifies the network conclusively — no signature verification, no network access. Derived once per run and cached.
+  - This matters because a processor reading from stdin cannot know where its bytes came from. Labelling from the flag would have made `nebu fetch --network testnet 1 2 | token-transfer` report `pubnet`, which is worse than no label: confidently wrong, and durable once written to a sink.
+  - When the derived network disagrees with `--network`, a warning is reported once naming both. The mismatch means the processor is decoding with the wrong passphrase, so anything derived from it — Stellar Asset Contract IDs above all — is wrong. Refusing to start on mismatch is BUILD-7, which is breaking and tracked separately.
+  - Appears in output from processors once they are rebuilt against this release.
+
+
 - **`processor.LedgerCloseTimeMs(ledger)`** returns a ledger's close time in milliseconds since the Unix epoch. Added to the stable surface, because every origin processor needs it and the obvious implementation is wrong. Protocol 30's CAP-88 puts the millisecond value in the `StellarValueExt` union, and **two** arms carry it — `SIGNED_MS` (3) via `SignedMsValue` and `EMPTY_TX_SET_MS` (4) via `ProposedMsValue`. Code that reads only `GetSignedMsValue()`, the natural first guess, silently falls back to second resolution on every *empty* Protocol 30 ledger — a case no fixture taken from a busy ledger exercises. Pre-Protocol-30 ledgers (arms 0-2) have their whole-second close time promoted, losing nothing, since those close times are seconds apart. Covered by a table test over all five discriminants.
   - Prefer it over the SDK's `LedgerCloseMeta.ClosedAt()` and `LedgerCloseTime()` whenever a close time is emitted, stored, ordered, or used to bucket events: those return whole seconds, and from Protocol 30 onward consecutive ledgers can close within the same second, so second-resolution windowing produces wrong answers rather than errors.
   - For the RFC 3339 UTC form that OBSRVR data contracts require (DATA-3): `time.UnixMilli(processor.LedgerCloseTimeMs(ledger)).UTC().Format(time.RFC3339Nano)`.
@@ -39,6 +46,9 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Container images carry `org.opencontainers.image.source` and `.licenses` labels. `.source` is required and was missing.
 
 ### Fixed
+
+- `RunProtoOriginCLI` emitted invalid JSON for an event with an empty payload: the envelope splice left a trailing comma, producing `{"_schema":"…","_nebu_version":"…",}`. Interpolated values are now JSON-escaped too, so a schema ID or network label containing a quote cannot break a line.
+- The `SAMPLE_EVENT` block on the landing page advertised four fewer fields than `token-transfer` actually emits — `meta.transactionIndex`, `meta.operationIndex`, `meta.inSuccessfulTx` and `transfer.assetIssuer`. The first two are what a reader needs in order to believe nebu gives them a resumable cursor. `just docs-smoke` now compares the documented sample against a real event and fails in both directions, so it cannot drift again.
 
 - The dev shell's greeting, the integration suite's error message, and the `Makefile` shim's own comment still referred to `make` targets or to an unrelated ADR after the justfile conversion. The CI workflows also pinned `just` 1.51.0 while this repo's `flake.lock` resolves to 1.43.1 — the opposite of the BUILD-2 alignment the pin exists for. CI now pins 1.43.1, and the comment records that the version must be read with `nix develop --command just --version` rather than `nix eval nixpkgs#just.version`, which reads the live registry instead of this repo's lock.
 
