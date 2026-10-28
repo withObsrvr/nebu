@@ -29,6 +29,33 @@ func getAuthHeader() string {
 	return os.Getenv("NEBU_RPC_AUTH")
 }
 
+// networkName formats a passphrase as the short, stable network label that
+// every event envelope carries in its "network" field.
+//
+// DATA-6 of the OBSRVR Engineering Standard requires each record to name its
+// network — '"network": "pubnet"', with the passphrase checked at the source —
+// because records from different networks must not share a stream or table
+// indistinguishably. The short label is deliberate: the passphrase is long,
+// and consumers group and partition on the label.
+//
+// An unrecognised passphrase is returned verbatim rather than mapped to a
+// placeholder, so a standalone or future network is still identified and is
+// never silently mislabelled as a known one.
+//
+// This is formatting only. Which passphrase describes a given ledger is
+// decided by [networkResolver], which derives it from the ledger's own
+// transaction hashes rather than from the --network flag.
+func networkName(passphrase string) string {
+	switch passphrase {
+	case network.PublicNetworkPassphrase:
+		return "pubnet"
+	case network.TestNetworkPassphrase:
+		return "testnet"
+	default:
+		return passphrase
+	}
+}
+
 // normalizeNetworkPassphrase converts common network aliases to full passphrases.
 // Accepts: "mainnet", "testnet", "pubnet", or full passphrases.
 func normalizeNetworkPassphrase(input string) string {
@@ -159,6 +186,10 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
 			networkPass = normalizeNetworkPassphrase(networkPass)
 
+			// Derive the network from ledger data rather than trusting
+			// the flag, so the "network" field states provenance.
+			resolver := newNetworkResolver(networkPass)
+
 			// Create processor
 			origin := createProcessor(networkPass)
 
@@ -169,7 +200,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				encoder := json.NewEncoder(os.Stdout)
 				for ev := range origin.Out() {
 					eventCount++
-					simplified := simplifyEvent(ev)
+					simplified := simplifyEvent(ev, resolver.label())
 					if err := encoder.Encode(simplified); err != nil {
 						done <- err
 						return
@@ -184,12 +215,12 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdin(ctx, origin, os.Stdin, status, 0)
+				err = processFromStdin(ctx, origin, os.Stdin, status, 0, resolver)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFile(ctx, origin, inputFile, status, 0)
+				err = processFromFile(ctx, origin, inputFile, status, 0, resolver)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -200,7 +231,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger))
+				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -235,7 +266,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	}
 }
 
-func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
+func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -252,12 +283,13 @@ func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string,
 	}
 	defer src.Close()
 
+	hooks = withNetworkResolverHook(hooks, resolver)
 	rt := runtime.NewRuntime()
 	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
-func processFromStdin(ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32) error {
+func processFromStdin(ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32, resolver *networkResolver) error {
 	reader := bufio.NewReader(input)
 	ledgerCount := 0
 
@@ -278,6 +310,7 @@ func processFromStdin(ctx context.Context, origin processor.Origin, input io.Rea
 			return nebuErrors.XDRDecodeFailed(ledgerCount+1, err)
 		}
 
+		resolver.observe(ctx, ledger)
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
@@ -297,21 +330,22 @@ func isEOFError(err error) bool {
 	return err == io.EOF || strings.Contains(errMsg, "EOF")
 }
 
-func processFromFile(ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32) error {
+func processFromFile(ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32, resolver *networkResolver) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return nebuErrors.FailedToOpenFile(filePath, err)
 	}
 	defer f.Close()
 
-	return processFromStdin(ctx, origin, f, status, target)
+	return processFromStdin(ctx, origin, f, status, target, resolver)
 }
 
-func simplifyEvent(ev *token_transfer.TokenTransferEvent) map[string]interface{} {
+func simplifyEvent(ev *token_transfer.TokenTransferEvent, netName string) map[string]interface{} {
 	meta := ev.GetMeta()
 	event := map[string]interface{}{
 		"_schema":         version.GetSchemaVersion("token_transfer"),
 		"_nebu_version":   version.Version,
+		"network":         netName,
 		"ledger_sequence": meta.LedgerSequence,
 		"tx_hash":         meta.TxHash,
 	}

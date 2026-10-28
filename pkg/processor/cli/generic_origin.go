@@ -140,6 +140,10 @@ Examples:
 			// Normalize network passphrase (support "testnet", "mainnet", "pubnet" shortcuts)
 			networkPass = normalizeNetworkPassphrase(networkPass)
 
+			// Derive the network from ledger data rather than trusting
+			// the flag, so the "network" field states provenance.
+			resolver := newNetworkResolver(networkPass)
+
 			// Create processor
 			origin := createProcessor(networkPass)
 			defer origin.Close()
@@ -159,6 +163,7 @@ Examples:
 					wrapped := map[string]interface{}{
 						"_schema":       schemaID,
 						"_nebu_version": version.Version,
+						"network":       resolver.label(),
 					}
 
 					// Marshal the event to extract fields
@@ -194,12 +199,12 @@ Examples:
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdinGeneric[T](ctx, origin, os.Stdin, status, 0)
+				err = processFromStdinGeneric[T](ctx, origin, os.Stdin, status, 0, resolver)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFileGeneric[T](ctx, origin, inputFile, status, 0)
+				err = processFromFileGeneric[T](ctx, origin, inputFile, status, 0, resolver)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -210,7 +215,7 @@ Examples:
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger))
+				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -242,7 +247,7 @@ Examples:
 	}
 }
 
-func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks) error {
+func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -259,12 +264,13 @@ func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProce
 	}
 	defer src.Close()
 
+	hooks = withNetworkResolverHook(hooks, resolver)
 	rt := runtime.NewRuntime()
 	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
 }
 
-func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32) error {
+func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32, resolver *networkResolver) error {
 	reader := bufio.NewReader(input)
 	ledgerCount := 0
 
@@ -285,6 +291,7 @@ func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin
 			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
 		}
 
+		resolver.observe(ctx, ledger)
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
@@ -293,14 +300,14 @@ func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin
 	}
 }
 
-func processFromFileGeneric[T any](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32) error {
+func processFromFileGeneric[T any](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32, resolver *networkResolver) error {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open input file: %w", err)
 	}
 	defer f.Close()
 
-	return processFromStdinGeneric[T](ctx, origin, f, status, target)
+	return processFromStdinGeneric[T](ctx, origin, f, status, target, resolver)
 }
 
 func isEOFErrorGeneric(err error) bool {

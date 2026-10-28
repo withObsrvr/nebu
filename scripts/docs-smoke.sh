@@ -54,6 +54,7 @@ run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".sc
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
 
 run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
+run "SAMPLE_EVENT matches real output" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -c "select(.transfer != null)" | head -1 | python3 "$1"' "$TOKEN_TRANSFER_BIN" "$ROOT/scripts/check-sample-event.py"
 run "token-transfer jq USDC filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -e "select(.transfer != null and .transfer.assetCode == \"USDC\")" | head -1 >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "contract-events jq eventType filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.eventType == \"fee\")" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
 run "contract-events jq contractId filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.contractId != null and .inSuccessfulTx == true)" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
