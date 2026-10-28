@@ -6,6 +6,10 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+Nothing yet.
+
+## v0.6.17
+
 ### Added
 
 - **Event envelopes carry a `network` field** (DATA-6), so records from different networks are no longer indistinguishable in one stream or table. The value is `pubnet`, `testnet`, or an unrecognised passphrase verbatim — never a placeholder, so a standalone network is identified rather than mislabelled as a known one.
@@ -13,17 +17,9 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - This matters because a processor reading from stdin cannot know where its bytes came from. Labelling from the flag would have made `nebu fetch --network testnet 1 2 | token-transfer` report `pubnet`, which is worse than no label: confidently wrong, and durable once written to a sink.
   - When the derived network disagrees with `--network`, a warning is reported once naming both. The mismatch means the processor is decoding with the wrong passphrase, so anything derived from it — Stellar Asset Contract IDs above all — is wrong. Refusing to start on mismatch is BUILD-7, which is breaking and tracked separately.
   - Appears in output from processors once they are rebuilt against this release.
-
-
 - **`processor.LedgerCloseTimeMs(ledger)`** returns a ledger's close time in milliseconds since the Unix epoch. Added to the stable surface, because every origin processor needs it and the obvious implementation is wrong. Protocol 30's CAP-88 puts the millisecond value in the `StellarValueExt` union, and **two** arms carry it — `SIGNED_MS` (3) via `SignedMsValue` and `EMPTY_TX_SET_MS` (4) via `ProposedMsValue`. Code that reads only `GetSignedMsValue()`, the natural first guess, silently falls back to second resolution on every *empty* Protocol 30 ledger — a case no fixture taken from a busy ledger exercises. Pre-Protocol-30 ledgers (arms 0-2) have their whole-second close time promoted, losing nothing, since those close times are seconds apart. Covered by a table test over all five discriminants.
   - Prefer it over the SDK's `LedgerCloseMeta.ClosedAt()` and `LedgerCloseTime()` whenever a close time is emitted, stored, ordered, or used to bucket events: those return whole seconds, and from Protocol 30 onward consecutive ledgers can close within the same second, so second-resolution windowing produces wrong answers rather than errors.
   - For the RFC 3339 UTC form that OBSRVR data contracts require (DATA-3): `time.UnixMilli(processor.LedgerCloseTimeMs(ledger)).UTC().Format(time.RFC3339Nano)`.
-- `LICENSE` (Apache-2.0), `SECURITY.md` and `CONTRIBUTING.md`. nebu previously shipped no license file at all, and the two claims in the tree disagreed — `README.md` said MIT while `flake.nix` declared Apache-2.0.
-- `docs/engineering-profile.md`: nebu's project profile under the OBSRVR Engineering Standard v2.0 — applicable rules, the contracts nebu owns, its product-specific rules, its exceptions, and its conformance status.
-- `docs/adr/`: architecture decision records in MADR form, with an index. ADR 0001 resolves whether the CLI surface is a contract; ADR 0002 schedules the exit-code remap; ADR 0003 records the narrowed CLI-12 exception and ADR 0004 the task-runner exception — both accepted, so those gaps are live exceptions under CONF-1 expiring 2027-04-20 rather than unrecorded non-conformance; ADR 0004 adds the lifecycle vocabulary below.
-- `nebu.status.v1` records carry a required `lifecycle` field holding the CLI-12 operation lifecycle (`running`, `succeeded`, `failed`, `cancelled`) alongside the existing Program Status Protocol `state` token. One consumer state machine now reads nebu, flowctl and the `obsrvr` CLI. Additive — consumers are already required to ignore unknown fields, so the schema version does not move. The mapping is derived on write and cannot be set independently, so the two fields can never disagree. Note that `state: idle` maps to `lifecycle: cancelled`: CLI-17 specifies `idle` for interruption, which is the only case nebu emits it. See ADR 0004 and `docs/STATUS_STREAM.md`.
-- CI merge gate (`.github/workflows/ci.yml`): build, `gofmt`, `go vet`, `go test -race -short`, the stable-API snapshot check, and `govulncheck`. No workflow previously built or tested nebu on a pull request.
-- A `justfile` as the task runner (BUILD-1), with `just ci` running exactly what the merge gate runs, plus `just test-short` and `just fmt-check`. `just` with no arguments lists every recipe.
 
 ### Changed
 
@@ -33,9 +29,28 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Verified on mainnet ledgers 60200000-60200050: `fetch` output is byte-identical to the previous release, and a 39,652-event pipeline through a processor still pinned to v0.7.3 is unchanged.
   - **Not yet addressed:** CAP-88 gives close times millisecond resolution, so consecutive ledgers can close within the same whole second. Any consumer using whole-second close times for ordering or windowing becomes ambiguous — including the `closed_at_unix` field defined in the processor registry's protos, which `time-window` and `aggregator` filter on. That is a registry-side schema decision, tracked separately. The SDK's own `LedgerCloseMeta.ClosedAt()` also truncates to seconds; the millisecond value lives in the new union arms.
   - **Not yet addressed:** CAP-84 muxed contract addresses add an `SCAddress` variant and the `W` strkey prefix. nebu passes SDK-produced address strings through unmodified, but processors that parse, filter, or re-encode addresses need review.
+
+### Fixed
+
+- `RunProtoOriginCLI` emitted invalid JSON for an event with an empty payload: the envelope splice left a trailing comma, producing `{"_schema":"…","_nebu_version":"…",}`. Interpolated values are now JSON-escaped too, so a schema ID or network label containing a quote cannot break a line.
+- The `SAMPLE_EVENT` block on the landing page advertised four fewer fields than `token-transfer` actually emits — `meta.transactionIndex`, `meta.operationIndex`, `meta.inSuccessfulTx` and `transfer.assetIssuer`. The first two are what a reader needs in order to believe nebu gives them a resumable cursor. `just docs-smoke` now compares the documented sample against a real event on three axes — field names in both directions, JSON types, and the values that are contractual rather than illustrative (`_schema` must match exactly, `_nebu_version` must be version-shaped) — so it cannot drift again. The type check is the one that matters most: `closedAtUnix` is a *string* of digits, and documenting it as a number would send anyone writing a consumer down the wrong path invisibly.
+- The dev shell's greeting, the integration suite's error message, and the `Makefile` shim's own comment still referred to `make` targets or to an unrelated ADR after the justfile conversion. The CI workflows also pinned `just` 1.51.0 while this repo's `flake.lock` resolves to 1.43.1 — the opposite of the BUILD-2 alignment the pin exists for. CI now pins 1.43.1, and the comment records that the version must be read with `nix develop --command just --version` rather than `nix eval nixpkgs#just.version`, which reads the live registry instead of this repo's lock.
+
+## v0.6.16
+
+### Added
+
+- `LICENSE` (Apache-2.0), `SECURITY.md` and `CONTRIBUTING.md`. nebu previously shipped no license file at all, and the two claims in the tree disagreed — `README.md` said MIT while `flake.nix` declared Apache-2.0.
+- `docs/engineering-profile.md`: nebu's project profile under the OBSRVR Engineering Standard v2.0 — applicable rules, the contracts nebu owns, its product-specific rules, its exceptions, and its conformance status.
+- `docs/adr/`: architecture decision records in MADR form, with an index. ADR 0001 resolves whether the CLI surface is a contract; ADR 0002 schedules the exit-code remap; ADR 0003 records the narrowed CLI-12 exception and ADR 0004 the task-runner exception — both accepted, so those gaps are live exceptions under CONF-1 expiring 2027-04-20 rather than unrecorded non-conformance; ADR 0004 adds the lifecycle vocabulary below.
+- `nebu.status.v1` records carry a required `lifecycle` field holding the CLI-12 operation lifecycle (`running`, `succeeded`, `failed`, `cancelled`) alongside the existing Program Status Protocol `state` token. One consumer state machine now reads nebu, flowctl and the `obsrvr` CLI. Additive — consumers are already required to ignore unknown fields, so the schema version does not move. The mapping is derived on write and cannot be set independently, so the two fields can never disagree. Note that `state: idle` maps to `lifecycle: cancelled`: CLI-17 specifies `idle` for interruption, which is the only case nebu emits it. See ADR 0004 and `docs/STATUS_STREAM.md`.
+- CI merge gate (`.github/workflows/ci.yml`): build, `gofmt`, `go vet`, `go test -race -short`, the stable-API snapshot check, and `govulncheck`. No workflow previously built or tested nebu on a pull request.
+- A `justfile` as the task runner (BUILD-1), with `just ci` running exactly what the merge gate runs, plus `just test-short` and `just fmt-check`. `just` with no arguments lists every recipe.
+
+### Changed
+
 - **The task runner is now a `justfile`, not the Makefile** (BUILD-1). `Makefile` remains as a shim that forwards every target to `just` and prints a deprecation note; it is scheduled for removal one release after this one. Do not add task logic to it. The dev shell and CI both provide `just` 1.51.0.
 - `blocked` is now a documented domain state in `docs/STATUS_STREAM.md`, as CLI-12 requires for any state outside its five-value lifecycle: the operation is running but cannot progress until it receives input. It maps to `lifecycle: running` because it is not terminal. nebu does not emit it yet; it is retained so that adding an interactive confirmation (CLI-8 `--yes`) needs no schema change.
-
 - **Go 1.26 is now required** (`go.mod` declares `go 1.26.0`, `toolchain go1.26.10`). The module previously declared Go 1.25.4 while the Nix dev shell already provided Go 1.26.6. The toolchain is pinned to 1.26.10 rather than the dev shell's 1.26.6 because 1.26.6's standard library carries 11 reachable vulnerabilities fixed in 1.26.9 — the pinned toolchain governs, and Go fetches it automatically. `go.work` and `examples/hooks/go.mod` move with it.
 - CLI flags, subcommands, machine-readable output documents and exit codes are now part of nebu's stable surface and follow the deprecation process. `docs/STABILITY.md` previously declared them non-contractual, which contradicted the engineering standard. Human-readable table output remains explicitly non-contractual. See ADR 0001.
 - The deprecation window in `docs/STABILITY.md` is now "at least 90 days and two minor releases, whichever is longer". The previous wording omitted the 90-day floor, so a fast run of minor releases could close the window in days.
@@ -46,11 +61,6 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Container images carry `org.opencontainers.image.source` and `.licenses` labels. `.source` is required and was missing.
 
 ### Fixed
-
-- `RunProtoOriginCLI` emitted invalid JSON for an event with an empty payload: the envelope splice left a trailing comma, producing `{"_schema":"…","_nebu_version":"…",}`. Interpolated values are now JSON-escaped too, so a schema ID or network label containing a quote cannot break a line.
-- The `SAMPLE_EVENT` block on the landing page advertised four fewer fields than `token-transfer` actually emits — `meta.transactionIndex`, `meta.operationIndex`, `meta.inSuccessfulTx` and `transfer.assetIssuer`. The first two are what a reader needs in order to believe nebu gives them a resumable cursor. `just docs-smoke` now compares the documented sample against a real event on three axes — field names in both directions, JSON types, and the values that are contractual rather than illustrative (`_schema` must match exactly, `_nebu_version` must be version-shaped) — so it cannot drift again. The type check is the one that matters most: `closedAtUnix` is a *string* of digits, and documenting it as a number would send anyone writing a consumer down the wrong path invisibly.
-
-- The dev shell's greeting, the integration suite's error message, and the `Makefile` shim's own comment still referred to `make` targets or to an unrelated ADR after the justfile conversion. The CI workflows also pinned `just` 1.51.0 while this repo's `flake.lock` resolves to 1.43.1 — the opposite of the BUILD-2 alignment the pin exists for. CI now pins 1.43.1, and the comment records that the version must be read with `nix develop --command just --version` rather than `nix eval nixpkgs#just.version`, which reads the live registry instead of this repo's lock.
 
 - `flake.nix` declared `version = "0.6.3"` on a v0.6.15 tree.
 - `docs/STABILITY.md` listed a `pkg/logging` package that no longer exists.
