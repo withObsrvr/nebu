@@ -9,6 +9,24 @@
 set shell := ["bash", "-uc"]
 
 version := `git describe --tags --always --dirty 2>/dev/null || echo dev`
+
+# Pinned version of the processor registry that `build-processors` installs.
+#
+# This was `@latest`, which is not a version. Two developers, or CI on two
+# days, could get different binaries from the same command — against both P-6
+# ("the same inputs produce the same build") and BUILD-2 ("dependencies MUST
+# be pinned"), and P-4 is blunt about it: "'Latest' is never a contract".
+#
+# It was not theoretical. Go resolves `@latest` against the pseudo-version
+# list in the local module cache, so a machine with a warm cache kept
+# installing pre-Protocol-30 processors after the registry had been upgraded
+# — silently, with no error, producing binaries that cannot decode a Protocol
+# 30 ledger.
+#
+# The registry publishes no per-module semver tags, so a pseudo-version is
+# what there is to pin. Bump this when the registry moves; `just
+# build-processors` then tells you exactly which registry build you have.
+registry_version := "v0.0.0-20261028082853-815d293ee827"
 ldflags := "-X github.com/withObsrvr/nebu/pkg/version.Version=" + version
 
 # List all recipes (default when `just` is run with no arguments).
@@ -131,8 +149,9 @@ build-processors:
     for p in token-transfer contract-events contract-invocation usdc-filter \
              amount-filter time-window dedup json-file-sink nats-sink postgres-sink; do
         GOWORK=off GOBIN="$(pwd)/bin" go install \
-            "github.com/withObsrvr/nebu-processor-registry/processors/$p/cmd/$p@latest"
+            "github.com/withObsrvr/nebu-processor-registry/processors/$p/cmd/$p@{{ registry_version }}"
     done
+    echo "  registry: {{ registry_version }}"
     echo "Building in-repo educational processors..."
     go build -ldflags "{{ ldflags }}" -o bin/transaction-stats ./examples/processors/transaction-stats/cmd/transaction-stats
     go build -ldflags "{{ ldflags }}" -o bin/ledger-change-stats ./examples/processors/ledger-change-stats/cmd/ledger-change-stats

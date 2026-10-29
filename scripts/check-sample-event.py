@@ -36,7 +36,11 @@ from pathlib import Path
 # Envelope fields this tree adds that the installed registry processors do not
 # emit yet. Remove an entry once the registry has been rebuilt against the
 # nebu release that introduced it.
-PENDING_REBUILD = {"network"}
+#
+# Empty as of the registry's Protocol 30 upgrade: the processors now build
+# against nebu v0.6.17, so "network" is emitted for real and is enforced like
+# any other field rather than excused.
+PENDING_REBUILD: set[str] = set()
 
 ROOT = Path(__file__).resolve().parent.parent
 

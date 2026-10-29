@@ -6,7 +6,10 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- `just build-processors` installed the registry's processors with `@latest`, which is not a version. Go resolves `@latest` against the pseudo-version list in the local module cache, so a machine with a warm cache kept installing **pre-Protocol-30 processors** after the registry had been upgraded — silently, with no error, producing binaries that cannot decode a Protocol 30 ledger. The registry version is now pinned in one place in the justfile and echoed on every build, so the command is reproducible (P-6, BUILD-2) and you can see which registry build you have. `@latest` was also plainly against P-4: "'Latest' is never a contract."
+- The sample-event check no longer excuses the `network` field. The registry now builds against nebu v0.6.17 and emits it, so it is enforced in both directions like any other field.
 
 ## v0.6.17
 
