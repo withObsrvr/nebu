@@ -4,7 +4,6 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -18,12 +17,23 @@ import (
 // observability hooks can be attached via [Runtime.Use] before the
 // pipeline starts.
 type Runtime struct {
-	hooks []Hooks
+	hooks  []Hooks
+	policy Policy
 }
 
-// NewRuntime creates a new runtime instance with no hooks registered.
+// NewRuntime creates a new runtime instance with no hooks registered and the
+// best-effort execution policy.
 func NewRuntime() *Runtime {
 	return &Runtime{}
+}
+
+// SetPolicy selects what an unprocessable ledger means for the run. See
+// [Policy]. The default is [PolicyBestEffort], which is how nebu behaved
+// before policies existed.
+//
+// SetPolicy must be called before [Runtime.RunOrigin].
+func (r *Runtime) SetPolicy(policy Policy) {
+	r.policy = policy
 }
 
 // Use appends a [Hooks] bundle to the runtime. Multiple Use calls
@@ -86,7 +96,7 @@ func (r *Runtime) RunOrigin(
 	// (from inside processor.Report calls) receive a live context.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	reporter := newRuntimeReporter(ctx, r.hooks)
+	reporter := NewReporter(ctx, r.policy, r.hooks)
 	ctx = processor.WithReporter(ctx, reporter)
 
 	// OnEnd fires exactly once at pipeline termination, regardless
@@ -97,7 +107,8 @@ func (r *Runtime) RunOrigin(
 	defer func() {
 		summary := PipelineSummary{
 			LedgersProcessed: atomic.LoadUint64(&ledgersProcessed),
-			Warnings:         atomic.LoadInt64(&reporter.warnings),
+			Warnings:         reporter.warningCount(),
+			Coverage:         reporter.Coverage(),
 			FatalErr:         retErr,
 			Duration:         time.Since(runStart),
 		}
@@ -160,7 +171,7 @@ func (r *Runtime) RunOrigin(
 		// for "this processor has lost its database connection,
 		// stop now."
 		select {
-		case err := <-reporter.fatal:
+		case err := <-reporter.Fatal():
 			return err
 		case <-ctx.Done():
 			return ctx.Err()
@@ -171,7 +182,7 @@ func (r *Runtime) RunOrigin(
 		case <-ctx.Done():
 			return ctx.Err()
 
-		case err := <-reporter.fatal:
+		case err := <-reporter.Fatal():
 			// Processor reported a fatal error; halt the pipeline.
 			return err
 
@@ -210,6 +221,10 @@ func (r *Runtime) RunOrigin(
 			// report warnings, or report fatal — none of which
 			// return through this call. We check the fatal channel
 			// on the next loop iteration.
+			//
+			// BeginLedger first, so any report the processor makes
+			// is attributed to this ledger in the run's coverage.
+			reporter.BeginLedger(ledger.LedgerSequence())
 			ledgerStart := time.Now()
 			origin.ProcessLedger(ctx, ledger)
 			duration := time.Since(ledgerStart)
@@ -223,69 +238,6 @@ func (r *Runtime) RunOrigin(
 						h.AfterLedger(ctx, ledger, stats)
 					}
 				}
-			}
-		}
-	}
-}
-
-// runtimeReporter is the Reporter that nebu's runtime attaches to
-// the context before calling processor methods. It captures the
-// first fatal report through a buffered channel (subsequent fatals
-// are dropped since only the first matters) and logs warnings to
-// stderr while counting them for metrics. When the runtime has
-// hooks registered, it also fires [Hooks.OnWarning] and
-// [Hooks.OnFatal] for each report.
-type runtimeReporter struct {
-	ctx      context.Context // for hook invocation; captured at creation
-	hooks    []Hooks         // shared with Runtime; read-only after RunOrigin entry
-	fatal    chan error      // buffered, size 1
-	warnings int64           // atomic
-}
-
-func newRuntimeReporter(ctx context.Context, hooks []Hooks) *runtimeReporter {
-	return &runtimeReporter{
-		ctx:   ctx,
-		hooks: hooks,
-		fatal: make(chan error, 1),
-	}
-}
-
-// Report implements [processor.Reporter].
-func (r *runtimeReporter) Report(report processor.ErrorReport) {
-	prefix := report.Processor
-	if prefix == "" {
-		prefix = "nebu"
-	}
-
-	switch report.Severity {
-	case processor.SeverityWarning:
-		atomic.AddInt64(&r.warnings, 1)
-		if report.EventID != "" {
-			fmt.Fprintf(os.Stderr, "[%s] warning (%s): %v\n", prefix, report.EventID, report.Err)
-		} else {
-			fmt.Fprintf(os.Stderr, "[%s] warning: %v\n", prefix, report.Err)
-		}
-		for _, h := range r.hooks {
-			if h.OnWarning != nil {
-				h.OnWarning(r.ctx, report)
-			}
-		}
-
-	case processor.SeverityFatal:
-		if report.EventID != "" {
-			fmt.Fprintf(os.Stderr, "[%s] fatal (%s): %v\n", prefix, report.EventID, report.Err)
-		} else {
-			fmt.Fprintf(os.Stderr, "[%s] fatal: %v\n", prefix, report.Err)
-		}
-		// Non-blocking send: first fatal wins, later fatals are
-		// dropped.
-		select {
-		case r.fatal <- fmt.Errorf("%s: %w", prefix, report.Err):
-		default:
-		}
-		for _, h := range r.hooks {
-			if h.OnFatal != nil {
-				h.OnFatal(r.ctx, report)
 			}
 		}
 	}
