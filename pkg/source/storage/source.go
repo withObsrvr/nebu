@@ -14,14 +14,13 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
-	"github.com/stellar/go-stellar-sdk/support/log"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	"github.com/withObsrvr/nebu/pkg/source/internal/ledgerstream"
 )
 
 // LedgerSource streams ledgers from GCS/S3 storage backends.
 type LedgerSource struct {
-	backend   ledgerbackend.LedgerBackend
-	dataStore datastore.DataStore
+	stream ledgerbackend.LedgerStream
 }
 
 // NewLedgerSource creates a source from a storage datastore.
@@ -34,23 +33,14 @@ func NewLedgerSource(
 		return nil, fmt.Errorf("datastore type cannot be empty")
 	}
 
-	// Create datastore
-	ctx := context.Background()
-	store, err := datastore.NewDataStore(ctx, datastoreConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create datastore: %w", err)
-	}
-
-	// Create buffered storage backend
-	backend, err := ledgerbackend.NewBufferedStorageBackend(bufferConfig, store, datastoreConfig.Schema)
-	if err != nil {
-		store.Close()
-		return nil, fmt.Errorf("failed to create buffered backend: %w", err)
-	}
-
+	// NewBufferedStorageStream opens the datastore on the first pull rather
+	// than here, and reads the layout from the manifest in the bucket at the
+	// same time. That is the reason this source goes through the stream: the
+	// backend it replaces took the schema from the caller and never checked
+	// it, so a bucket exported with any other layout was read with the wrong
+	// object keys instead of reporting a mismatch.
 	return &LedgerSource{
-		backend:   backend,
-		dataStore: store,
+		stream: ledgerbackend.NewBufferedStorageStream(bufferConfig, datastoreConfig, nil),
 	}, nil
 }
 
@@ -65,80 +55,22 @@ func (s *LedgerSource) Stream(
 ) error {
 	defer close(out)
 
-	// Validate range
-	if start == 0 {
-		return fmt.Errorf("start ledger must be > 0 (got %d)", start)
+	ledgerRange, err := ledgerstream.Range(start, end)
+	if err != nil {
+		return err
 	}
 
-	// Validate bounded range
-	if end > 0 && start > end {
-		return fmt.Errorf("invalid range: start (%d) must be <= end (%d)", start, end)
-	}
-
-	// Prepare range (bounded or unbounded)
-	var rang ledgerbackend.Range
-	if end == 0 {
-		// Unbounded range - stream continuously from start
-		rang = ledgerbackend.UnboundedRange(start)
-		log.Infof("Preparing unbounded range starting at ledger %d", start)
-	} else {
-		// Bounded range - stream from start to end
-		rang = ledgerbackend.BoundedRange(start, end)
-		log.Infof("Preparing bounded range [%d, %d]", start, end)
-	}
-
-	if err := s.backend.PrepareRange(ctx, rang); err != nil {
-		log.Errorf("failed to prepare range: %v", err)
-		return fmt.Errorf("failed to prepare range: %w", err)
-	}
-
-	// Stream ledgers
-	seq := start
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		ledger, err := s.backend.GetLedger(ctx, seq)
-		if err != nil {
-			return fmt.Errorf("failed to get ledger %d: %w", seq, err)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case out <- ledger:
-			// Ledger sent successfully
-		}
-
-		seq++
-
-		// Stop if bounded range and reached end
-		if end > 0 && seq > end {
-			return nil
-		}
-	}
+	return ledgerstream.Pump(ctx, s.stream, ledgerRange, out)
 }
 
 // Close implements source.LedgerSource.Close.
+//
+// There is nothing to release: a LedgerStream opens the datastore on the
+// first pull of a Stream call and closes it when that iteration ends, so a
+// source that is not streaming holds nothing open. Close remains part of the
+// contract and stays safe to call at any time.
 func (s *LedgerSource) Close() error {
-	var backendErr, datastoreErr error
-
-	if s.backend != nil {
-		backendErr = s.backend.Close()
-	}
-
-	if s.dataStore != nil {
-		datastoreErr = s.dataStore.Close()
-	}
-
-	// Return first error encountered
-	if backendErr != nil {
-		return backendErr
-	}
-	return datastoreErr
+	return nil
 }
 
 // DefaultBufferedStorageBackendConfig returns sensible defaults for buffered storage.

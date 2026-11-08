@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"errors"
+	"iter"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -368,33 +369,53 @@ func TestNewLedgerSourceWithHeaders_SendsHeaders(t *testing.T) {
 
 // fakeBackend is an offline LedgerBackend for exercising Stream's error and
 // success paths without a live RPC server.
-type fakeBackend struct {
-	prepareErr error
-	getLedger  func(seq uint32) (xdr.LedgerCloseMeta, error)
+// fakeStream is a LedgerStream that yields prepared records, optionally
+// failing after a given number of them. It replaces an earlier
+// LedgerBackend mock: the source now drives the SDK's streaming interface,
+// so the seam the tests inject at moved with it.
+type fakeStream struct {
+	// ledger builds the record for a sequence. An endless stream is
+	// modelled by leaving failAfter at -1 and requesting an unbounded range.
+	ledger func(seq uint32) xdr.LedgerCloseMeta
+
+	// failAfter is the number of records to yield before yielding err.
+	// Negative means never fail.
+	failAfter int
+	err       error
 }
 
-func (f *fakeBackend) GetLatestLedgerSequence(ctx context.Context) (uint32, error) {
-	// Not exercised by Stream today; fail loudly if that ever changes.
-	return 0, errors.New("fakeBackend: GetLatestLedgerSequence not implemented")
-}
+func (f fakeStream) RawLedgers(
+	ctx context.Context,
+	ledgerRange ledgerbackend.Range,
+	_ ...ledgerbackend.StreamOption,
+) iter.Seq2[[]byte, error] {
+	return func(yield func([]byte, error) bool) {
+		yielded := 0
+		for seq := ledgerRange.From(); ; seq++ {
+			if ctx.Err() != nil {
+				return
+			}
+			if f.err != nil && f.failAfter >= 0 && yielded == f.failAfter {
+				yield(nil, f.err)
+				return
+			}
 
-func (f *fakeBackend) GetLedger(ctx context.Context, seq uint32) (xdr.LedgerCloseMeta, error) {
-	if f.getLedger == nil {
-		return xdr.LedgerCloseMeta{}, errors.New("fakeBackend: unexpected GetLedger call")
+			raw, err := f.ledger(seq).MarshalBinary()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+			if !yield(raw, nil) {
+				return
+			}
+			yielded++
+
+			if ledgerRange.Bounded() && seq >= ledgerRange.To() {
+				return
+			}
+		}
 	}
-	return f.getLedger(seq)
 }
-
-func (f *fakeBackend) PrepareRange(ctx context.Context, r ledgerbackend.Range) error {
-	return f.prepareErr
-}
-
-func (f *fakeBackend) IsPrepared(ctx context.Context, r ledgerbackend.Range) (bool, error) {
-	// Not exercised by Stream today; fail loudly if that ever changes.
-	return false, errors.New("fakeBackend: IsPrepared not implemented")
-}
-
-func (f *fakeBackend) Close() error { return nil }
 
 func ledgerWithSeq(seq uint32) xdr.LedgerCloseMeta {
 	return xdr.LedgerCloseMeta{
@@ -407,32 +428,38 @@ func ledgerWithSeq(seq uint32) xdr.LedgerCloseMeta {
 	}
 }
 
+func sequentialStream() fakeStream {
+	return fakeStream{ledger: ledgerWithSeq, failAfter: -1}
+}
+
 func TestStream_ErrorPaths(t *testing.T) {
-	sentinel := errors.New("backend boom")
+	sentinel := errors.New("stream boom")
 
 	tests := []struct {
 		name    string
-		backend *fakeBackend
+		stream  fakeStream
 		wantErr string
 	}{
 		{
-			name:    "prepare range fails",
-			backend: &fakeBackend{prepareErr: sentinel},
-			wantErr: "failed to prepare range",
+			// Setup failures — opening the backend, preparing the range —
+			// surface as an error on the first pull.
+			name:    "stream fails before the first ledger",
+			stream:  fakeStream{ledger: ledgerWithSeq, failAfter: 0, err: sentinel},
+			wantErr: "failed to get ledger 10",
 		},
 		{
-			name: "get ledger fails",
-			backend: &fakeBackend{getLedger: func(seq uint32) (xdr.LedgerCloseMeta, error) {
-				return xdr.LedgerCloseMeta{}, sentinel
-			}},
-			wantErr: "failed to get ledger 10",
+			// A mid-range read failure must name the ledger it stopped on,
+			// so the gap is identifiable rather than just "the run failed".
+			name:    "stream fails partway through the range",
+			stream:  fakeStream{ledger: ledgerWithSeq, failAfter: 2, err: sentinel},
+			wantErr: "failed to get ledger 12",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			src := &LedgerSource{backend: tt.backend}
-			ch := make(chan xdr.LedgerCloseMeta, 1)
+			src := &LedgerSource{stream: tt.stream}
+			ch := make(chan xdr.LedgerCloseMeta, 4)
 
 			errCh := make(chan error, 1)
 			go func() {
@@ -456,11 +483,36 @@ func TestStream_ErrorPaths(t *testing.T) {
 
 			select {
 			case err := <-errCh:
-				assert.ErrorIs(t, err, sentinel, "backend error must be wrapped, not replaced")
+				assert.ErrorIs(t, err, sentinel, "stream error must be wrapped, not replaced")
 				assert.ErrorContains(t, err, tt.wantErr)
 			case <-time.After(5 * time.Second):
 				t.Fatal("Stream did not return an error")
 			}
+		})
+	}
+}
+
+func TestStream_InvalidRangeOffline(t *testing.T) {
+	tests := []struct {
+		name    string
+		start   uint32
+		end     uint32
+		wantErr string
+	}{
+		{name: "zero start", start: 0, end: 10, wantErr: "start ledger must be > 0"},
+		{name: "reversed range", start: 12, end: 10, wantErr: "invalid range"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := &LedgerSource{stream: sequentialStream()}
+			ch := make(chan xdr.LedgerCloseMeta, 1)
+
+			err := src.Stream(context.Background(), tt.start, tt.end, ch)
+			assert.ErrorContains(t, err, tt.wantErr)
+
+			_, open := <-ch
+			assert.False(t, open, "Stream must close the output channel on a range error")
 		})
 	}
 }
@@ -478,10 +530,7 @@ func TestStream_BoundedOffline(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			backend := &fakeBackend{getLedger: func(seq uint32) (xdr.LedgerCloseMeta, error) {
-				return ledgerWithSeq(seq), nil
-			}}
-			src := &LedgerSource{backend: backend}
+			src := &LedgerSource{stream: sequentialStream()}
 			ch := make(chan xdr.LedgerCloseMeta, 10)
 
 			errCh := make(chan error, 1)
@@ -500,12 +549,9 @@ func TestStream_BoundedOffline(t *testing.T) {
 }
 
 func TestStream_CancellationOffline(t *testing.T) {
-	backend := &fakeBackend{getLedger: func(seq uint32) (xdr.LedgerCloseMeta, error) {
-		return ledgerWithSeq(seq), nil
-	}}
-	src := &LedgerSource{backend: backend}
+	src := &LedgerSource{stream: sequentialStream()}
 	// Unbuffered so the endless stream blocks on send until we read,
-	// exercising the ctx.Done branch of Stream's send select.
+	// exercising the ctx.Done branch of the send select.
 	ch := make(chan xdr.LedgerCloseMeta)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -521,7 +567,7 @@ func TestStream_CancellationOffline(t *testing.T) {
 		select {
 		case <-ch:
 		case <-time.After(5 * time.Second):
-			t.Fatal("timed out waiting for ledger from fake backend")
+			t.Fatal("timed out waiting for ledger from fake stream")
 		}
 	}
 	cancel()

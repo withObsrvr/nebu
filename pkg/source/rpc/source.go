@@ -12,14 +12,14 @@ import (
 	"net/http"
 
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
-	"github.com/stellar/go-stellar-sdk/support/log"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	"github.com/withObsrvr/nebu/pkg/source/internal/ledgerstream"
 )
 
-// LedgerSource streams ledgers from Stellar RPC using the RPCLedgerBackend.
+// LedgerSource streams ledgers from Stellar RPC.
 type LedgerSource struct {
-	backend ledgerbackend.LedgerBackend
-	rpcURL  string
+	stream ledgerbackend.LedgerStream
+	rpcURL string
 }
 
 // headerTransport is an HTTP transport that adds custom headers to all requests.
@@ -72,11 +72,9 @@ func NewLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*Ledg
 		}
 	}
 
-	backend := ledgerbackend.NewRPCLedgerBackend(opts)
-
 	return &LedgerSource{
-		backend: backend,
-		rpcURL:  rpcURL,
+		stream: ledgerbackend.NewRPCStream(opts, nil),
+		rpcURL: rpcURL,
 	}, nil
 }
 
@@ -91,64 +89,20 @@ func (s *LedgerSource) Stream(
 ) error {
 	defer close(out)
 
-	// Validate start ledger
-	if start == 0 {
-		return fmt.Errorf("start ledger must be > 0 (got %d)", start)
+	ledgerRange, err := ledgerstream.Range(start, end)
+	if err != nil {
+		return err
 	}
 
-	// Validate bounded range
-	if end > 0 && start > end {
-		return fmt.Errorf("invalid range: start (%d) must be <= end (%d)", start, end)
-	}
-
-	// Prepare the range (bounded or unbounded)
-	var rang ledgerbackend.Range
-	if end == 0 {
-		// Unbounded range - stream continuously from start
-		rang = ledgerbackend.UnboundedRange(start)
-		log.Infof("Preparing unbounded range starting at ledger %d", start)
-	} else {
-		// Bounded range - stream from start to end
-		rang = ledgerbackend.BoundedRange(start, end)
-		log.Infof("Preparing bounded range [%d, %d]", start, end)
-	}
-
-	if err := s.backend.PrepareRange(ctx, rang); err != nil {
-		log.Errorf("failed to prepare range: %v", err)
-		return fmt.Errorf("failed to prepare range: %w", err)
-	}
-
-	// Stream ledgers
-	seq := start
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		ledger, err := s.backend.GetLedger(ctx, seq)
-		if err != nil {
-			return fmt.Errorf("failed to get ledger %d: %w", seq, err)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case out <- ledger:
-			// Ledger sent successfully
-		}
-
-		seq++
-
-		// Stop if bounded range and reached end
-		if end > 0 && seq > end {
-			return nil
-		}
-	}
+	return ledgerstream.Pump(ctx, s.stream, ledgerRange, out)
 }
 
 // Close implements source.LedgerSource.Close.
+//
+// There is nothing to release: a LedgerStream sets its backend up on the
+// first pull of a Stream call and tears it down when that iteration ends, so
+// a source that is not streaming holds no connection. Close remains part of
+// the contract and stays safe to call at any time.
 func (s *LedgerSource) Close() error {
-	return s.backend.Close()
+	return nil
 }
