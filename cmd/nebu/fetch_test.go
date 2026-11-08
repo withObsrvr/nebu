@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stellar/go-stellar-sdk/ingest"
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/stretchr/testify/assert"
@@ -283,5 +284,115 @@ func testLedger(sequence uint32) xdr.LedgerCloseMeta {
 				Header: xdr.LedgerHeader{LedgerSeq: xdr.Uint32(sequence)},
 			},
 		},
+	}
+}
+
+func TestArchiveDataStoreSchemaLeavesUnsetFieldsToTheManifest(t *testing.T) {
+	tests := []struct {
+		name                  string
+		ledgersPerFile        int
+		filesPerPartition     int
+		wantLedgersPerFile    uint32
+		wantFilesPerPartition uint32
+	}{
+		// Zero is the signal datastore.LoadSchema reads as "take this from
+		// the datastore manifest"; it compares only the fields that are set.
+		{name: "both unset defer to the manifest"},
+		{name: "ledgers per file only", ledgersPerFile: 64, wantLedgersPerFile: 64},
+		{name: "files per partition only", filesPerPartition: 10, wantFilesPerPartition: 10},
+		{
+			name:                  "both set",
+			ledgersPerFile:        64,
+			filesPerPartition:     10,
+			wantLedgersPerFile:    64,
+			wantFilesPerPartition: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := archiveDataStoreSchema(tt.ledgersPerFile, tt.filesPerPartition)
+			assert.Equal(t, tt.wantLedgersPerFile, got.LedgersPerFile)
+			assert.Equal(t, tt.wantFilesPerPartition, got.FilesPerPartition)
+		})
+	}
+}
+
+func TestArchiveBufferConfig(t *testing.T) {
+	// The unset case must track the SDK's tuning rather than a nebu constant,
+	// so the expectation is read from the SDK for the same input.
+	sdkDefault := ingest.DefaultBufferedStorageBackendConfig(0)
+
+	tests := []struct {
+		name           string
+		bufferSize     int
+		numWorkers     int
+		ledgersPerFile int
+		wantBufferSize uint32
+		wantNumWorkers uint32
+		wantRetryLimit uint32
+	}{
+		{
+			name:           "unset takes the SDK tuning",
+			wantBufferSize: sdkDefault.BufferSize,
+			wantNumWorkers: sdkDefault.NumWorkers,
+			wantRetryLimit: sdkDefault.RetryLimit,
+		},
+		{
+			name:           "explicit flags win",
+			bufferSize:     7,
+			numWorkers:     3,
+			wantBufferSize: 7,
+			wantNumWorkers: 3,
+			wantRetryLimit: sdkDefault.RetryLimit,
+		},
+		{
+			name:           "buffer size alone keeps the tuned worker count",
+			bufferSize:     7,
+			wantBufferSize: 7,
+			wantNumWorkers: sdkDefault.NumWorkers,
+			wantRetryLimit: sdkDefault.RetryLimit,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := archiveBufferConfig(tt.bufferSize, tt.numWorkers, tt.ledgersPerFile)
+			assert.Equal(t, tt.wantBufferSize, got.BufferSize)
+			assert.Equal(t, tt.wantNumWorkers, got.NumWorkers)
+			assert.Equal(t, tt.wantRetryLimit, got.RetryLimit)
+		})
+	}
+}
+
+func TestArchiveBufferConfigTracksLedgersPerFile(t *testing.T) {
+	// A large-file layout gets a different tuning from the SDK than the
+	// one-ledger-per-file layout; the point of passing the value through is
+	// that nebu does not pin either.
+	small := archiveBufferConfig(0, 0, 1)
+	large := archiveBufferConfig(0, 0, 64)
+
+	assert.Equal(t, ingest.DefaultBufferedStorageBackendConfig(1).BufferSize, small.BufferSize)
+	assert.Equal(t, ingest.DefaultBufferedStorageBackendConfig(64).BufferSize, large.BufferSize)
+	assert.NotEqual(t, small.BufferSize, large.BufferSize)
+}
+
+func TestArchiveLayoutDisplay(t *testing.T) {
+	tests := []struct {
+		name              string
+		ledgersPerFile    int
+		filesPerPartition int
+		want              string
+	}{
+		{name: "both unset", want: "from datastore manifest"},
+		{name: "both set", ledgersPerFile: 64, filesPerPartition: 10, want: "64 ledgers/file, 10 files/partition"},
+		{name: "ledgers only", ledgersPerFile: 64, want: "64 ledgers/file, files/partition from manifest"},
+		{name: "partition only", filesPerPartition: 10, want: "ledgers/file from manifest, 10 files/partition"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, archiveLayoutDisplay(tt.ledgersPerFile, tt.filesPerPartition))
+		})
 	}
 }

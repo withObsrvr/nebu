@@ -8,15 +8,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/stellar/go-stellar-sdk/ingest"
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
-	"github.com/withObsrvr/nebu/pkg/source/storage"
 )
 
 func newFetchCmd() *cobra.Command {
@@ -39,6 +40,8 @@ func newFetchCmd() *cobra.Command {
 		region             string
 		bufferSize         int
 		numWorkers         int
+		ledgersPerFile     int
+		filesPerPartition  int
 		checkpointPath     string
 		checkpointInterval uint32
 	)
@@ -137,8 +140,16 @@ Archive Mode Examples:
 			datastoreTypeConfig := getEnvOrFlag("NEBU_DATASTORE_TYPE", datastoreType, "GCS")
 			bucketPathConfig := getEnvOrFlag("NEBU_BUCKET_PATH", bucketPath, "")
 			regionConfig := getEnvOrFlag("NEBU_REGION", region, "us-east-1")
-			bufferSizeConfig := getEnvOrFlagInt("NEBU_BUFFER_SIZE", bufferSize, 100)
-			numWorkersConfig := getEnvOrFlagInt("NEBU_NUM_WORKERS", numWorkers, 10)
+			bufferSizeConfig := getEnvOrFlagInt("NEBU_BUFFER_SIZE", bufferSize, 0)
+			numWorkersConfig := getEnvOrFlagInt("NEBU_NUM_WORKERS", numWorkers, 0)
+			ledgersPerFileConfig := getEnvOrFlagInt("NEBU_LEDGERS_PER_FILE", ledgersPerFile, 0)
+			filesPerPartitionConfig := getEnvOrFlagInt("NEBU_FILES_PER_PARTITION", filesPerPartition, 0)
+
+			// Resolved here rather than at the fetch call so the startup
+			// banner reports the tuning actually in effect.
+			archiveBuffer := archiveBufferConfig(
+				bufferSizeConfig.Value, numWorkersConfig.Value, ledgersPerFileConfig.Value,
+			)
 
 			// Validate configuration based on mode
 			if modeConfig.Value == "archive" {
@@ -192,8 +203,9 @@ Archive Mode Examples:
 					"Region":    regionConfig,
 				}, map[string]string{
 					"Range":       rangeDisplay,
-					"Buffer Size": fmt.Sprintf("%d", bufferSizeConfig.Value),
-					"Workers":     fmt.Sprintf("%d", numWorkersConfig.Value),
+					"Buffer Size": fmt.Sprintf("%d", archiveBuffer.BufferSize),
+					"Workers":     fmt.Sprintf("%d", archiveBuffer.NumWorkers),
+					"Layout":      archiveLayoutDisplay(ledgersPerFileConfig.Value, filesPerPartitionConfig.Value),
 					"Output":      outputDest,
 				})
 			} else {
@@ -230,11 +242,16 @@ Archive Mode Examples:
 			if modeConfig.Value == "archive" {
 				return fetchLedgersArchive(
 					ctx,
-					datastoreTypeConfig.Value,
-					bucketPathConfig.Value,
-					regionConfig.Value,
-					uint32(bufferSizeConfig.Value),
-					uint32(numWorkersConfig.Value),
+					archiveOptions{
+						datastoreType:     datastoreTypeConfig.Value,
+						bucketPath:        bucketPathConfig.Value,
+						region:            regionConfig.Value,
+						networkPassphrase: normalizeNetworkPassphrase(networkConfig.Value),
+						schema: archiveDataStoreSchema(
+							ledgersPerFileConfig.Value, filesPerPartitionConfig.Value,
+						),
+						buffer: archiveBuffer,
+					},
 					startLedger,
 					endLedger,
 					outputFile,
@@ -268,8 +285,10 @@ Archive Mode Examples:
 	cmd.Flags().StringVar(&datastoreType, "datastore-type", "GCS", "Datastore type: 'GCS' or 'S3' (or set NEBU_DATASTORE_TYPE)")
 	cmd.Flags().StringVar(&bucketPath, "bucket-path", "", "Storage bucket path (or set NEBU_BUCKET_PATH)")
 	cmd.Flags().StringVar(&region, "region", "us-east-1", "S3 region (or set NEBU_REGION)")
-	cmd.Flags().IntVar(&bufferSize, "buffer-size", 100, "Number of ledgers to buffer (or set NEBU_BUFFER_SIZE)")
-	cmd.Flags().IntVar(&numWorkers, "num-workers", 10, "Number of parallel fetch workers (or set NEBU_NUM_WORKERS)")
+	cmd.Flags().IntVar(&bufferSize, "buffer-size", 0, "Number of ledgers to buffer; 0 tunes from the datastore layout (or set NEBU_BUFFER_SIZE)")
+	cmd.Flags().IntVar(&numWorkers, "num-workers", 0, "Number of parallel fetch workers; 0 tunes from the datastore layout (or set NEBU_NUM_WORKERS)")
+	cmd.Flags().IntVar(&ledgersPerFile, "ledgers-per-file", 0, "Datastore ledgers per file; 0 reads it from the datastore manifest (or set NEBU_LEDGERS_PER_FILE)")
+	cmd.Flags().IntVar(&filesPerPartition, "files-per-partition", 0, "Datastore files per partition; 0 reads it from the datastore manifest (or set NEBU_FILES_PER_PARTITION)")
 
 	// Common flags
 	cmd.Flags().StringVar(&outputFile, "output", "", "Output file (default: stdout)")
@@ -311,33 +330,100 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, o
 	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
 }
 
+// archiveOptions carries the resolved archive-mode configuration.
+type archiveOptions struct {
+	datastoreType     string
+	bucketPath        string
+	region            string
+	networkPassphrase string
+	schema            datastore.DataStoreSchema
+	buffer            ledgerbackend.BufferedStorageBackendConfig
+}
+
+// archiveDataStoreSchema builds the local schema overrides for archive mode.
+//
+// The zero values are deliberate. datastore.LoadSchema — which
+// NewBufferedStorageStream calls on the first pull — reads the layout from the
+// manifest the exporter published in the bucket, and compares only the fields
+// the local config actually sets. Leaving a field at 0 therefore means "take
+// it from the datastore". nebu previously asserted a hardcoded 1 ledger per
+// file and 64000 files per partition against every bucket, which made any
+// other layout fail as a config mismatch with no flag available to correct it.
+func archiveDataStoreSchema(ledgersPerFile, filesPerPartition int) datastore.DataStoreSchema {
+	return datastore.DataStoreSchema{
+		LedgersPerFile:    uint32(ledgersPerFile),
+		FilesPerPartition: uint32(filesPerPartition),
+	}
+}
+
+// archiveBufferConfig resolves the buffered-storage tuning for archive mode.
+//
+// With the flags left at 0 the values come from the SDK's
+// ingest.DefaultBufferedStorageBackendConfig, which picks them from the
+// datastore's ledgers-per-file against its own benchmarks. nebu's previous
+// fixed BufferSize of 100 throttled bounded backfills on the common
+// one-ledger-per-file layout, where the SDK asks for 10000 so the workers see
+// the whole queue up front instead of pacing on the per-pull feedback loop.
+// The buffer is capped to the size of the requested range, so the larger
+// number is an upper bound rather than a fixed allocation.
+//
+// ledgersPerFile is 0 whenever the layout is coming from the manifest, which
+// is not read until streaming starts; the SDK's small-layout default is the
+// right guess in that case, since that is the layout it describes.
+func archiveBufferConfig(bufferSize, numWorkers, ledgersPerFile int) ledgerbackend.BufferedStorageBackendConfig {
+	config := ingest.DefaultBufferedStorageBackendConfig(uint32(ledgersPerFile))
+	if bufferSize > 0 {
+		config.BufferSize = uint32(bufferSize)
+	}
+	if numWorkers > 0 {
+		config.NumWorkers = uint32(numWorkers)
+	}
+	return config
+}
+
+// archiveLayoutDisplay describes the resolved datastore layout for the banner.
+func archiveLayoutDisplay(ledgersPerFile, filesPerPartition int) string {
+	if ledgersPerFile == 0 && filesPerPartition == 0 {
+		return "from datastore manifest"
+	}
+	parts := make([]string, 0, 2)
+	if ledgersPerFile > 0 {
+		parts = append(parts, fmt.Sprintf("%d ledgers/file", ledgersPerFile))
+	} else {
+		parts = append(parts, "ledgers/file from manifest")
+	}
+	if filesPerPartition > 0 {
+		parts = append(parts, fmt.Sprintf("%d files/partition", filesPerPartition))
+	} else {
+		parts = append(parts, "files/partition from manifest")
+	}
+	return strings.Join(parts, ", ")
+}
+
 func fetchLedgersArchive(
 	ctx context.Context,
-	datastoreType, bucketPath, region string,
-	bufferSize, numWorkers uint32,
+	opts archiveOptions,
 	start, end uint32,
 	outputFile string,
 	checkpoint *checkpointWriter,
 ) error {
 	datastoreConfig := datastore.DataStoreConfig{
-		Type: datastoreType,
+		Type: opts.datastoreType,
 		Params: map[string]string{
-			"destination_bucket_path": bucketPath,
+			"destination_bucket_path": opts.bucketPath,
 		},
-		Schema: storage.DefaultDataStoreSchema(),
+		Schema: opts.schema,
+		// Setting the passphrase lets datastore.LoadSchema check it against
+		// the manifest in the bucket, so pointing a pubnet-configured fetch
+		// at a testnet export fails loudly rather than returning ledgers
+		// from the wrong network.
+		NetworkPassphrase: opts.networkPassphrase,
 	}
-	if datastoreType == "S3" {
-		datastoreConfig.Params["region"] = region
-	}
-
-	bufferConfig := ledgerbackend.BufferedStorageBackendConfig{
-		BufferSize: bufferSize,
-		NumWorkers: numWorkers,
-		RetryLimit: 3,
-		RetryWait:  5 * time.Second,
+	if opts.datastoreType == "S3" {
+		datastoreConfig.Params["region"] = opts.region
 	}
 
-	stream := ledgerbackend.NewBufferedStorageStream(bufferConfig, datastoreConfig, nil)
+	stream := ledgerbackend.NewBufferedStorageStream(opts.buffer, datastoreConfig, nil)
 	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
 }
 
