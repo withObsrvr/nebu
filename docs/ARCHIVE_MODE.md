@@ -107,8 +107,18 @@ nebu fetch --mode archive \
 | `--datastore-type` / `NEBU_DATASTORE_TYPE` | Cloud storage type | `GCS` | `GCS`, `S3` |
 | `--bucket-path` / `NEBU_BUCKET_PATH` | Bucket path | (required) | Bucket name + path |
 | `--region` / `NEBU_REGION` | S3 region | `us-east-1` | AWS region |
-| `--buffer-size` / `NEBU_BUFFER_SIZE` | Ledger cache size | `100` | 10-1000 |
-| `--num-workers` / `NEBU_NUM_WORKERS` | Parallel workers | `10` | 1-50 |
+| `--buffer-size` / `NEBU_BUFFER_SIZE` | Ledger cache size | auto | 10-10000, or `0` to tune automatically |
+| `--num-workers` / `NEBU_NUM_WORKERS` | Parallel workers | auto | 1-50, or `0` to tune automatically |
+| `--ledgers-per-file` / `NEBU_LEDGERS_PER_FILE` | Datastore layout override | from manifest | `0` to read it from the bucket |
+| `--files-per-partition` / `NEBU_FILES_PER_PARTITION` | Datastore layout override | from manifest | `0` to read it from the bucket |
+
+`--buffer-size` and `--num-workers` default to `0`, which means the SDK picks
+them from the datastore's layout against its own benchmarks. For the common
+one-ledger-per-file layout that is a much larger buffer than nebu's previous
+fixed `100`, because the workers then see the whole queue up front instead of
+pacing on a per-pull feedback loop. The buffer is capped to the size of the
+requested range, so a large value is an upper bound rather than a fixed
+allocation. Set either flag explicitly to override.
 
 ## Quick Start Examples
 
@@ -523,13 +533,31 @@ bucket-path/
 └── ...
 ```
 
-**Default Schema Parameters:**
+**The layout comes from the bucket, not from a nebu default.** Galexie
+publishes a manifest alongside the ledgers recording `ledgers_per_file`,
+`files_per_partition`, the network passphrase and the compression it used, and
+`nebu fetch --mode archive` reads it on the first ledger it pulls. The object
+keys are derived from those values, so a bucket exported with a different
+layout is read correctly without being told.
+
+Typical Galexie output:
 - `ledgers_per_file`: 1 (one ledger per file)
 - `files_per_partition`: 64,000 (64k files per directory)
 - Compression: zstd
 - Format: XDR
 
-These defaults are automatically used and match Galexie's output format.
+Two cases need the override flags:
+
+- **The bucket has no manifest** (an older export). Supply both
+  `--ledgers-per-file` and `--files-per-partition`; without a manifest nebu
+  cannot guess, and will say so rather than assuming.
+- **You want the layout checked.** A value you supply is compared against the
+  manifest and a disagreement fails the command, naming both sides, instead of
+  reading the bucket with keys that do not match it.
+
+The network passphrase from `--network` is also compared against the manifest,
+so pointing a pubnet-configured fetch at a testnet export fails loudly rather
+than returning ledgers from the wrong network.
 
 ## Further Reading
 

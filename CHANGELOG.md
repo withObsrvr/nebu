@@ -6,7 +6,29 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+
+- **`--on-ledger-error best-effort|strict`** (`NEBU_ON_LEDGER_ERROR`) on every origin processor, and `runtime.Policy` behind it. "Streams never throw" settles who *reports* a problem; it never settled whether a run that hit problems produced usable output. Three bad ledgers in ten million is noise for an exploratory query and disqualifying for a reconciliation dataset, and the processor author cannot know which one the operator is doing — so that decision now belongs to the invocation. `best-effort` is the default and is exactly the previous behavior.
+  - `strict` stops at the first ledger that cannot be processed completely and exits **8**, a new code meaning "ran, but the output is incomplete". It is deliberately distinct from `4` (source unavailable): `4` is worth retrying, `8` will fail the same way, and a consumer that cannot tell them apart either retries forever or accepts holes.
+  - `runtime.PipelineSummary` now carries `Coverage` — ledgers processed, how many were incomplete, and the first such sequence. A warning count cannot answer "is this dataset whole?"; coverage can. Incomplete coverage is reported on stderr at the end of a run regardless of `--quiet`.
+- **`pkg/processor/ledgerread`** iterates a ledger's transactions (`Transactions`) and changes (`Changes`), reporting read failures through the context's `Reporter`. Every origin needs this loop and it has one failure mode that is easy to get wrong: `if err != nil { break }` treats a mid-ledger decode failure as end-of-ledger, truncating the ledger and emitting no warning, so the run looks clean. Kept in a subpackage so importing the processor interfaces does not pull in the SDK's ingest and cloud-storage dependencies.
+- **`nebu fetch --mode archive` accepts `--ledgers-per-file` and `--files-per-partition`** (`NEBU_LEDGERS_PER_FILE`, `NEBU_FILES_PER_PARTITION`) for buckets with no manifest, or to have a layout you supply checked against the manifest instead of assumed.
+
+### Changed
+
+- **Archive mode takes the datastore layout from the bucket.** `nebu fetch --mode archive` asserted a hardcoded 1 ledger per file and 64,000 files per partition against every bucket, so any other export failed as a config mismatch with no flag available to correct it. The layout now comes from the manifest the exporter published, which is where it has always been recorded.
+- **Archive buffer tuning comes from the SDK.** `--buffer-size` and `--num-workers` default to `0`, meaning `ingest.DefaultBufferedStorageBackendConfig` picks them from the datastore layout. nebu's fixed `BufferSize: 100` throttled bounded backfills on the one-ledger-per-file layout, where the SDK asks for 10,000 so workers see the whole queue up front; the buffer is capped to the range size, so that is an upper bound, not an allocation. Explicit values still win.
+- **Archive mode passes the network passphrase to the datastore**, so the manifest check catches a pubnet-configured fetch pointed at a testnet export instead of returning ledgers from the wrong network.
+- **`pkg/source/rpc` and `pkg/source/storage` stream through the SDK's `ledgerbackend.LedgerStream`** instead of each carrying its own `PrepareRange`/`GetLedger` loop. For storage this is a correctness change, not a cleanup: `NewBufferedStorageStream` reads the datastore manifest, which the hand-rolled loop never did, so that path took the schema from its caller and never checked it. The `LedgerSource` interface is unchanged and the committed API snapshots are unchanged; `Close` is now a no-op because the stream owns its backend's lifetime, and the storage constructor no longer reaches the bucket (an unreachable bucket is reported when streaming starts).
+
 ### Fixed
+
+- **Processors reading from stdin ran with no error reporter attached.** `processor.ReporterFrom` fell through to the package default, which counts nothing and calls `os.Exit` on a fatal report — so warnings were invisible and unhookable in exactly the mode Unix composition uses (`nebu fetch ... | processor`). All three origin CLI variants now attach a reporter on the stdin and file paths.
+- **The three origin CLI variants each had their own copy of the stdin decode loop, and the copies had drifted.** Two reported decode and file-open failures with a bare `fmt.Errorf`, losing both the actionable message and the exit-code classification the third produced. There is now one loop.
+
+### Security
+
+- **Upgraded `github.com/klauspost/compress` v1.18.5 → v1.20.2** in nebu and the hooks example, clearing GO-2026-6865 (panic on two-block frames), the one vulnerability `govulncheck` reported as reachable from nebu's own code. It arrives indirectly through the SDK's `xdr` package, which uses zstd. Both modules now report no reachable vulnerabilities.
 
 - `just build-processors` installed the registry's processors with `@latest`, which is not a version. Go resolves `@latest` against the pseudo-version list in the local module cache, so a machine with a warm cache kept installing **pre-Protocol-30 processors** after the registry had been upgraded — silently, with no error, producing binaries that cannot decode a Protocol 30 ledger. The registry version is now pinned in one place in the justfile and echoed on every build, so the command is reproducible (P-6, BUILD-2) and you can see which registry build you have. `@latest` was also plainly against P-4: "'Latest' is never a contract."
 - The sample-event check no longer excuses the `network` field. The registry now builds against nebu v0.6.17 and emits it, so it is enforced in both directions like any other field.

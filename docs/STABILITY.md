@@ -16,6 +16,7 @@ This document says what is and is not covered by that commitment. If you're writ
 | **`nebu` CLI flags and subcommands** | Flag names, their meanings, and subcommand names are a contract. They follow the deprecation process below; they are not renamed or removed without notice. |
 | **`nebu` machine-readable output** | The JSON documents emitted by `nebu list --json`, `nebu describe --json` and `nebu describe --schema` are a contract. Consumers must ignore unknown fields. These flags are scheduled to be superseded by the standard `--output json\|ndjson` spelling (CLI-6); when that lands, `--json` is deprecated under the window below rather than removed. |
 | **`nebu` exit codes** | The codes in [EXIT_CODES.md](EXIT_CODES.md) are a contract. A code's meaning does not change without a major version bump. |
+| **`--on-ledger-error`** | Every origin processor accepts `--on-ledger-error best-effort\|strict` (or `NEBU_ON_LEDGER_ERROR`), deciding whether a ledger that cannot be processed completely ends the run. The flag name and the meaning of each value follow the deprecation process below. `best-effort` is the default and is the behavior that predates the flag. |
 
 **"Permanent"** means: these symbols will never be renamed, moved, or removed without a major version bump. At 1.0, their _signatures_ also become frozen under semver.
 
@@ -101,11 +102,12 @@ The envelope shape is defined by [`processor.DescribeEnvelope`](../pkg/processor
 
 Explicit non-commitments. These can and will change without notice in the 0.x line:
 
-- **`pkg/source/rpc`, `pkg/source/storage`** — concrete `LedgerSource` implementations. Constructor signatures, option types, and defaults can change.
+- **`pkg/source/rpc`, `pkg/source/storage`** — concrete `LedgerSource` implementations. Constructor signatures, option types, and defaults can change. Both now stream through the SDK's `ledgerbackend.LedgerStream`, which opens its backend on the first pull of a `Stream` call and tears it down when that call ends; `Close` is therefore a no-op that stays safe to call. The `LedgerSource` interface they implement is unchanged and remains part of the stable surface.
 - **`pkg/runtime`** — the execution engine is a stub. Expect `Runtime` to grow methods, fields, hooks, and configuration.
 - **`pkg/registry` (Go API)** — the `registry.yaml` protocol is stable; the Go parser that reads it isn't. Import `pkg/registry` at your own risk.
 - **`cmd/nebu` human-readable output** — tables, headings, column order, colour, and wording in the default (non-JSON) output are a product UI, not a contract. They can be reshaped at any time. Scripts must use the machine-readable output instead.
 - **`examples/processors/*`** — reference implementations, not API. They exist to show contributors what good processors look like.
+- **`pkg/processor/ledgerread`** — helpers that iterate a ledger's transactions and changes. Useful and tested, but not frozen: it is a subpackage precisely so that importing the processor interfaces does not drag in the SDK's ingest and cloud-storage dependencies, and its shape may still change. `pkg/processor` itself is unaffected.
 - **`pkg/errors`, `pkg/metrics`, `pkg/toid`, `pkg/version`** — internal utilities. Not intended for external use.
 
 ## Deprecation process
