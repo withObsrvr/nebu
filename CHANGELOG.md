@@ -6,6 +6,10 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Cancelling `nebu fetch` early left its status stream claiming the run was still live.** The signal handler force-exits with `os.Exit(130)` two seconds after cancelling, and `os.Exit` runs no deferred code — so the terminal record written on the normal finish path never happened. A fetch interrupted before its first RPC response exited 130 with `working`/`running` as the last word on its `nebu.status.v1` stream, and anything following that stream showed the run as live forever. Reproduced across the window: cancelling at 0.3s, 1s and 2s produced no terminal record; 3s and later did. Cancellation is now reported the moment the signal arrives, before any force-exit timer can fire, and the finish path no longer writes a second terminal record after it. The origin, transform and sink CLIs already did this correctly; `nebu fetch` was the outlier.
+
 ## v0.7.0
 
 ### Added

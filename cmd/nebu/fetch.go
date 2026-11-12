@@ -259,6 +259,14 @@ Archive Mode Examples:
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				<-sigCh
+
+				// Report cancellation before anything else. The forced
+				// exit below runs no deferred code, so a run that cannot
+				// stop promptly — a fetch still waiting on its first RPC
+				// response, most often — would otherwise leave "working"
+				// as the last word on its status stream while exiting 130.
+				cancelStatusStream()
+
 				logInfo("\nShutting down...")
 				cancel()
 

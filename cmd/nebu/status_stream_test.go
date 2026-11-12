@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
@@ -129,4 +131,135 @@ func readStatusRecords(t *testing.T, path string) []status.Record {
 	}
 	require.NoError(t, scanner.Err())
 	return records
+}
+
+// resetStatusStream restores the package-level status handles so these tests
+// do not leak state into each other.
+func resetStatusStream(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		statusFileHandle = nil
+		statusWriter = nil
+		statusCanceled = false
+	})
+	statusFileHandle = nil
+	statusWriter = nil
+	statusCanceled = false
+}
+
+func TestCancelStatusStreamWritesTheTerminalRecordBeforeAnyForcedExit(t *testing.T) {
+	// The regression: a command that cannot stop promptly is force-exited
+	// with os.Exit, which runs no deferred code, so the terminal record
+	// written on the normal finish path never happened. The stream's last
+	// word stayed "working" while the process exited 130, and anything
+	// following it showed the run as still live.
+	resetStatusStream(t)
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	cancelStatusStream()
+
+	records := readStatusRecords(t, path)
+	require.Len(t, records, 1, "cancellation must be reported without waiting for the finish path")
+	assert.Equal(t, programstatus.Idle, records[0].State)
+}
+
+func TestFinishStatusStreamDoesNotAddASecondTerminalRecord(t *testing.T) {
+	// The stream's contract is one terminal record. When the command does
+	// unwind after the signal, the finish path must not write another.
+	resetStatusStream(t)
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	cancelStatusStream()
+	require.ErrorIs(t, finishStatusStream(context.Canceled), context.Canceled)
+
+	records := readStatusRecords(t, path)
+	require.Len(t, records, 1)
+	assert.Equal(t, programstatus.Idle, records[0].State)
+}
+
+func TestCancelStatusStreamIsIdempotent(t *testing.T) {
+	resetStatusStream(t)
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	cancelStatusStream()
+	cancelStatusStream()
+	cancelStatusStream()
+
+	assert.Len(t, readStatusRecords(t, path), 1)
+}
+
+func TestFinishStatusStreamStillReportsSuccessAndFailure(t *testing.T) {
+	tests := []struct {
+		name       string
+		commandErr error
+		wantState  programstatus.State
+	}{
+		{name: "success", wantState: programstatus.Done},
+		{name: "failure", commandErr: errors.New("boom"), wantState: programstatus.Error},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetStatusStream(t)
+			path := filepath.Join(t.TempDir(), "status.ndjson")
+			file, err := os.Create(path)
+			require.NoError(t, err)
+			statusFileHandle = file
+			statusWriter = status.NewWriter(file, "nebu")
+
+			_ = finishStatusStream(tt.commandErr)
+
+			records := readStatusRecords(t, path)
+			require.Len(t, records, 1)
+			assert.Equal(t, tt.wantState, records[0].State)
+		})
+	}
+}
+
+func TestStatusStreamWritesAreSafeUnderConcurrentCancellation(t *testing.T) {
+	// A signal handler reports cancellation from its own goroutine while
+	// the command is still emitting progress from the main one, so these
+	// writes genuinely overlap. Run under -race.
+	resetStatusStream(t)
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := range 200 {
+			_ = writeStructuredProgress(uint32(700+i), 900)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		cancelStatusStream()
+	}()
+	wg.Wait()
+
+	require.NoError(t, closeStatusStream())
+
+	terminal := 0
+	for _, record := range readStatusRecords(t, path) {
+		if record.State == programstatus.Idle {
+			terminal++
+		}
+	}
+	assert.Equal(t, 1, terminal, "exactly one terminal record, however the writes interleave")
 }

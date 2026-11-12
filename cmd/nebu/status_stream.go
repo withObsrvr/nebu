@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/withObsrvr/nebu/pkg/programstatus"
@@ -12,9 +13,21 @@ import (
 )
 
 var (
-	statusFilePath   string
+	statusFilePath string
+
+	// statusMu guards the writer handles below. A signal handler reports
+	// cancellation from its own goroutine while the command is still
+	// emitting progress from the main one, so these are touched
+	// concurrently. status.Writer serialises its own writes; what needs
+	// guarding is the handles being swapped for nil on close.
+	statusMu         sync.Mutex
 	statusFileHandle *os.File
 	statusWriter     *status.Writer
+
+	// statusCanceled records that the terminal cancellation record has
+	// already been written, so the normal finish path does not write a
+	// second terminal record after it.
+	statusCanceled bool
 )
 
 func statusFileDefault() string {
@@ -59,6 +72,12 @@ func openStatusStream(cmd *cobra.Command) error {
 }
 
 func closeStatusStream() error {
+	statusMu.Lock()
+	defer statusMu.Unlock()
+	return closeStatusStreamLocked()
+}
+
+func closeStatusStreamLocked() error {
 	if statusFileHandle == nil {
 		return nil
 	}
@@ -69,6 +88,12 @@ func closeStatusStream() error {
 }
 
 func writeStructuredStatus(state programstatus.State, message string) error {
+	statusMu.Lock()
+	defer statusMu.Unlock()
+	return writeStructuredStatusLocked(state, message)
+}
+
+func writeStructuredStatusLocked(state programstatus.State, message string) error {
 	if statusWriter == nil {
 		return nil
 	}
@@ -76,6 +101,9 @@ func writeStructuredStatus(state programstatus.State, message string) error {
 }
 
 func writeStructuredProgress(current, target uint32) error {
+	statusMu.Lock()
+	defer statusMu.Unlock()
+
 	if statusWriter == nil {
 		return nil
 	}
@@ -90,8 +118,43 @@ func writeStructuredProgress(current, target uint32) error {
 	return statusWriter.Write(record)
 }
 
+// cancelStatusStream writes the terminal cancellation record as soon as the
+// signal arrives, rather than waiting for the command to unwind.
+//
+// A command that cannot stop promptly is force-exited with os.Exit, and
+// os.Exit runs no deferred code — so the terminal record written on the normal
+// finish path never happens. The stream's last word stays "working" while the
+// process exits 130, and anything following the stream shows that run as still
+// live, forever. Reporting here means the record is already on disk before any
+// force-exit timer can fire.
+//
+// Safe to call more than once; only the first call writes. The stream is left
+// open so progress already in flight on the main goroutine can still land, and
+// so the normal finish path still owns closing it.
+func cancelStatusStream() {
+	statusMu.Lock()
+	if statusCanceled {
+		statusMu.Unlock()
+		return
+	}
+	statusCanceled = true
+	err := writeStructuredStatusLocked(programstatus.Idle, "Command canceled")
+	statusMu.Unlock()
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "write cancellation status:", err)
+	}
+	writeProgramStatus(programstatus.Idle, "Command canceled")
+}
+
 func finishStatusStream(commandErr error) error {
-	if statusWriter != nil {
+	statusMu.Lock()
+	defer statusMu.Unlock()
+
+	// cancelStatusStream already wrote the terminal record. Writing another
+	// would put a second terminal state on a stream whose contract says
+	// there is one.
+	if statusWriter != nil && !statusCanceled {
 		state := programstatus.Done
 		message := "Command finished"
 		if errors.Is(commandErr, context.Canceled) {
@@ -101,11 +164,11 @@ func finishStatusStream(commandErr error) error {
 			state = programstatus.Error
 			message = commandErr.Error()
 		}
-		if err := writeStructuredStatus(state, message); err != nil {
+		if err := writeStructuredStatusLocked(state, message); err != nil {
 			commandErr = errors.Join(commandErr, fmt.Errorf("write final status: %w", err))
 		}
 	}
-	if err := closeStatusStream(); err != nil {
+	if err := closeStatusStreamLocked(); err != nil {
 		commandErr = errors.Join(commandErr, fmt.Errorf("close status file: %w", err))
 	}
 	return commandErr
