@@ -1,14 +1,31 @@
 #!/usr/bin/env python3
-"""Verify the SAMPLE_EVENT block on the landing page matches real output.
+"""Verify every documented token-transfer sample matches real output.
 
-The documented sample drifted from reality once already: it advertised four
-fewer fields than token-transfer actually emits, including the
+The landing page's sample drifted from reality once already: it advertised
+four fewer fields than token-transfer actually emits, including the
 transactionIndex/operationIndex pair a reader needs in order to believe nebu
 gives them a resumable cursor. docs-smoke verified the CLI *commands* but
 never the sample JSON, so nothing caught it.
 
-Reads a token-transfer event from stdin and compares the sample in
-docs/index.html against it on three axes:
+Checking only the landing page then let the same drift happen everywhere else.
+By the v0.7.2 release the README and docs/PIPELINE.md were each missing
+network, meta.operationIndex and meta.inSuccessfulTx, and docs/quickstart.html
+— the page a new reader actually lands on — was missing seven fields
+including the whole resumable-cursor pair. The landing page was the only
+sample that was right, because it was the only one being checked. So this
+checks all of them.
+
+Samples come in two kinds, declared in SAMPLES:
+
+  complete   The sample is a claim about the full envelope, so a field the
+             product emits and the sample omits is an undersell and fails.
+             The landing page is this: it is the shop window.
+  excerpt    The sample is deliberately trimmed for brevity, so omissions are
+             fine — but every field it *does* show must exist and be correctly
+             typed. An excerpt may be incomplete; it may not be wrong.
+
+Reads a token-transfer event from stdin and compares each sample against it on
+three axes:
 
   names  Fails in both directions. A documented field that does not exist is
          a lie; an emitted field that is not documented is an undersell.
@@ -79,20 +96,115 @@ def json_type(value):
     return type(value).__name__
 
 
-def documented_sample():
-    page = (ROOT / "docs" / "index.html").read_text()
-    index = page.find("SAMPLE_EVENT")
-    if index == -1:
-        sys.exit("docs/index.html: no SAMPLE_EVENT section found")
-    match = re.search(r"<(pre|code)[^>]*>(.*?)</\1>", page[index:index + 4000], re.S)
-    if not match:
-        sys.exit("docs/index.html: no code block after SAMPLE_EVENT")
-    text = html.unescape(re.sub(r"<[^>]+>", "", match.group(2)))
-    body = text.split("// teal")[0].strip()
-    try:
-        return json.loads(body)
-    except json.JSONDecodeError as err:
-        sys.exit(f"documented SAMPLE_EVENT is not valid JSON: {err}\n{body}")
+# Every place a token-transfer event is documented, and whether the sample
+# claims to be the whole envelope. Add a row when a new page documents one;
+# the point of this list is that forgetting to is what caused the drift.
+SAMPLES = [
+    ("docs/index.html", "complete"),
+    # Was an elided sketch with a literal "..." inside the JSON, so it could
+    # never be parsed or checked — and it hid the transactionIndex/operationIndex
+    # pair, on the page a new reader lands on first.
+    ("docs/quickstart.html", "complete"),
+    ("README.md", "complete"),
+    ("docs/PIPELINE.md", "complete"),
+]
+
+SCHEMA_ID = "nebu.token_transfer.v1"
+
+
+def extract_sample(relative_path):
+    """Return the documented token-transfer event in relative_path.
+
+    Handles both HTML (tags stripped, entities unescaped) and Markdown fenced
+    blocks, because the samples live in both and a reader does not care which.
+    """
+    path = ROOT / relative_path
+    if not path.exists():
+        sys.exit(f"{relative_path}: no such file")
+    page = path.read_text()
+
+    if path.suffix == ".html":
+        blocks = [
+            html.unescape(re.sub(r"<[^>]+>", "", match.group(2)))
+            for match in re.finditer(r"<(pre|code)[^>]*>(.*?)</\1>", page, re.S)
+        ]
+    else:
+        # Walk the fences rather than regexing them: a lazy pattern happily
+        # pairs one block's closing fence with another's opening one and
+        # returns the prose in between.
+        blocks, current = [], None
+        for line in page.splitlines():
+            if line.startswith("```"):
+                if current is None:
+                    current = []
+                else:
+                    blocks.append("\n".join(current))
+                    current = None
+                continue
+            if current is not None:
+                current.append(line)
+
+    for block in blocks:
+        if SCHEMA_ID not in block:
+            continue
+        # Trailing annotations after the JSON (the landing page labels colours
+        # in a comment) are not part of the document.
+        body = block.split("// teal")[0].strip()
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError as err:
+            sys.exit(f"{relative_path}: documented sample is not valid JSON: {err}\n{body}")
+
+    sys.exit(f"{relative_path}: no code block containing {SCHEMA_ID}")
+
+
+def check_sample(relative_path, kind, actual, emitted_leaves):
+    """Compare one documented sample against real output.
+
+    Returns a list of problem lines; empty means the sample is honest.
+    """
+    sample = extract_sample(relative_path)
+    documented_leaves = dict(leaves(sample))
+    documented = set(documented_leaves)
+    emitted = set(emitted_leaves)
+
+    problems = []
+
+    # A documented field that does not exist is a lie, whichever kind of
+    # sample it is.
+    for field in sorted(f for f in documented - emitted if f not in PENDING_REBUILD):
+        problems.append(f"  - documents {field}, which is not emitted")
+
+    # An omission only matters for a sample that claims to be complete. An
+    # excerpt is allowed to be short; it is not allowed to be wrong.
+    if kind == "complete":
+        for field in sorted(emitted - documented):
+            problems.append(f"  + omits {field}, which is emitted")
+
+    for path in sorted(documented & emitted):
+        documented_type = json_type(documented_leaves[path])
+        actual_type = json_type(emitted_leaves[path])
+        if documented_type != actual_type:
+            problems.append(
+                f"  ~ {path}: documented as {documented_type}, emitted as {actual_type}"
+            )
+
+    if "_schema" in documented & emitted and documented_leaves["_schema"] != emitted_leaves["_schema"]:
+        problems.append(
+            f'  ! _schema is a contract identifier and must match exactly: '
+            f'documented {documented_leaves["_schema"]!r}, emitted {emitted_leaves["_schema"]!r}'
+        )
+    version_value = documented_leaves.get("_nebu_version")
+    if version_value is not None and not VERSION_RE.match(str(version_value)):
+        problems.append(
+            f'  ! _nebu_version {version_value!r} is not version-shaped; use a real '
+            f'released version, not a guess at the next one'
+        )
+    for path, ok in PENDING_SHAPE.items():
+        if path in documented_leaves and not ok(documented_leaves[path]):
+            problems.append(f"  ! {path} has an implausible documented value: {documented_leaves[path]!r}")
+
+    return problems, documented
 
 
 def main():
@@ -107,64 +219,31 @@ def main():
             f"{sorted(k for k in actual if not k.startswith('_') and k != 'meta')}"
         )
 
-    sample = documented_sample()
-    documented_leaves = dict(leaves(sample))
     emitted_leaves = dict(leaves(actual))
-    documented = set(documented_leaves)
-    emitted = set(emitted_leaves)
 
-    missing = sorted(f for f in documented - emitted if f not in PENDING_REBUILD)
-    undocumented = sorted(emitted - documented)
+    failed = False
+    pending_seen = set()
+    for relative_path, kind in SAMPLES:
+        problems, documented = check_sample(relative_path, kind, actual, emitted_leaves)
+        pending_seen |= documented & PENDING_REBUILD
+        if problems:
+            failed = True
+            print(f"{relative_path} ({kind}) does not match token-transfer output:", file=sys.stderr)
+            for problem in problems:
+                print(problem, file=sys.stderr)
 
-    wrong_type = [
-        (path, json_type(documented_leaves[path]), json_type(emitted_leaves[path]))
-        for path in sorted(documented & emitted)
-        if json_type(documented_leaves[path]) != json_type(emitted_leaves[path])
-    ]
-
-    wrong_value = []
-    if "_schema" in documented & emitted and documented_leaves["_schema"] != emitted_leaves["_schema"]:
-        wrong_value.append(
-            f'_schema is a contract identifier and must match exactly: '
-            f'documented {documented_leaves["_schema"]!r}, emitted {emitted_leaves["_schema"]!r}'
-        )
-    version_value = documented_leaves.get("_nebu_version")
-    if version_value is not None and not VERSION_RE.match(str(version_value)):
-        wrong_value.append(
-            f'_nebu_version {version_value!r} is not version-shaped; use a real '
-            f'released version, not a guess at the next one'
-        )
-    for path, ok in PENDING_SHAPE.items():
-        if path in documented_leaves and not ok(documented_leaves[path]):
-            wrong_value.append(f"{path} has an implausible documented value: {documented_leaves[path]!r}")
-
-    if missing:
-        print("SAMPLE_EVENT documents fields that are not emitted:", file=sys.stderr)
-        for field in missing:
-            print(f"  - {field}", file=sys.stderr)
-    if undocumented:
-        print("token-transfer emits fields the SAMPLE_EVENT omits:", file=sys.stderr)
-        for field in undocumented:
-            print(f"  + {field}", file=sys.stderr)
-
-    if wrong_type:
-        print("SAMPLE_EVENT documents the wrong JSON type:", file=sys.stderr)
-        for path, documented_type, actual_type in wrong_type:
-            print(f"  ~ {path}: documented as {documented_type}, emitted as {actual_type}", file=sys.stderr)
-    for problem in wrong_value:
-        print(f"  ! {problem}", file=sys.stderr)
-
-    if missing or undocumented or wrong_type or wrong_value:
+    if failed:
         print(
-            "\nUpdate the SAMPLE_EVENT block in docs/index.html so the shop "
-            "window matches the product.",
+            "\nUpdate the documented samples so the shop window matches the "
+            "product. A sample listed as 'complete' must show every field; an "
+            "'excerpt' may show fewer, but every field it shows must be real "
+            "and correctly typed.",
             file=sys.stderr,
         )
         return 1
 
-    pending = sorted(documented & PENDING_REBUILD)
-    note = f" ({', '.join(pending)} pending registry rebuild)" if pending else ""
-    print(f"SAMPLE_EVENT matches token-transfer output{note}")
+    note = f" ({', '.join(sorted(pending_seen))} pending registry rebuild)" if pending_seen else ""
+    print(f"{len(SAMPLES)} documented samples match token-transfer output{note}")
     return 0
 
 

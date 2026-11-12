@@ -96,13 +96,16 @@ Token-transfer events are newline-delimited JSON. A transfer event looks like:
 ```json
 {
   "_schema": "nebu.token_transfer.v1",
-  "_nebu_version": "v0.6.15",
+  "_nebu_version": "v0.7.2",
+  "network": "pubnet",
   "meta": {
-    "ledgerSequence": 60200000,
-    "closedAtUnix": "1765158311",
+    "ledgerSequence": 65430000,
+    "closedAtUnix": "1794436042",
     "txHash": "abc123...",
     "transactionIndex": 1,
-    "contractAddress": "CABC..."
+    "operationIndex": 0,
+    "contractAddress": "CABC...",
+    "inSuccessfulTx": true
   },
   "transfer": {
     "from": "GABC...",

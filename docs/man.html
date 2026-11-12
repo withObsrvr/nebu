@@ -272,6 +272,38 @@ $ token-transfer --start-ledger 60200000</pre>
         <span>Ending ledger sequence (inclusive). Omit it for unbounded streaming.</span>
       </div>
       <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">-f, --follow</span>
+        <span>Stream ledgers continuously from <span class="font-bold">--start-ledger</span>, equivalent to an end ledger of 0.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--output &lt;path&gt;</span>
+        <span>Write raw XDR to a file instead of stdout. An output <span class="font-bold">destination</span>, not a format.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--rpc-header &lt;h&gt;</span>
+        <span>Extra HTTP header for RPC, as <span class="font-bold">'Key: Value'</span>. Repeatable.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--on-ledger-error &lt;m&gt;</span>
+        <span>What a ledger that cannot be processed completely means for the run: <span class="font-bold">best-effort</span> continues and reports coverage, <span class="font-bold">strict</span> stops and exits 8. Default: <span class="font-bold">best-effort</span>. Accepted by every origin processor; overrides <span class="font-bold">NEBU_ON_LEDGER_ERROR</span>.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--buffer-size N</span>
+        <span>Ledgers buffered in archive mode. <span class="font-bold">0</span>, the default, tunes it from the datastore layout.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--num-workers N</span>
+        <span>Parallel archive fetch workers. <span class="font-bold">0</span>, the default, tunes it from the datastore layout.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--ledgers-per-file N</span>
+        <span>Override the archive's ledgers-per-file layout. <span class="font-bold">0</span>, the default, reads it from the datastore manifest; set it for a bucket with no manifest, or to have your value checked against one.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--files-per-partition N</span>
+        <span>Override the archive's files-per-partition layout, on the same terms as <span class="font-bold">--ledgers-per-file</span>.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
         <span class="font-bold text-secondary w-44 shrink-0">--quiet</span>
         <span>Suppress informational output. Only NDJSON events on stdout.</span>
       </div>
@@ -339,6 +371,7 @@ $ token-transfer --start-ledger 60200000</pre>
       <p><span class="font-bold">2</span> — invalid usage or configuration.</p>
       <p><span class="font-bold">3</span> — requested processor or ledger range was not found or is ambiguous.</p>
       <p><span class="font-bold">4</span> — RPC or archive source is unavailable.</p>
+      <p><span class="font-bold">8</span> — ran, but the output is incomplete: a ledger could not be processed completely and <span class="font-bold">--on-ledger-error strict</span> is in effect. Distinct from 4 on purpose — 4 is worth retrying, 8 will fail the same way.</p>
       <p><span class="font-bold">130</span> — interrupted by <span class="font-bold">SIGINT</span> / Ctrl+C.</p>
     </div>
   </section>
@@ -481,7 +514,7 @@ $ token-transfer --start-ledger 60200000</pre>
 
 <!-- Fixed footer -->
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.15</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.2</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
