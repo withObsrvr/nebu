@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.1
+
 ### Added
 
 - **Every `nebu.status.v1` record carries a `run_id`**, and a `component_id` when something upstream knows one. `app` names the program; neither named the run, so a consumer following several streams could not tell two concurrent runs of the same processor apart, and could not tell that the stages of `nebu fetch | token-transfer | postgres-sink` belonged to one pipeline — each emitted a well-formed, complete, entirely unrelatable stream. Closes the one CLI-12 clause [ADR 0003](docs/adr/0003-exception-cli-12-operation-lifecycle.md) recorded as a plain gap rather than an exception; decided in [ADR 0005](docs/adr/0005-status-stream-carries-the-run-id.md).
@@ -14,7 +16,7 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Cancelling `nebu fetch` early left its status stream claiming the run was still live.** The signal handler force-exits with `os.Exit(130)` two seconds after cancelling, and `os.Exit` runs no deferred code — so the terminal record written on the normal finish path never happened. A fetch interrupted before its first RPC response exited 130 with `working`/`running` as the last word on its `nebu.status.v1` stream, and anything following that stream showed the run as live forever. Reproduced across the window: cancelling at 0.3s, 1s and 2s produced no terminal record; 3s and later did. Cancellation is now reported the moment the signal arrives, before any force-exit timer can fire, and the finish path no longer writes a second terminal record after it. The origin, transform and sink CLIs already did this correctly; `nebu fetch` was the outlier.
+- **Cancelling `nebu fetch` early left its status stream claiming the run was still live.** The signal handler force-exits with `os.Exit(130)` two seconds after cancelling, and `os.Exit` runs no deferred code — so the terminal record written on the normal finish path never happened. A fetch interrupted before its first RPC response exited 130 with `working`/`running` as the last word on its `nebu.status.v1` stream, and anything following that stream showed the run as live forever. Reproduced across the window: cancelling at 0.3s, 1s and 2s produced no terminal record; 3s and later did. Cancellation is now reported the moment the signal arrives, before any force-exit timer can fire, and the record is terminal: every later write is dropped, including progress the fetch loop was already about to emit between its context check and its next status write. A consumer can rely on reading nothing after it. The origin, transform and sink CLIs already reported cancellation immediately; `nebu fetch` was the outlier.
 
 ## v0.7.0
 
