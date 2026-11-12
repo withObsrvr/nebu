@@ -11,6 +11,7 @@ DuckDB can read JSON directly from stdin using `read_json('/dev/stdin')`, making
 ## Table of Contents
 
 - [Basic Ingestion](#basic-ingestion)
+- [If you are running these from an AI agent](#if-you-are-running-these-from-an-ai-agent)
 - [Getting the numbers right](#getting-the-numbers-right)
 - [Ad-Hoc Analytics](#ad-hoc-analytics-no-persistence)
 - [Transform on Ingestion](#transform-on-ingestion)
@@ -49,6 +50,33 @@ duckdb events.db -c "
   GROUP BY event_type
 "
 ```
+
+## If you are running these from an AI agent
+
+DuckDB 2.0.0 enables an "agent mode" when `AI_AGENT` or `CLAUDECODE` is set
+and stdout is not a terminal. Its documented effects are presentational —
+markdown tables, row caps, JSON errors on stderr — but it also collapses
+`read_json`'s inferred schema to a single `json` column, so a recipe below
+fails with a binder error that names a column you can see in the data:
+
+```
+Referenced column "contractId" not found in FROM clause!
+Candidate bindings: "json"
+```
+
+Turn it off and the schema comes back:
+
+```bash
+export DUCKDB_AGENT_MODE=0     # or pass -no-agent per invocation
+```
+
+`just docs-smoke` and the nix dev shell already pin it off, so the repo's own
+checks mean the same thing whichever way they are run. DuckDB 1.x is
+unaffected and ignores the variable.
+
+Double-quoted paths — `read_json("/dev/stdin")` — also now raise a
+deprecation warning in 2.0.0. Single quotes are the string literal; double
+quotes are an identifier. Every recipe here uses single quotes.
 
 ## Getting the numbers right
 
