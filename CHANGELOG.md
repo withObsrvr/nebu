@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.0
+
 ### Added
 
 - **`--on-ledger-error best-effort|strict`** (`NEBU_ON_LEDGER_ERROR`) on every origin processor, and `runtime.Policy` behind it. "Streams never throw" settles who *reports* a problem; it never settled whether a run that hit problems produced usable output. Three bad ledgers in ten million is noise for an exploratory query and disqualifying for a reconciliation dataset, and the processor author cannot know which one the operator is doing — so that decision now belongs to the invocation. `best-effort` is the default and is exactly the previous behavior.
@@ -29,6 +31,7 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 - **Upgraded `github.com/klauspost/compress` v1.18.5 → v1.20.2** in nebu and the hooks example, clearing GO-2026-6865 (panic on two-block frames), the one vulnerability `govulncheck` reported as reachable from nebu's own code. It arrives indirectly through the SDK's `xdr` package, which uses zstd. Both modules now report no reachable vulnerabilities.
+- **Pinned the Go toolchain to 1.26.11** for GO-2026-6859, a `net/http` vulnerability in the standard library reachable from `pkg/registry`, `pkg/programstatus` and `pkg/errors`. Binaries built from this release are not affected; anyone building nebu themselves gets the fixed toolchain from the `toolchain` directive.
 
 - `just build-processors` installed the registry's processors with `@latest`, which is not a version. Go resolves `@latest` against the pseudo-version list in the local module cache, so a machine with a warm cache kept installing **pre-Protocol-30 processors** after the registry had been upgraded — silently, with no error, producing binaries that cannot decode a Protocol 30 ledger. The registry version is now pinned in one place in the justfile and echoed on every build, so the command is reproducible (P-6, BUILD-2) and you can see which registry build you have. `@latest` was also plainly against P-4: "'Latest' is never a contract."
 - The sample-event check no longer excuses the `network` field. The registry now builds against nebu v0.6.17 and emits it, so it is enforced in both directions like any other field.
