@@ -409,6 +409,68 @@ go build -o ./bin/my-origin ./cmd/my-origin
 ./bin/my-origin --describe-json | jq .
 ```
 
+### Reading a ledger
+
+Do not hand-roll the read loop. Use `pkg/processor/ledgerread`:
+
+```go
+import "github.com/withObsrvr/nebu/pkg/processor/ledgerread"
+
+func (o *Origin) ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) {
+    for tx := range ledgerread.Transactions(ctx, o.Name(), o.passphrase, ledger) {
+        // emit whatever this transaction produces
+    }
+}
+```
+
+`Transactions` opens the reader, closes it on every exit path including an
+early `break`, honours `ctx` cancellation, and reports read failures through
+the reporter for you. `Changes` does the same for ledger-entry changes.
+
+**The reason this is a helper and not an example to copy** is one line that is
+easy to get wrong:
+
+```go
+// Wrong. Do not do this.
+for {
+    tx, err := reader.Read()
+    if err != nil {
+        break // "end of transactions"
+    }
+    ...
+}
+```
+
+The SDK reader returns `io.EOF` at the end of a ledger *and* an error when a
+transaction cannot be read. Treating the second as the first ends the ledger
+early and reports nothing, so the run looks clean while the output is short.
+
+#### Pick the right one
+
+`Transactions` **skips** an unreadable transaction and carries on. That is
+correct when each transaction is emitted on its own — losing one transaction
+is a far smaller hole than losing every transaction after it, and the skip is
+reported either way.
+
+It is the wrong choice when the transactions become something you look up
+later:
+
+```go
+// A hash -> success map is consulted by key, and a miss resolves to a zero
+// value or a default. A skipped transaction is invisible at that lookup, so a
+// partial read would not drop events — it would mislabel them.
+transactions, ok := ledgerread.AllTransactions(ctx, o.Name(), o.passphrase, ledger)
+if !ok {
+    return // already reported; an incomplete index is worse than none
+}
+```
+
+`AllTransactions` reports whether it reached the end of the ledger, so you can
+decline a partial read rather than quietly building an index with holes in it.
+Reach for it whenever a miss in your data structure resolves to something
+other than "absent" — including a last-write-wins map, where skipping the last
+write emits the *earlier* value as though it were current.
+
 ### Real examples
 
 - [`token-transfer`](https://github.com/withObsrvr/nebu-processor-registry/tree/main/processors/token-transfer)

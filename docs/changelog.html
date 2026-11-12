@@ -131,7 +131,12 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#v0-6-15">#v0.6.15</a>
+        <a class="text-tertiary hover:underline" href="#v0-7-2">#v0.7.2</a>
+<a class="text-tertiary hover:underline" href="#v0-7-1">#v0.7.1</a>
+<a class="text-tertiary hover:underline" href="#v0-7-0">#v0.7.0</a>
+<a class="text-tertiary hover:underline" href="#v0-6-17">#v0.6.17</a>
+<a class="text-tertiary hover:underline" href="#v0-6-16">#v0.6.16</a>
+<a class="text-tertiary hover:underline" href="#v0-6-15">#v0.6.15</a>
         <a class="text-tertiary hover:underline" href="#v0-6-14">#v0.6.14</a>
         <a class="text-tertiary hover:underline" href="#v0-6-13">#v0.6.13</a>
         <a class="text-tertiary hover:underline" href="#v0-6-12">#v0.6.12</a>
@@ -150,11 +155,74 @@
       </div>
     </nav>
 
+    <!-- v0.7.2 -->
+    <section id="v0-7-2" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.2</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.2" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Index-shaped reads:</strong> <code class="text-on-surface">ledgerread.AllTransactions</code> reads a ledger's transactions and reports whether it reached the end. <code class="text-on-surface">Transactions</code> skips an unreadable transaction and carries on, which is right when each transaction is emitted on its own and wrong when they become an index something later consults by key: the skip is invisible at lookup time, and a missing key resolves to a default, so a partial read produces confidently mislabelled output rather than merely short output.</li>
+      </ul>
+    </section>
+
+    <!-- v0.7.1 -->
+    <section id="v0-7-1" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.1</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.1" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Runs have an identity:</strong> every <code class="text-on-surface">nebu.status.v1</code> record carries a <code class="text-on-surface">run_id</code>, and a <code class="text-on-surface">component_id</code> when something upstream knows one. Adopted from <code class="text-on-surface">FLOWCTL_RUN_ID</code> and <code class="text-on-surface">NEBU_RUN_ID</code>, so a processor's stream correlates with the flowctl run that started it, and minted as a UUIDv4 only when nothing supplies one.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Cancellation always reported:</strong> cancelling <code class="text-on-surface">nebu fetch</code> before its first RPC response left <code class="text-on-surface">working</code> as the last word on its status stream while the process exited 130, so anything following it saw the run as live forever. The forced exit skips deferred code, so cancellation is now reported when the signal arrives — and the terminal record is terminal, with progress no longer able to land after it.</li>
+      </ul>
+    </section>
+
+    <!-- v0.7.0 -->
+    <section id="v0-7-0" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.0</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.0" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Dataset completeness is explicit:</strong> <code class="text-on-surface">--on-ledger-error best-effort|strict</code> on every origin processor. "Streams never throw" settled who reports a per-ledger problem; it never settled whether the output was a whole dataset, and the processor author cannot know which the operator needs. <code class="text-on-surface">strict</code> stops at the first incomplete ledger and exits <code class="text-on-surface">8</code>, a new code meaning "ran, but the output is incomplete" — deliberately distinct from <code class="text-on-surface">4</code>, since 4 is worth retrying and 8 will fail the same way.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Coverage accounting:</strong> <code class="text-on-surface">runtime.PipelineSummary</code> now carries ledgers processed, how many were incomplete, and the first such sequence. A warning count cannot answer whether a dataset is whole; this can.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Shared ledger reading:</strong> <code class="text-on-surface">pkg/processor/ledgerread</code> iterates a ledger's transactions and changes, reporting read failures through the context's reporter. Every origin needs that loop and it has one failure mode that is easy to get wrong: treating a mid-ledger decode failure as end-of-ledger truncates the ledger and emits no warning, so the run looks clean.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Archive mode reads the bucket:</strong> <code class="text-on-surface">nebu fetch --mode archive</code> takes the datastore layout, and its buffer tuning, from the manifest in the bucket instead of asserting a hardcoded one; <code class="text-on-surface">--ledgers-per-file</code> and <code class="text-on-surface">--files-per-partition</code> cover a bucket with no manifest, or have a layout you supply checked against one.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Sources on the SDK stream:</strong> both ledger sources stream through the SDK's <code class="text-on-surface">ledgerbackend.LedgerStream</code> instead of each carrying its own prepare-and-read loop. <code class="text-on-surface">source.LedgerSource</code> is unchanged; <code class="text-on-surface">Close</code> is now a no-op because the stream owns its backend's lifetime.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Fixed:</strong> processors reading from stdin ran with no error reporter attached, so warnings were invisible and unhookable in exactly the mode Unix composition uses. All three origin CLI variants now attach one.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.17 -->
+    <section id="v0-6-17" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.17</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.17" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Events say which network they came from:</strong> event envelopes carry a <code class="text-on-surface">network</code> field, derived from the ledger rather than from <code class="text-on-surface">--network</code> — a transaction's hash commits to the network passphrase, so the network can be identified conclusively with no network access.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Millisecond close times:</strong> <code class="text-on-surface">processor.LedgerCloseTimeMs</code> returns a ledger's close time in milliseconds. Protocol 30's CAP-88 puts the value in two arms of the <code class="text-on-surface">StellarValueExt</code> union, and code that reads only the obvious one silently falls back to second resolution on every empty Protocol 30 ledger.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Protocol 30:</strong> upgraded <code class="text-on-surface">go-stellar-sdk</code> to <code class="text-on-surface">v0.8.0</code>. An SDK without the new union arms cannot decode any Protocol 30 ledger.</li>
+      </ul>
+    </section>
+
+    <!-- v0.6.16 -->
+    <section id="v0-6-16" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.6.16</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.16" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> Documentation and release-process corrections following <code class="text-on-surface">v0.6.15</code>, with no behaviour changes to the CLI or the processor contract.</li>
+      </ul>
+    </section>
+
     <!-- v0.6.15 -->
     <section id="v0-6-15" class="mb-12">
       <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
         <h2 class="text-2xl font-bold text-on-surface">## v0.6.15</h2>
-        <span class="text-[0.6875rem] uppercase text-tertiary tracking-widest">[ RELEASE CANDIDATE ]</span>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.6.15" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
       </div>
       <ul class="space-y-3 text-secondary text-sm leading-relaxed">
         <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Correct fetches:</strong> bounded ranges fail when truncated, interruptions return 130, and documented stable exit codes distinguish usage, range, lookup, and source failures.</li>
@@ -559,7 +627,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.6.15</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.2</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

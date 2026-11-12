@@ -23,7 +23,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Release being prepared:** `v0.6.15` (the current published release remains [v0.6.14](https://github.com/withObsrvr/nebu/releases/tag/v0.6.14) until this documentation PR is merged and tagged)
+- **Current release:** [v0.7.2](https://github.com/withObsrvr/nebu/releases/tag/v0.7.2)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **CLI exit codes:** [docs/EXIT_CODES.md](./docs/EXIT_CODES.md)
 - **Checkpoint and resume:** [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md)
@@ -79,7 +79,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.6.15","meta":{"ledgerSequence":60200000,"closedAtUnix":"1765158311","txHash":"abc...","transactionIndex":1,"contractAddress":"CA..."},"transfer":{"from":"GA...","to":"GB...","assetCode":"USDC","assetIssuer":"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN","amount":"1000000"}}
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.7.2","network":"pubnet","meta":{"ledgerSequence":65430000,"closedAtUnix":"1794436042","txHash":"165fee89...","transactionIndex":1,"operationIndex":0,"contractAddress":"CAS3J7GY...","inSuccessfulTx":true},"transfer":{"from":"GA3HLUKH...","to":"CC3TDKJD...","assetCode":"USDC","assetIssuer":"GAGVZMOD...","amount":"95667990"}}
 ```
 
 **Next steps - Build pipelines:**
@@ -670,6 +670,39 @@ Data remains on stdout, diagnostics and OSC reports remain on stderr, and
 `nebu.status.v1` records go only to the configured status file. See
 [`docs/STATUS_STREAM.md`](./docs/STATUS_STREAM.md) and
 [`docs/PROCESSOR_CONTRACT.md`](./docs/PROCESSOR_CONTRACT.md).
+
+### Dataset completeness
+
+A processor reports a per-ledger problem through its reporter and keeps going —
+one malformed field should not kill a run spanning millions of ledgers. That
+settles who *reports* a problem. It does not settle whether the output is a
+whole dataset, and only the operator knows which answer they need: three bad
+ledgers in ten million is noise for an exploratory query and disqualifying for
+a reconciliation dataset.
+
+`--on-ledger-error` makes that choice explicit on every origin processor:
+
+```bash
+# Default. Continue past unprocessable ledgers and report coverage at the end.
+token-transfer --on-ledger-error best-effort --start-ledger 65430000 --end-ledger 65440000
+
+# Stop at the first ledger that cannot be processed completely, and exit 8.
+token-transfer --on-ledger-error strict --start-ledger 65430000 --end-ledger 65440000
+```
+
+Either mode reports incomplete coverage on stderr, naming how many ledgers
+were affected and the first one, so a run with holes never looks like a clean
+one:
+
+```
+[nebu] incomplete coverage: 10000 ledgers, 2 incomplete (first: 65431847), 3 warnings
+```
+
+Exit code **8** means "ran, but the output is incomplete". It is deliberately
+distinct from **4**, "source unavailable": 4 is worth retrying, 8 will fail the
+same way, and a consumer that cannot tell them apart either retries forever or
+quietly accepts a dataset with gaps. Set `NEBU_ON_LEDGER_ERROR` to apply a
+policy without touching each command.
 
 ### Archive Mode (GCS/S3)
 

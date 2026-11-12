@@ -6,6 +6,12 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+
+- **Documentation and the site catch up with v0.7.2.** `--on-ledger-error`, coverage reporting and exit code 8 are documented in the README and the man page; `pkg/processor/ledgerread` is documented for processor authors in BUILDING_PROCESSORS.md, including which of `Transactions` and `AllTransactions` to reach for and why; `man.html` gained the eleven `fetch` flags it had never listed, including the archive layout overrides; and `changelog.html` gained the five releases it was behind.
+- **The documented-sample check covers every sample, not just the landing page.** `scripts/check-sample-event.py` was written after the landing page's `SAMPLE_EVENT` drifted from reality, and checking only that page let the same drift happen everywhere else: by v0.7.2 the README and `docs/PIPELINE.md` were each missing `network`, `meta.operationIndex` and `meta.inSuccessfulTx`, and `docs/quickstart.html` — the page a new reader lands on — was missing seven fields including the `transactionIndex`/`operationIndex` pair that is the whole argument for nebu giving you a resumable cursor. The landing page was the only sample that was right, because it was the only one checked. All four are now checked, in both directions for samples that claim to be complete.
+  - `docs/quickstart.html` previously used a literal `...` inside its JSON, so it could never be parsed or verified. It is now a real, complete event.
+
 ## v0.7.2
 
 ### Added
