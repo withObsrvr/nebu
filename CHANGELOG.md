@@ -6,6 +6,10 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+
+- **`ledgerread.AllTransactions`** reads a ledger's transactions and reports whether it reached the end. `Transactions` skips an unreadable transaction and carries on, which is right when each transaction is emitted on its own and wrong when they become an index something later consults by key: the skip is invisible at lookup time, and a missing key usually resolves to a zero value or an explicit default, so a partial read produces confidently mislabelled output rather than merely short output. A transaction-hash to success map is the shape that gets this wrong, and there is one in the registry. `Transactions` now says in its own documentation that it is not for that shape.
+
 ## v0.7.1
 
 ### Added
