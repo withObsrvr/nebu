@@ -3,10 +3,10 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/xdr"
@@ -92,7 +92,7 @@ func processLedgerStream(
 	ctx = processor.WithReporter(ctx, reporter)
 
 	reader := bufio.NewReader(input)
-	ledgerCount := 0
+	ledgerCount := uint64(0)
 
 	for {
 		select {
@@ -101,22 +101,36 @@ func processLedgerStream(
 		default:
 		}
 
-		var ledger xdr.LedgerCloseMeta
-		if _, err := xdr.Unmarshal(reader, &ledger); err != nil {
-			// Clean EOF, or an EOF-flavored error after at least one
-			// ledger, is the end of the stream rather than a failure.
-			if err == io.EOF || (ledgerCount > 0 && isEOFError(err)) {
-				reportCoverage(reporter.Coverage())
+		// Decide that the stream has ended by looking for the absence of a
+		// next record, not by inspecting the decoder's error.
+		//
+		// The previous test accepted any error whose text contained "EOF"
+		// once at least one ledger had been read, which is exactly what
+		// the decoder returns when it runs out of input *mid-record*. A
+		// complete ledger followed by a truncated one was therefore
+		// reported as a clean, complete run — under the strict policy too,
+		// which is the one case that must never happen. Peeking one byte
+		// separates "no next record" from "a next record that does not
+		// decode", so every decode failure can now be treated as one.
+		if _, err := reader.Peek(1); err != nil {
+			if errors.Is(err, io.EOF) {
+				reportCoverage(reporter.Coverage(ledgerCount))
 				return nil
 			}
-			return nebuErrors.XDRDecodeFailed(ledgerCount+1, err)
+			return nebuErrors.XDRDecodeFailed(int(ledgerCount)+1, err)
 		}
 
-		resolver.observe(ctx, ledger)
+		var ledger xdr.LedgerCloseMeta
+		if _, err := xdr.Unmarshal(reader, &ledger); err != nil {
+			return nebuErrors.XDRDecodeFailed(int(ledgerCount)+1, err)
+		}
 
-		// BeginLedger first, so anything the processor reports is
-		// attributed to this ledger in the run's coverage.
+		// Attribute reports to this ledger before anything that can
+		// report. resolver.observe warns on a network mismatch, which
+		// would otherwise be recorded against the previous ledger.
 		reporter.BeginLedger(ledger.LedgerSequence())
+
+		resolver.observe(ctx, ledger)
 		origin.ProcessLedger(ctx, ledger)
 		ledgerCount++
 
@@ -124,7 +138,7 @@ func processLedgerStream(
 		// halts the run here. The runtime path learns this from its select
 		// loop; this path has to ask.
 		if err := reporter.Err(); err != nil {
-			reportCoverage(reporter.Coverage())
+			reportCoverage(reporter.Coverage(ledgerCount))
 			return err
 		}
 
@@ -151,14 +165,4 @@ func processLedgerFile(
 	defer file.Close()
 
 	return processLedgerStream(ctx, origin, file, status, target, resolver, policy)
-}
-
-// isEOFError reports whether err means the XDR stream ended. The decoder
-// returns several EOF-flavored errors when it runs out of input mid-record,
-// not just io.EOF.
-func isEOFError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return err == io.EOF || strings.Contains(err.Error(), "EOF")
 }

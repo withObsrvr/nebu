@@ -113,12 +113,17 @@ nebu fetch --mode archive \
 | `--files-per-partition` / `NEBU_FILES_PER_PARTITION` | Datastore layout override | from manifest | `0` to read it from the bucket |
 
 `--buffer-size` and `--num-workers` default to `0`, which means the SDK picks
-them from the datastore's layout against its own benchmarks. For the common
-one-ledger-per-file layout that is a much larger buffer than nebu's previous
-fixed `100`, because the workers then see the whole queue up front instead of
-pacing on a per-pull feedback loop. The buffer is capped to the size of the
-requested range, so a large value is an upper bound rather than a fixed
-allocation. Set either flag explicitly to override.
+them from the datastore's layout against its own benchmarks. nebu reads the
+layout from the manifest before choosing, so a one-ledger-per-file export and
+a 64-ledger-per-file export get different tuning — the first a much larger
+buffer than nebu's previous fixed `100`, because the workers then see the whole
+queue up front instead of pacing on a per-pull feedback loop; the second a
+smaller one, because each object already carries 64 ledgers. The buffer is
+capped to the size of the requested range, so a large value is an upper bound
+rather than a fixed allocation. Set either flag explicitly to override.
+
+All four numeric options are rejected as usage errors outside `0`-`4294967295`,
+whether they come from a flag or the environment.
 
 ## Quick Start Examples
 

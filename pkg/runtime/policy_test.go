@@ -3,6 +3,8 @@ package runtime
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/stellar/go-stellar-sdk/xdr"
@@ -67,7 +69,7 @@ func TestReporterBestEffortCountsWithoutHalting(t *testing.T) {
 
 	assert.NoError(t, reporter.Err(), "best effort must not halt the run")
 
-	coverage := reporter.Coverage()
+	coverage := reporter.Coverage(3)
 	assert.Equal(t, uint64(3), coverage.Ledgers)
 	// Two warnings on ledger 10 is one incomplete ledger, not two: the
 	// question coverage answers is how much of the input is missing.
@@ -83,7 +85,7 @@ func TestReporterCleanRunIsComplete(t *testing.T) {
 	reporter.BeginLedger(10)
 	reporter.BeginLedger(11)
 
-	coverage := reporter.Coverage()
+	coverage := reporter.Coverage(2)
 	assert.True(t, coverage.Complete())
 	assert.Equal(t, uint64(2), coverage.Ledgers)
 	assert.Zero(t, coverage.FirstIncompleteLedger)
@@ -170,7 +172,7 @@ func TestReporterWithoutBeginLedgerStillCounts(t *testing.T) {
 	reporter := NewReporter(context.Background(), PolicyBestEffort, nil)
 	reporter.Report(warning("p", errors.New("boom")))
 
-	coverage := reporter.Coverage()
+	coverage := reporter.Coverage(0)
 	assert.Equal(t, int64(1), coverage.Warnings)
 	assert.Zero(t, coverage.Ledgers)
 }
@@ -254,4 +256,140 @@ func TestRunOriginStrictAbortsAndSaysWhich(t *testing.T) {
 	assert.NotContains(t, origin.seen, uint32(12),
 		"strict must not keep processing after the halt")
 	assert.Equal(t, err, summary.FatalErr)
+}
+
+func TestReporterFatalMarksTheLedgerIncomplete(t *testing.T) {
+	// A fatal stops the processor partway through a ledger, so that ledger
+	// is a hole in the output. Reporting complete coverage for a run that
+	// died mid-ledger defeats the point of tracking it.
+	reporter := NewReporter(context.Background(), PolicyBestEffort, nil)
+
+	reporter.BeginLedger(10)
+	reporter.BeginLedger(11)
+	reporter.Report(processor.ErrorReport{
+		Processor: "p", Severity: processor.SeverityFatal, Err: errors.New("dead"),
+	})
+
+	coverage := reporter.Coverage(2)
+	assert.False(t, coverage.Complete())
+	assert.Equal(t, uint64(1), coverage.IncompleteLedgers)
+	assert.Equal(t, uint32(11), coverage.FirstIncompleteLedger)
+	// A fatal is not a warning, and must not be counted as one.
+	assert.Zero(t, coverage.Warnings)
+}
+
+func TestReporterCountsOneHolePerLedgerAcrossSeverities(t *testing.T) {
+	reporter := NewReporter(context.Background(), PolicyBestEffort, nil)
+
+	reporter.BeginLedger(10)
+	reporter.Report(warning("p", errors.New("first")))
+	reporter.Report(processor.ErrorReport{
+		Processor: "p", Severity: processor.SeverityFatal, Err: errors.New("then dead"),
+	})
+
+	coverage := reporter.Coverage(1)
+	assert.Equal(t, uint64(1), coverage.IncompleteLedgers,
+		"a warning and a fatal on one ledger is one hole")
+	assert.Equal(t, int64(1), coverage.Warnings)
+}
+
+func TestReporterBeginLedgerDoesNotCountTheLedger(t *testing.T) {
+	// Attribution has to move before the callbacks that can report, which
+	// is earlier than the processor actually receiving the ledger. Counting
+	// here would mark a ledger covered that something aborted first, so the
+	// count belongs to the caller.
+	reporter := NewReporter(context.Background(), PolicyBestEffort, nil)
+
+	reporter.BeginLedger(10)
+	reporter.BeginLedger(11)
+
+	assert.Equal(t, uint64(7), reporter.Coverage(7).Ledgers)
+}
+
+func TestReporterHaltIsConsistentUnderConcurrency(t *testing.T) {
+	// Err() and Fatal() must agree. Recording the winner and publishing it
+	// used to happen under separate locks, so one caller could win the
+	// field while another won the channel — handing the runtime a different
+	// cause, and a different exit classification, than the one it reports.
+	for range 200 {
+		reporter := NewReporter(context.Background(), PolicyStrict, nil)
+		reporter.BeginLedger(10)
+
+		var wg sync.WaitGroup
+		for i := range 8 {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				reporter.Report(warning("p", fmt.Errorf("cause %d", i)))
+			}(i)
+		}
+		wg.Wait()
+
+		recorded := reporter.Err()
+		require.Error(t, recorded)
+
+		select {
+		case signalled := <-reporter.Fatal():
+			require.Equal(t, recorded, signalled,
+				"Err() and Fatal() must report the same halting error")
+		default:
+			t.Fatal("a halt was recorded but never signalled")
+		}
+
+		// The channel holds exactly one error: a later halt must not
+		// re-signal after the runner has drained it.
+		select {
+		case extra := <-reporter.Fatal():
+			t.Fatalf("a second error was queued: %v", extra)
+		default:
+		}
+	}
+}
+
+func TestRunOriginDoesNotCountALedgerAHookAborted(t *testing.T) {
+	origin := &strictOrigin{}
+
+	var summary PipelineSummary
+	rt := NewRuntime()
+	rt.Use(Hooks{
+		BeforeLedger: func(_ context.Context, ledger xdr.LedgerCloseMeta) error {
+			if ledger.LedgerSequence() == 11 {
+				return errors.New("hook says no")
+			}
+			return nil
+		},
+		OnEnd: func(_ context.Context, s PipelineSummary) { summary = s },
+	})
+
+	err := rt.RunOrigin(context.Background(), sequenceSource{}, origin, 10, 12)
+
+	require.Error(t, err)
+	assert.Equal(t, []uint32{10}, origin.seen)
+	// Ledger 11 never reached the processor, so it is not covered.
+	assert.Equal(t, uint64(1), summary.Coverage.Ledgers)
+}
+
+// resolverLikeHook stands in for the network resolver, which runs as a
+// BeforeLedger hook and can warn.
+func TestRunOriginAttributesBeforeLedgerWarningsToTheRightLedger(t *testing.T) {
+	origin := &strictOrigin{}
+
+	var summary PipelineSummary
+	rt := NewRuntime()
+	rt.Use(Hooks{
+		BeforeLedger: func(ctx context.Context, ledger xdr.LedgerCloseMeta) error {
+			if ledger.LedgerSequence() == 12 {
+				processor.ReportWarning(ctx, "resolver", errors.New("network mismatch"))
+			}
+			return nil
+		},
+		OnEnd: func(_ context.Context, s PipelineSummary) { summary = s },
+	})
+
+	require.NoError(t, rt.RunOrigin(context.Background(), sequenceSource{}, origin, 10, 12))
+
+	// The warning belongs to ledger 12, not to 11, which was the ledger in
+	// flight when attribution moved only just before ProcessLedger.
+	assert.Equal(t, uint32(12), summary.Coverage.FirstIncompleteLedger)
+	assert.Equal(t, uint64(1), summary.Coverage.IncompleteLedgers)
 }

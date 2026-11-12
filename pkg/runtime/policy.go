@@ -66,7 +66,11 @@ func ParsePolicy(value string) (Policy, error) {
 // say how many ledgers were affected, or which. Coverage does, so a
 // best-effort run is auditable instead of merely finished.
 type Coverage struct {
-	// Ledgers is the number of ledgers handed to the processor.
+	// Ledgers is the number of ledgers handed to the processor. It is
+	// supplied by the caller rather than counted here: the reporter learns
+	// which ledger is in flight before the processor is handed it, so a
+	// ledger that something aborted before processing would otherwise be
+	// counted as covered.
 	Ledgers uint64
 
 	// IncompleteLedgers is the number of those ledgers that reported at
@@ -120,7 +124,6 @@ type Reporter struct {
 	mu                    sync.Mutex
 	err                   error
 	warnings              int64
-	ledgers               uint64
 	incompleteLedgers     uint64
 	firstIncompleteLedger uint32
 	currentLedger         uint32
@@ -140,17 +143,22 @@ func NewReporter(ctx context.Context, policy Policy, hooks []Hooks) *Reporter {
 	}
 }
 
-// BeginLedger tells the reporter which ledger is about to be processed, so
-// reports can be attributed to it and counted once per ledger.
+// BeginLedger tells the reporter which ledger reports should now be
+// attributed to.
 //
-// Call it immediately before handing the ledger to the processor. Callers
-// that do not call it still get working reports and warning counts; they just
-// get no per-ledger coverage.
+// Call it before anything that can report — which means before the hooks and
+// callbacks that run ahead of the processor, not just before the processor
+// itself. A warning raised before the attribution moves lands on the previous
+// ledger, which both mislabels the gap and inflates the count of incomplete
+// ledgers.
+//
+// It does not count the ledger: see [Coverage.Ledgers]. Callers that never
+// call BeginLedger still get working reports and warning counts; they just
+// get no per-ledger attribution.
 func (r *Reporter) BeginLedger(sequence uint32) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.ledgers++
 	r.currentLedger = sequence
 	r.currentLedgerFlagged = false
 }
@@ -167,13 +175,14 @@ func (r *Reporter) Err() error {
 	return r.err
 }
 
-// Coverage returns the coverage accumulated so far.
-func (r *Reporter) Coverage() Coverage {
+// Coverage returns the coverage accumulated so far, over the number of
+// ledgers the caller actually handed to the processor.
+func (r *Reporter) Coverage(ledgersProcessed uint64) Coverage {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	return Coverage{
-		Ledgers:               r.ledgers,
+		Ledgers:               ledgersProcessed,
 		IncompleteLedgers:     r.incompleteLedgers,
 		FirstIncompleteLedger: r.firstIncompleteLedger,
 		Warnings:              r.warnings,
@@ -204,6 +213,12 @@ func (r *Reporter) Report(report processor.ErrorReport) {
 		}
 
 	case processor.SeverityFatal:
+		// A fatal stops the processor mid-ledger, so that ledger is
+		// incomplete too. Without this the run dies partway through a
+		// ledger and still reports complete coverage, which is the one
+		// thing coverage exists to prevent. It is not a warning, so the
+		// warning count and the fatal exit classification are untouched.
+		r.markCurrentLedgerIncomplete()
 		logReport(name, "fatal", report)
 		r.halt(fmt.Errorf("%s: %w", name, report.Err))
 		for _, hook := range r.hooks {
@@ -221,24 +236,49 @@ func (r *Reporter) recordWarning() (uint32, bool) {
 	defer r.mu.Unlock()
 
 	r.warnings++
-	if !r.currentLedgerFlagged {
-		r.currentLedgerFlagged = true
-		r.incompleteLedgers++
-		if r.firstIncompleteLedger == 0 {
-			r.firstIncompleteLedger = r.currentLedger
-		}
-	}
+	r.flagCurrentLedgerLocked()
 	return r.currentLedger, r.policy == PolicyStrict
+}
+
+// markCurrentLedgerIncomplete flags the ledger in flight without counting a
+// warning against it.
+func (r *Reporter) markCurrentLedgerIncomplete() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.flagCurrentLedgerLocked()
+}
+
+// flagCurrentLedgerLocked counts the ledger in flight as incomplete, once.
+// Ten reports on one ledger is one hole in the output, not ten.
+//
+// Callers must hold r.mu.
+func (r *Reporter) flagCurrentLedgerLocked() {
+	if r.currentLedgerFlagged {
+		return
+	}
+	r.currentLedgerFlagged = true
+	r.incompleteLedgers++
+	if r.firstIncompleteLedger == 0 {
+		r.firstIncompleteLedger = r.currentLedger
+	}
 }
 
 // halt records the first halting error and signals it. Later calls are
 // dropped: the first error is the one that explains the run's outcome.
+//
+// Recording and signalling happen under the same lock on purpose. Releasing
+// between them lets a second caller win the channel while the first wins the
+// field, so Err() and Fatal() would hand the runtime different causes — and
+// different exit classifications. Holding the lock across a non-blocking send
+// on a buffered channel cannot block.
 func (r *Reporter) halt(err error) {
 	r.mu.Lock()
-	if r.err == nil {
-		r.err = err
+	defer r.mu.Unlock()
+
+	if r.err != nil {
+		return
 	}
-	r.mu.Unlock()
+	r.err = err
 
 	select {
 	case r.fatal <- err:

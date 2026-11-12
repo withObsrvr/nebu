@@ -108,7 +108,7 @@ func (r *Runtime) RunOrigin(
 		summary := PipelineSummary{
 			LedgersProcessed: atomic.LoadUint64(&ledgersProcessed),
 			Warnings:         reporter.warningCount(),
-			Coverage:         reporter.Coverage(),
+			Coverage:         reporter.Coverage(atomic.LoadUint64(&ledgersProcessed)),
 			FatalErr:         retErr,
 			Duration:         time.Since(runStart),
 		}
@@ -205,6 +205,13 @@ func (r *Runtime) RunOrigin(
 				continue
 			}
 
+			// Attribute reports to this ledger before anything that
+			// can report. BeforeLedger hooks can: the network
+			// resolver runs as one and warns on a passphrase
+			// mismatch, which would otherwise be recorded against
+			// the previous ledger.
+			reporter.BeginLedger(ledger.LedgerSequence())
+
 			// BeforeLedger hooks — any can abort the pipeline by
 			// returning a non-nil error.
 			for _, h := range r.hooks {
@@ -221,10 +228,6 @@ func (r *Runtime) RunOrigin(
 			// report warnings, or report fatal — none of which
 			// return through this call. We check the fatal channel
 			// on the next loop iteration.
-			//
-			// BeginLedger first, so any report the processor makes
-			// is attributed to this ledger in the run's coverage.
-			reporter.BeginLedger(ledger.LedgerSequence())
 			ledgerStart := time.Now()
 			origin.ProcessLedger(ctx, ledger)
 			duration := time.Since(ledgerStart)

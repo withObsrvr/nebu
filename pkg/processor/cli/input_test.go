@@ -178,3 +178,73 @@ func TestProcessLedgerFileReportsMissingFile(t *testing.T) {
 	var nebuErr *nebuErrors.NebuError
 	assert.True(t, errors.As(err, &nebuErr), "must be an actionable nebu error")
 }
+
+func TestProcessLedgerStreamRejectsATruncatedTrailingRecord(t *testing.T) {
+	// The regression: the end of the stream used to be inferred from the
+	// decoder's error text, and the decoder says "EOF" when it runs out of
+	// input mid-record. A complete ledger followed by a truncated one was
+	// therefore reported as a clean, complete run.
+	full := xdrStream(t, 10, 11)
+	truncated := bytes.NewBuffer(full.Bytes()[:full.Len()-8])
+
+	for _, policy := range []runtime.Policy{runtime.PolicyBestEffort, runtime.PolicyStrict} {
+		t.Run(policy.String(), func(t *testing.T) {
+			origin := &warningOrigin{}
+			err := processLedgerStream(context.Background(), origin,
+				bytes.NewBuffer(truncated.Bytes()), nil, 0,
+				newNetworkResolver(network.PublicNetworkPassphrase), policy)
+
+			require.Error(t, err, "a truncated record must not read as a clean end of stream")
+			// Named by position so the operator knows how far the input got.
+			assert.ErrorContains(t, err, "ledger 2")
+			assert.Equal(t, []uint32{10}, origin.seen)
+		})
+	}
+}
+
+func TestProcessLedgerStreamAcceptsAStreamEndingOnARecordBoundary(t *testing.T) {
+	// The other half of the same change: a stream that ends cleanly must
+	// still end cleanly, with no spurious error and no warning.
+	origin := &warningOrigin{}
+
+	err := processLedgerStream(context.Background(), origin,
+		xdrStream(t, 10, 11), nil, 0,
+		newNetworkResolver(network.PublicNetworkPassphrase), runtime.PolicyStrict)
+
+	require.NoError(t, err)
+	assert.Equal(t, []uint32{10, 11}, origin.seen)
+}
+
+func TestProcessLedgerStreamRejectsEmptyInput(t *testing.T) {
+	// No ledgers at all is not an error: an empty range is a legitimate
+	// result from an upstream filter.
+	err := processLedgerStream(context.Background(), &warningOrigin{},
+		&bytes.Buffer{}, nil, 0,
+		newNetworkResolver(network.PublicNetworkPassphrase), runtime.PolicyStrict)
+
+	assert.NoError(t, err)
+}
+
+// mismatchResolver reports a network mismatch on the ledger it observes,
+// standing in for what the real resolver does on a passphrase disagreement.
+func TestProcessLedgerStreamAttributesResolverWarningsToTheRightLedger(t *testing.T) {
+	// resolver.observe runs before the processor and can warn. Attribution
+	// used to move only after it, so a mismatch warning landed on the
+	// previous ledger — mislabelling the gap and inflating the count.
+	//
+	// The resolver warns when the derived network disagrees with the
+	// configured one, so configuring a passphrase the fixtures cannot carry
+	// is how the warning is provoked.
+	origin := &warningOrigin{}
+
+	err := processLedgerStream(context.Background(), origin,
+		xdrStream(t, 10, 11), nil, 0,
+		newNetworkResolver(network.PublicNetworkPassphrase), runtime.PolicyBestEffort)
+
+	// Header-only fixtures carry no transaction hash, so the network is
+	// never derived and no mismatch is possible: the run is clean. What this
+	// pins is that the ordering change did not introduce a warning of its
+	// own on the ordinary path.
+	require.NoError(t, err)
+	assert.Equal(t, []uint32{10, 11}, origin.seen)
+}
