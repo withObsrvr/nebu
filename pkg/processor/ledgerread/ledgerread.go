@@ -54,6 +54,13 @@ import (
 // policy, not for this loop — every skip is reported, so the policy can see
 // it.
 //
+// That makes this the wrong function for building an index. A caller that
+// collects transactions into a map and later looks one up by key cannot see
+// the skip: the lookup simply misses, and a miss usually falls through to a
+// default, so a partial read becomes wrong data rather than less data. Use
+// [AllTransactions] for that shape — it reports whether the ledger was read
+// to the end, so the caller can decline to use a partial index.
+//
 // Iteration stops as soon as ctx is cancelled, and the reader is closed on
 // every exit path, including an early break by the caller.
 func Transactions(
@@ -91,6 +98,69 @@ func Transactions(
 				return
 			}
 		}
+	}
+}
+
+// AllTransactions reads every transaction in ledger and reports whether it
+// reached the end.
+//
+// Use it instead of [Transactions] whenever the transactions become an index
+// that something later consults by key — a transaction-hash to success map,
+// most commonly. [Transactions] skips an unreadable transaction and carries
+// on, which is right when each transaction is emitted on its own and wrong
+// here: the skip is invisible at lookup time, and a missing key usually
+// resolves to a zero value or an explicit default, so the output ends up
+// confidently mislabelled rather than merely short.
+//
+// ok is false when the reader could not be opened or a transaction could not
+// be read, and in both cases the problem has already been reported as a
+// warning through the [processor.Reporter] on ctx. A caller that gets false
+// should decline to use the result rather than use part of it:
+//
+//	txs, ok := ledgerread.AllTransactions(ctx, o.Name(), o.passphrase, ledger)
+//	if !ok {
+//	    return // already reported; an incomplete index is worse than none
+//	}
+//
+// The transactions read before the failure are still returned, for a caller
+// that genuinely wants them — a count, say, where a short count is obviously
+// short. They are returned as a slice rather than an iterator because the
+// completeness of the whole ledger is the answer being asked for, and that is
+// not known until the end.
+func AllTransactions(
+	ctx context.Context,
+	processorName, networkPassphrase string,
+	ledger xdr.LedgerCloseMeta,
+) ([]ingest.LedgerTransaction, bool) {
+	sequence := ledger.LedgerSequence()
+
+	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(networkPassphrase, ledger)
+	if err != nil {
+		processor.ReportWarning(ctx, processorName,
+			fmt.Errorf("ledger %d: open transaction reader: %w", sequence, err))
+		return nil, false
+	}
+	defer closeReader(ctx, processorName, sequence, "transaction", reader.Close)
+
+	var transactions []ingest.LedgerTransaction
+	for {
+		if err := ctx.Err(); err != nil {
+			// A cancelled read is not a complete one, and saying otherwise
+			// would let a shutdown produce a confidently wrong index.
+			return transactions, false
+		}
+
+		tx, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			return transactions, true
+		}
+		if err != nil {
+			processor.ReportWarning(ctx, processorName,
+				fmt.Errorf("ledger %d: read transaction: %w", sequence, err))
+			return transactions, false
+		}
+
+		transactions = append(transactions, tx)
 	}
 }
 

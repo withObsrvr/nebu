@@ -232,3 +232,123 @@ func TestChangesYieldsUpgradeChanges(t *testing.T) {
 	assert.Equal(t, ingest.LedgerEntryChangeReasonUpgrade, got[0].Reason)
 	assert.Empty(t, *reports)
 }
+
+func TestAllTransactionsReportsACompleteRead(t *testing.T) {
+	first := testEnvelope(t, 1)
+	second := testEnvelope(t, 2)
+	lcm := ledger(100,
+		[]xdr.TransactionEnvelope{first, second},
+		[]xdr.Hash{txHash(t, first), txHash(t, second)})
+
+	ctx, reports := capture(t)
+
+	txs, ok := AllTransactions(ctx, "test", testPassphrase, lcm)
+
+	assert.True(t, ok)
+	require.Len(t, txs, 2)
+	assert.Equal(t, int64(1), txs[0].Envelope.SeqNum())
+	assert.Equal(t, int64(2), txs[1].Envelope.SeqNum())
+	assert.Empty(t, *reports)
+}
+
+func TestAllTransactionsEmptyLedgerIsComplete(t *testing.T) {
+	// No transactions is a complete read of a ledger that had none. Reporting
+	// it as incomplete would make every empty ledger look like a failure.
+	ctx, reports := capture(t)
+
+	txs, ok := AllTransactions(ctx, "test", testPassphrase, ledger(100, nil, nil))
+
+	assert.True(t, ok)
+	assert.Empty(t, txs)
+	assert.Empty(t, *reports)
+}
+
+func TestAllTransactionsReportsAnIncompleteRead(t *testing.T) {
+	// The distinction from Transactions. An index built from a partial read
+	// misses at lookup time, and a miss usually falls through to a default,
+	// so the caller has to be able to tell that it cannot trust the result.
+	good := testEnvelope(t, 1)
+	bad := testEnvelope(t, 2)
+	lcm := ledger(100,
+		[]xdr.TransactionEnvelope{good, bad},
+		[]xdr.Hash{txHash(t, good), {0xde, 0xad, 0xbe, 0xef}})
+
+	ctx, reports := capture(t)
+
+	txs, ok := AllTransactions(ctx, "test", testPassphrase, lcm)
+
+	assert.False(t, ok, "a ledger that could not be read to the end is not complete")
+	// What was read is still returned, for a caller that wants it.
+	require.Len(t, txs, 1)
+	assert.Equal(t, int64(1), txs[0].Envelope.SeqNum())
+
+	require.Len(t, *reports, 1)
+	assert.Equal(t, processor.SeverityWarning, (*reports)[0].Severity)
+	assert.Contains(t, (*reports)[0].Err.Error(), "ledger 100")
+}
+
+func TestAllTransactionsDiffersFromTransactionsOnAPartialLedger(t *testing.T) {
+	// Pins the contract that the two functions exist for: given the same
+	// unreadable ledger, Transactions carries on past the bad transaction
+	// and AllTransactions refuses to call the result complete.
+	good := testEnvelope(t, 1)
+	alsoGood := testEnvelope(t, 3)
+	lcm := ledger(100,
+		[]xdr.TransactionEnvelope{good, alsoGood},
+		[]xdr.Hash{{0xde, 0xad, 0xbe, 0xef}, txHash(t, alsoGood)})
+
+	lenientCtx, _ := capture(t)
+	var lenient []int64
+	for tx := range Transactions(lenientCtx, "test", testPassphrase, lcm) {
+		lenient = append(lenient, tx.Envelope.SeqNum())
+	}
+	assert.Equal(t, []int64{3}, lenient, "Transactions skips the bad one and continues")
+
+	strictCtx, _ := capture(t)
+	_, ok := AllTransactions(strictCtx, "test", testPassphrase, lcm)
+	assert.False(t, ok, "AllTransactions will not claim a partial read is complete")
+}
+
+func TestAllTransactionsTreatsCancellationAsIncomplete(t *testing.T) {
+	// A shutdown must not be able to produce an index that looks whole.
+	first := testEnvelope(t, 1)
+	lcm := ledger(100, []xdr.TransactionEnvelope{first}, []xdr.Hash{txHash(t, first)})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	txs, ok := AllTransactions(ctx, "test", testPassphrase, lcm)
+
+	assert.False(t, ok)
+	assert.Empty(t, txs)
+}
+
+func TestAllTransactionsReportsAnUnopenableReader(t *testing.T) {
+	// Protocol version below 10 with fee processing present is the meta
+	// version the reader rejects outright.
+	lcm := xdr.LedgerCloseMeta{
+		V: 0,
+		V0: &xdr.LedgerCloseMetaV0{
+			LedgerHeader: xdr.LedgerHeaderHistoryEntry{
+				Header: xdr.LedgerHeader{LedgerSeq: 100, LedgerVersion: 9},
+			},
+			TxSet: xdr.TransactionSet{Txs: []xdr.TransactionEnvelope{testEnvelope(t, 1)}},
+			TxProcessing: []xdr.TransactionResultMeta{{
+				Result:        xdr.TransactionResultPair{TransactionHash: txHash(t, testEnvelope(t, 1))},
+				FeeProcessing: xdr.LedgerEntryChanges{{Type: xdr.LedgerEntryChangeTypeLedgerEntryState}},
+				TxApplyProcessing: xdr.TransactionMeta{
+					V: 1, V1: &xdr.TransactionMetaV1{},
+				},
+			}},
+		},
+	}
+
+	ctx, reports := capture(t)
+
+	txs, ok := AllTransactions(ctx, "test", testPassphrase, lcm)
+
+	assert.False(t, ok)
+	assert.Empty(t, txs)
+	require.Len(t, *reports, 1)
+	assert.Contains(t, (*reports)[0].Err.Error(), "open transaction reader")
+}
