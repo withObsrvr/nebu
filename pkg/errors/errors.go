@@ -18,6 +18,11 @@ const (
 	KindUsage
 	KindNotFound
 	KindUnreachable
+	// KindIncomplete reports that the command ran but could not cover its
+	// whole input: at least one ledger was not processed completely. The
+	// data on stdout is a subset of what was asked for, so a consumer must
+	// be able to tell this apart from a transport failure it could retry.
+	KindIncomplete
 )
 
 // NebuError is an error with actionable guidance.
@@ -57,6 +62,8 @@ func ExitCode(err error) int {
 		return 3
 	case KindUnreachable:
 		return 4
+	case KindIncomplete:
+		return 8
 	default:
 		return 1
 	}
@@ -302,6 +309,25 @@ If you have JSON data, use the appropriate tool directly.`
 	return &NebuError{
 		Message:    fmt.Sprintf("Failed to decode XDR at ledger %d: %v", ledgerNum, err),
 		Suggestion: suggestion,
+	}
+}
+
+// IncompleteRun returns an error for a run aborted by the strict execution
+// policy, naming the ledger that could not be processed completely.
+//
+// This is deliberately not KindUnreachable: nothing is unavailable and
+// retrying the same range will fail the same way. The caller asked for a
+// complete dataset and nebu could not produce one.
+func IncompleteRun(ledgerSeq uint32, cause error) *NebuError {
+	return &NebuError{
+		Kind:    KindIncomplete,
+		Cause:   cause,
+		Message: fmt.Sprintf("Ledger %d could not be processed completely: %v", ledgerSeq, cause),
+		Suggestion: `The run was stopped because the strict execution policy is in effect,
+so an incomplete dataset is not reported as a complete one.
+
+To continue past ledgers like this and record the gaps instead:
+  --on-ledger-error best-effort`,
 	}
 }
 

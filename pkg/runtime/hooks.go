@@ -138,6 +138,12 @@ type PipelineSummary struct {
 	// during the pipeline run.
 	Warnings int64
 
+	// Coverage describes how completely the run covered its input: how
+	// many ledgers were processed, how many of them reported a problem,
+	// and the first such ledger. A warning count alone cannot answer
+	// whether the output is a whole dataset; this can.
+	Coverage Coverage
+
 	// FatalErr is the error RunOrigin is about to return, or nil
 	// for clean completion. Set for fatal processor reports, source
 	// stream errors, context.Canceled / context.DeadlineExceeded,

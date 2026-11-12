@@ -2,11 +2,9 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
-	"github.com/stellar/go-stellar-sdk/xdr"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
@@ -43,6 +40,7 @@ func RunGenericOriginCLI[T any](
 		endLedger   uint32
 		networkPass string
 		quietMode   bool
+		policyFlag  string
 	)
 
 	rootCmd := &cobra.Command{
@@ -76,6 +74,14 @@ Examples:
   nebu fetch 60200000 60200100 | %s | jq .
 `, config.Description, config.Name, config.Name, config.Name, config.Name, config.Name, config.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Resolve the execution policy before any work: it decides
+			// whether a ledger nobody could process ends the run, so an
+			// unrecognized value must not quietly become best-effort.
+			policy, policyErr := resolvePolicy(policyFlag)
+			if policyErr != nil {
+				return policyErr
+			}
+
 			// Check input mode. Resolution order:
 			//   1. Positional arg "-"        → explicit stdin
 			//   2. Positional arg <path>     → explicit file
@@ -199,12 +205,12 @@ Examples:
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdinGeneric[T](ctx, origin, os.Stdin, status, 0, resolver)
+				err = processLedgerStream(ctx, origin, os.Stdin, status, 0, resolver, policy)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFileGeneric[T](ctx, origin, inputFile, status, 0, resolver)
+				err = processLedgerFile(ctx, origin, inputFile, status, 0, resolver, policy)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -215,7 +221,7 @@ Examples:
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver)
+				err = processFromRPCGeneric(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver, policy)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -239,6 +245,7 @@ Examples:
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence (0 for unbounded)")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	registerPolicyFlag(rootCmd, &policyFlag)
 	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -247,7 +254,7 @@ Examples:
 	}
 }
 
-func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver) error {
+func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProcessor[T], rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver, policy runtime.Policy) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -264,69 +271,9 @@ func processFromRPCGeneric[T any](ctx context.Context, origin GenericOriginProce
 	}
 	defer src.Close()
 
-	hooks = withNetworkResolverHook(hooks, resolver)
+	hooks = withCoverageHook(withNetworkResolverHook(hooks, resolver))
 	rt := runtime.NewRuntime()
+	rt.SetPolicy(policy)
 	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
-}
-
-func processFromStdinGeneric[T any](ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32, resolver *networkResolver) error {
-	reader := bufio.NewReader(input)
-	ledgerCount := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		var ledger xdr.LedgerCloseMeta
-		_, err := xdr.Unmarshal(reader, &ledger)
-		if err != nil {
-			// Clean EOF or EOF-related errors after processing ledgers are OK
-			if err == io.EOF || (ledgerCount > 0 && isEOFErrorGeneric(err)) {
-				return nil
-			}
-			return fmt.Errorf("failed to decode XDR at ledger %d: %w", ledgerCount+1, err)
-		}
-
-		resolver.observe(ctx, ledger)
-		origin.ProcessLedger(ctx, ledger)
-		ledgerCount++
-		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
-			return err
-		}
-	}
-}
-
-func processFromFileGeneric[T any](ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32, resolver *networkResolver) error {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open input file: %w", err)
-	}
-	defer f.Close()
-
-	return processFromStdinGeneric[T](ctx, origin, f, status, target, resolver)
-}
-
-func isEOFErrorGeneric(err error) bool {
-	if err == nil {
-		return false
-	}
-	errMsg := err.Error()
-	return err == io.EOF || contains(errMsg, "EOF")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && findSubstring(s, substr))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

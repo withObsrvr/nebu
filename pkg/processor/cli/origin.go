@@ -2,11 +2,9 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -16,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/processors/token_transfer"
-	"github.com/stellar/go-stellar-sdk/xdr"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
@@ -112,6 +109,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 		endLedger   uint32
 		networkPass string
 		quietMode   bool
+		policyFlag  string
 	)
 
 	// Build help text
@@ -123,6 +121,14 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 		Version: config.Version,
 		Long:    longHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Resolve the execution policy before any work: it decides
+			// whether a ledger nobody could process ends the run, so an
+			// unrecognized value must not quietly become best-effort.
+			policy, policyErr := resolvePolicy(policyFlag)
+			if policyErr != nil {
+				return policyErr
+			}
+
 			// Check input mode. Resolution order:
 			//   1. Positional arg "-"        → explicit stdin
 			//   2. Positional arg <path>     → explicit file
@@ -215,12 +221,12 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				if !quietMode {
 					fmt.Fprintln(os.Stderr, "Reading ledgers from stdin...")
 				}
-				err = processFromStdin(ctx, origin, os.Stdin, status, 0, resolver)
+				err = processLedgerStream(ctx, origin, os.Stdin, status, 0, resolver, policy)
 			} else if inputFile != "" {
 				if !quietMode {
 					fmt.Fprintf(os.Stderr, "Reading ledgers from %s...\n", inputFile)
 				}
-				err = processFromFile(ctx, origin, inputFile, status, 0, resolver)
+				err = processLedgerFile(ctx, origin, inputFile, status, 0, resolver, policy)
 			} else {
 				if !quietMode {
 					if endLedger == 0 {
@@ -231,7 +237,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 				}
 				// Get auth header from environment
 				authHeader := getAuthHeader()
-				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver)
+				err = processFromRPC(ctx, origin, rpcURL, startLedger, endLedger, authHeader, withStructuredStatusHook(config.Hooks, status, endLedger), resolver, policy)
 			}
 
 			if err != nil && err != context.Canceled {
@@ -258,6 +264,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	rootCmd.Flags().Uint32Var(&endLedger, "end-ledger", 0, "End ledger sequence")
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
+	registerPolicyFlag(rootCmd, &policyFlag)
 	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -266,7 +273,7 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	}
 }
 
-func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver) error {
+func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string, start, end uint32, authHeader string, hooks []runtime.Hooks, resolver *networkResolver, policy runtime.Policy) error {
 	// Create RPC source with optional auth headers
 	var src *rpc.LedgerSource
 	var err error
@@ -283,61 +290,11 @@ func processFromRPC(ctx context.Context, origin processor.Origin, rpcURL string,
 	}
 	defer src.Close()
 
-	hooks = withNetworkResolverHook(hooks, resolver)
+	hooks = withCoverageHook(withNetworkResolverHook(hooks, resolver))
 	rt := runtime.NewRuntime()
+	rt.SetPolicy(policy)
 	attachHooks(rt, hooks)
 	return rt.RunOrigin(ctx, src, origin, start, end)
-}
-
-func processFromStdin(ctx context.Context, origin processor.Origin, input io.Reader, status *commandStatus, target uint32, resolver *networkResolver) error {
-	reader := bufio.NewReader(input)
-	ledgerCount := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		var ledger xdr.LedgerCloseMeta
-		_, err := xdr.Unmarshal(reader, &ledger)
-		if err != nil {
-			// Clean EOF or EOF-related errors after processing ledgers are OK
-			if err == io.EOF || (ledgerCount > 0 && isEOFError(err)) {
-				return nil
-			}
-			return nebuErrors.XDRDecodeFailed(ledgerCount+1, err)
-		}
-
-		resolver.observe(ctx, ledger)
-		origin.ProcessLedger(ctx, ledger)
-		ledgerCount++
-		if err := status.ledgerProgress(ledger.LedgerSequence(), target); err != nil {
-			return err
-		}
-	}
-}
-
-// isEOFError checks if an error is EOF-related (e.g., "EOF while decoding")
-func isEOFError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errMsg := err.Error()
-	// Check for EOF patterns - the XDR decoder can return various EOF-related errors
-	// when it hits end of stream while reading a ledger
-	return err == io.EOF || strings.Contains(errMsg, "EOF")
-}
-
-func processFromFile(ctx context.Context, origin processor.Origin, filePath string, status *commandStatus, target uint32, resolver *networkResolver) error {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nebuErrors.FailedToOpenFile(filePath, err)
-	}
-	defer f.Close()
-
-	return processFromStdin(ctx, origin, f, status, target, resolver)
 }
 
 func simplifyEvent(ev *token_transfer.TokenTransferEvent, netName string) map[string]interface{} {

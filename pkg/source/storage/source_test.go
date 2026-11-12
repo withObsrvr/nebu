@@ -1,10 +1,12 @@
 package storage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
+	"github.com/stellar/go-stellar-sdk/xdr"
 )
 
 func TestNewLedgerSource_Validation(t *testing.T) {
@@ -23,20 +25,19 @@ func TestNewLedgerSource_Validation(t *testing.T) {
 			wantErrMessage: "datastore type cannot be empty",
 		},
 		{
-			name: "GCS config with non-existent bucket",
+			// Construction only validates what it can answer locally.
+			// Reaching the bucket — and reading the layout from its
+			// manifest — happens on the first pull of a Stream call, so an
+			// unreachable bucket is reported there rather than here. The
+			// SDK's stream owns that lifecycle; see Stream.
+			name: "unreachable bucket defers its error to streaming",
 			config: datastore.DataStoreConfig{
 				Type: "GCS",
 				Params: map[string]string{
 					"destination_bucket_path": "test-bucket-does-not-exist/path",
 				},
-				Schema: datastore.DataStoreSchema{
-					LedgersPerFile:    1,
-					FilesPerPartition: 64000,
-				},
 			},
-			// Will fail because bucket doesn't exist or no access
-			// This is expected - we're validating the error handling works
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
@@ -49,7 +50,7 @@ func TestNewLedgerSource_Validation(t *testing.T) {
 				RetryWait:  0,
 			}
 
-			_, err := NewLedgerSource(tt.config, bufferConfig)
+			source, err := NewLedgerSource(tt.config, bufferConfig)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLedgerSource() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -60,7 +61,34 @@ func TestNewLedgerSource_Validation(t *testing.T) {
 					t.Errorf("NewLedgerSource() error message = %v, want %v", err.Error(), tt.wantErrMessage)
 				}
 			}
+
+			if err == nil {
+				if cerr := source.Close(); cerr != nil {
+					t.Errorf("Close() on a source that never streamed = %v, want nil", cerr)
+				}
+			}
 		})
+	}
+}
+
+func TestStreamRejectsInvalidRangeBeforeTouchingTheDatastore(t *testing.T) {
+	// A range error must not depend on the bucket being reachable: it is a
+	// caller mistake, and reporting it needs no network.
+	source, err := NewLedgerSource(datastore.DataStoreConfig{
+		Type:   "GCS",
+		Params: map[string]string{"destination_bucket_path": "test-bucket-does-not-exist/path"},
+	}, DefaultBufferedStorageBackendConfig())
+	if err != nil {
+		t.Fatalf("NewLedgerSource() = %v", err)
+	}
+
+	out := make(chan xdr.LedgerCloseMeta, 1)
+	if err := source.Stream(context.Background(), 0, 10, out); err == nil {
+		t.Fatal("Stream() with a zero start ledger = nil, want an error")
+	}
+
+	if _, open := <-out; open {
+		t.Error("Stream() must close the output channel on a range error")
 	}
 }
 
