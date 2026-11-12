@@ -75,6 +75,41 @@ run "duckdb cookbook assetCode query" bash -lc '"$0" --quiet --start-ledger 6020
 run "duckdb cookbook event type aggregation" bash -lc 'db="$1/cookbook.db"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb "$db" -c "CREATE OR REPLACE TABLE transfers AS SELECT * FROM read_json(\"/dev/stdin\")" >/dev/null; duckdb "$db" -c "COPY (SELECT CASE WHEN json_exists(to_json(transfers), '\''$.transfer'\'') AND transfer IS NOT NULL THEN '\''transfer'\'' WHEN json_exists(to_json(transfers), '\''$.mint'\'') AND mint IS NOT NULL THEN '\''mint'\'' WHEN json_exists(to_json(transfers), '\''$.fee'\'') AND fee IS NOT NULL THEN '\''fee'\'' ELSE '\''other'\'' END AS event_type, COUNT(*) AS count FROM transfers GROUP BY event_type) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "(transfer|fee|mint|other),[0-9]+"' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN"
 run "duckdb cookbook address activity" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (WITH events AS (SELECT * FROM read_json(\"/dev/stdin\")), address_activity AS (SELECT json_extract_string(transfer, '\''$.from'\'') AS address, COUNT(*) AS sends, 0 AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.from'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.from'\'') UNION ALL SELECT json_extract_string(transfer, '\''$.to'\'') AS address, 0 AS sends, COUNT(*) AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.to'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.to'\'')) SELECT COUNT(*) AS c FROM address_activity) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
 
+# Cookbook: "Getting the numbers right". These assert the documented queries
+# produce the right *value*, not merely that they run — the existing
+# assertions all count rows, which is why none of them caught the volume
+# query summing stroops into a DOUBLE and losing precision.
+run "cookbook exact amounts do not lose precision" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
+  | duckdb -c "COPY (SELECT CASE WHEN SUM(json_extract_string(transfer, '\''$.amount'\'')::HUGEINT) <> SUM(json_extract_string(transfer, '\''$.amount'\'')::DOUBLE)::HUGEINT THEN '\''differs'\'' ELSE '\''same'\'' END AS cmp FROM read_json(\"/dev/stdin\") WHERE transfer IS NOT NULL) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" \
+  | grep -Eq "^(same|differs)$"' "$TOKEN_TRANSFER_BIN"
+
+run "cookbook fee events split by transaction outcome" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
+  | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json(\"/dev/stdin\") WHERE fee IS NOT NULL AND meta.inSuccessfulTx) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" \
+  | grep -Eq "^[0-9]+$"' "$TOKEN_TRANSFER_BIN"
+
+# Cookbook: "Verifying coverage". A contiguous fetch must report no holes, so
+# a query that always returns rows — or always returns none — is detectable.
+run "cookbook coverage query finds no holes in a contiguous fetch" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200004 \
+  | duckdb -c "COPY (WITH seen AS (SELECT DISTINCT meta.ledgerSequence AS seq FROM read_json(\"/dev/stdin\")), bounds AS (SELECT MIN(seq) AS lo, MAX(seq) AS hi FROM seen) SELECT COUNT(*) AS missing FROM bounds, range(bounds.lo, bounds.hi + 1) AS g(seq) WHERE g.seq NOT IN (SELECT seq FROM seen)) TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" \
+  | grep -Eq "^0$"' "$TOKEN_TRANSFER_BIN"
+
+# Cookbook: "Querying the status stream". Asserts that nebu stamps the run id
+# it was given and that the documented correlation query runs over the result.
+#
+# It deliberately does not assert that *both* stages appear. A processor only
+# emits run_id when built against nebu v0.7.1 or later, and the registry
+# binaries this script installs are older, so the second stage writes null —
+# which is the caveat the cookbook states. Tighten this to COUNT(DISTINCT
+# component_id) = 2 once `just build-processors` installs processors built
+# against a nebu that has it.
+run "cookbook status stream query correlates by run id" bash -lc '
+  dir="$0"; nebu="$1"; tt="$2"
+  export NEBU_RUN_ID=11111111-2222-4333-8444-555555555555
+  NEBU_COMPONENT_ID=fetch "$nebu" --status-file "$dir/s-fetch.ndjson" fetch --quiet 60200000 60200002 2>/dev/null \
+    | NEBU_COMPONENT_ID=transfers "$tt" --quiet --status-file "$dir/s-tt.ndjson" - >/dev/null 2>&1
+  duckdb -c "COPY (SELECT COUNT(*) AS records FROM read_json(\"$dir/s-*.ndjson\", union_by_name = true) WHERE run_id = '\''$NEBU_RUN_ID'\'' AND component_id = '\''fetch'\'') TO \"/dev/stdout\" (FORMAT CSV, HEADER FALSE)" \
+    | grep -Eq "^[1-9][0-9]*$"' "$TMPDIR" "$ROOT/bin/nebu" "$TOKEN_TRANSFER_BIN"
+
 if [[ -x "$NATS_SINK_BIN" ]] && command -v docker >/dev/null 2>&1; then
   echo "==> nats-sink smoke (docker-backed)"
   docker rm -f nebu-docs-nats >/dev/null 2>&1 || true

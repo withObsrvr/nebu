@@ -11,12 +11,15 @@ DuckDB can read JSON directly from stdin using `read_json('/dev/stdin')`, making
 ## Table of Contents
 
 - [Basic Ingestion](#basic-ingestion)
+- [Getting the numbers right](#getting-the-numbers-right)
 - [Ad-Hoc Analytics](#ad-hoc-analytics-no-persistence)
 - [Transform on Ingestion](#transform-on-ingestion)
 - [Multi-Table Analytics](#multi-table-analytics)
 - [Time-Series Analysis](#time-series-analysis)
 - [Address Activity Tracking](#address-activity-tracking)
 - [Extracting Structured Data from Contract Events](#extracting-structured-data-from-contract-events)
+- [Verifying coverage](#verifying-coverage)
+- [Querying the status stream](#querying-the-status-stream)
 - [Export Results](#export-results)
 - [Incremental Updates](#incremental-updates)
 - [Tips](#tips)
@@ -47,6 +50,62 @@ duckdb events.db -c "
 "
 ```
 
+## Getting the numbers right
+
+Three things about this data will produce plausible, wrong answers if you
+don't know them. They apply to every query below.
+
+### Amounts are integers wider than a double
+
+Amounts are stroops — 1/10,000,000 of a unit — as decimal strings, and they
+reach into `int64`. `DOUBLE` holds integers exactly only up to 2^53 (about
+9.0 × 10^15), and single Stellar amounts already exceed that: a transfer of
+4.06 × 10^16 stroops is an ordinary XLM movement.
+
+```sql
+-- Wrong: silently loses precision.
+SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE))
+
+-- Right: exact.
+SUM(json_extract_string(transfer, '$.amount')::HUGEINT)
+```
+
+Over 51 ledgers of pubnet traffic the two disagree by 648 stroops. The error
+grows with the range and never announces itself, which is why it is worth
+getting right in the first query rather than the audit.
+
+Divide by `1e7` only at the end, for display.
+
+### Fee events include failed transactions
+
+A failed transaction still pays its fee, so `fee` events are emitted for
+transactions that did nothing else. In the same 51-ledger sample, **39% of fee
+events came from failed transactions**. Asset movements do not have this
+problem — `transfer`, `mint` and `burn` events are only derived from
+successful operations — but any query that sums fees, or counts "events per
+ledger", is mixing the two unless you say otherwise:
+
+```sql
+-- Fees actually paid by successful activity.
+SELECT SUM(fee.amount::HUGEINT) AS fees
+FROM read_json('/dev/stdin')
+WHERE fee IS NOT NULL AND meta.inSuccessfulTx
+```
+
+`meta.inSuccessfulTx` is the filter, and it is on every event.
+
+### Close times are whole seconds
+
+`meta.closedAtUnix` is a **string** of whole seconds, not a number and not
+milliseconds. Cast it explicitly (`::BIGINT`) and convert with
+`to_timestamp()`.
+
+It is also not a safe sort key. Protocol 30's CAP-88 gives ledger close times
+millisecond resolution, so two consecutive ledgers can close within the same
+second — second-resolution bucketing and ordering stop being deterministic
+rather than producing an error. Bucket and order by `meta.ledgerSequence` when
+the answer has to be deterministic, and treat the close time as a label.
+
 ## Ad-Hoc Analytics (No Persistence)
 
 Query event streams directly without saving to disk:
@@ -58,7 +117,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
     SELECT
       json_extract_string(transfer, '$.assetCode') as asset_code,
       COUNT(*) as transfer_count,
-      SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as total_volume
+      SUM(json_extract_string(transfer, '$.amount')::HUGEINT) as total_volume
     FROM read_json('/dev/stdin')
     WHERE transfer IS NOT NULL
     GROUP BY asset_code
@@ -157,7 +216,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60300000 | \
         json_extract(meta, '$.ledgerSequence') as ledger_sequence,
         json_extract_string(transfer, '$.assetCode') as asset_code,
         COUNT(*) as event_count,
-        SUM(CAST(json_extract_string(transfer, '$.amount') AS DOUBLE)) as volume
+        SUM(json_extract_string(transfer, '$.amount')::HUGEINT) as volume
       FROM read_json('/dev/stdin')
       WHERE transfer IS NOT NULL
       GROUP BY ledger_sequence, asset_code
@@ -286,6 +345,88 @@ See [`examples/queries/extract_payment_events.sql`](../examples/queries/extract_
 - Performance-critical hot paths
 
 **Rule of thumb:** Start with DuckDB. Only write custom processors when SQL becomes too complex or you need side effects.
+
+## Verifying coverage
+
+A dataset that is missing ledgers looks exactly like one that is complete.
+`--on-ledger-error strict` makes nebu refuse to produce a partial dataset in
+the first place, and nebu reports coverage on stderr at the end of a run — but
+once the data is at rest, the question becomes a query.
+
+Find the holes:
+
+```bash
+duckdb events.db -c "
+  WITH seen AS (
+    SELECT DISTINCT meta.ledgerSequence AS seq FROM transfers
+  ),
+  bounds AS (SELECT MIN(seq) AS lo, MAX(seq) AS hi FROM seen)
+  SELECT g.seq AS missing_ledger
+  FROM bounds, range(bounds.lo, bounds.hi + 1) AS g(seq)
+  WHERE g.seq NOT IN (SELECT seq FROM seen)
+  ORDER BY 1
+"
+```
+
+Two caveats worth stating, because they are the difference between this query
+being a check and being a false reassurance:
+
+- It only finds gaps **inside** the range you actually loaded. It cannot know
+  you meant to fetch 1,000 ledgers and stopped at 900. Compare `MIN`/`MAX`
+  against what you asked for as well.
+- A ledger with no matching events is indistinguishable from a missing one.
+  Most ledgers contain token transfers, so this is a good signal in practice,
+  but for an exact answer load an event type that appears in every ledger —
+  fee events do — or keep the fetch's own checkpoint and coverage output.
+
+## Querying the status stream
+
+`nebu.status.v1` is NDJSON, so DuckDB reads a run's progress the same way it
+reads the data. Every record carries a `run_id`, and under flowctl — or with
+`NEBU_RUN_ID` set yourself — every stage of one pipeline shares it. That makes
+a multi-process pipeline queryable as one thing:
+
+```bash
+export NEBU_RUN_ID=$(uuidgen)
+
+NEBU_COMPONENT_ID=fetch nebu fetch --status-file fetch.ndjson 65430000 65430020 \
+  | NEBU_COMPONENT_ID=transfers token-transfer --status-file transfers.ndjson - \
+  > transfers.jsonl
+
+duckdb -c "
+  SELECT
+    component_id,
+    app,
+    COUNT(*)            AS records,
+    MAX(current_ledger) AS last_ledger,
+    MAX(ledger_lag)     AS max_lag,
+    any_value(state) FILTER (WHERE lifecycle <> 'running') AS final_state
+  FROM read_json('*.ndjson', union_by_name = true)
+  WHERE run_id = '$NEBU_RUN_ID'
+  GROUP BY component_id, app
+  ORDER BY component_id
+"
+```
+
+```
+┌──────────────┬────────────────┬─────────┬─────────────┬─────────┬─────────────┐
+│ component_id │      app       │ records │ last_ledger │ max_lag │ final_state │
+├──────────────┼────────────────┼─────────┼─────────────┼─────────┼─────────────┤
+│ fetch        │ nebu           │      23 │    65430020 │      20 │ done        │
+│ transfers    │ token-transfer │      23 │    65430020 │    NULL │ done        │
+└──────────────┴────────────────┴─────────┴─────────────┴─────────┴─────────────┘
+```
+
+`union_by_name = true` is required: a stage reading from stdin has no target
+ledger, so its records carry no `target_ledger` or `ledger_lag` and the two
+files have different field sets. The `NULL` lag above is that, not a bug.
+
+`final_state` is `done`, `error` or `idle` — `idle` meaning cancelled. The
+exit code remains authoritative, but this tells you *which stage* ended badly,
+which the exit code of a shell pipeline will not.
+
+Processors must be built against nebu v0.7.1 or later to emit `run_id`; an
+older binary writes the field as null.
 
 ## Export Results
 
