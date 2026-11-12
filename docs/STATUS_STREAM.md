@@ -21,7 +21,7 @@ and processor JSONL remain clean. Diagnostics and OSC 7501 remain on stderr.
 Each line is one JSON object:
 
 ```json
-{"_schema":"nebu.status.v1","state":"working","lifecycle":"running","app":"nebu","ts":"2026-10-11T14:00:00Z","current_ledger":60200050,"target_ledger":60200100,"ledger_lag":50,"message":"Fetching ledgers"}
+{"_schema":"nebu.status.v1","state":"working","lifecycle":"running","app":"nebu","run_id":"9f2b7c14-6d58-4a0e-9a3f-2c1d5e8b7a40","ts":"2026-10-11T14:00:00Z","current_ledger":60200050,"target_ledger":60200100,"ledger_lag":50,"message":"Fetching ledgers"}
 ```
 
 | Field | Type | Required | Meaning |
@@ -30,6 +30,8 @@ Each line is one JSON object:
 | `state` | string | yes | Program Status Protocol token: `idle`, `working`, `blocked`, `done`, or `error`. |
 | `lifecycle` | string | yes | CLI-12 operation lifecycle: `running`, `succeeded`, `failed`, or `cancelled`. Derived from `state`; see [State vocabularies](#state-vocabularies). |
 | `app` | string | yes | Stable emitting application name. |
+| `run_id` | string | yes | Identifies the run. Adopted from the orchestrator when there is one, otherwise minted; see [Run identity](#run-identity). |
+| `component_id` | string | no | This process's position in a pipeline, when something upstream knows it. |
 | `ts` | RFC 3339 timestamp | yes | Time the record was emitted, in UTC. |
 | `current_ledger` | uint32 | no | Most recently written ledger. |
 | `target_ledger` | uint32 | no | Requested bounded-range end ledger. |
@@ -47,6 +49,61 @@ interruption, or `error` after failure. Failure to open or write an explicitly
 configured status file fails the command; it is therefore safe for an
 orchestrator to rely on the configured stream rather than silently losing
 observability.
+
+## Run identity
+
+`app` names the program; `run_id` names the run. Without the second, a consumer
+following several streams cannot tell two concurrent runs of the same processor
+apart, and cannot tell that the stages of one pipeline belong together — each
+emits a well-formed, complete, entirely unrelatable stream.
+
+`run_id` is **adopted from the environment when something is running nebu, and
+minted only when nothing is**:
+
+| Source | Precedence | Set by |
+|---|---:|---|
+| `FLOWCTL_RUN_ID` | 1 | flowctl, on every child process it starts |
+| `NEBU_RUN_ID` | 2 | any other caller composing a pipeline |
+| minted UUIDv4 | 3 | nebu itself |
+
+`component_id` resolves the same way through `FLOWCTL_COMPONENT_ID` and
+`NEBU_COMPONENT_ID`, and is absent when neither is set.
+
+Adopting first is the point: flowctl already mints a run id per pipeline run,
+so taking that value makes nebu's stream line up with flowctl's record of the
+same run instead of inventing a second identity for it. A minted id is a
+UUIDv4 — the same shape flowctl produces — so a consumer never has to care
+which case it got.
+
+Under flowctl, this needs nothing from you:
+
+```bash
+# flowctl exports FLOWCTL_RUN_ID and FLOWCTL_COMPONENT_ID to each stage
+flowctl run pipeline.yaml
+```
+
+Composing a pipeline yourself, set the run id once and label each stage:
+
+```bash
+export NEBU_RUN_ID=$(uuidgen)
+
+NEBU_COMPONENT_ID=fetch  nebu fetch --status-file fetch.ndjson 60200000 60200100 \
+  | NEBU_COMPONENT_ID=transfers token-transfer --status-file transfers.ndjson - \
+  | NEBU_COMPONENT_ID=sink      json-file-sink --status-file sink.ndjson --out out.jsonl
+```
+
+All three streams then carry one `run_id` and three different `component_id`
+values, which is what lets a consumer present them as one pipeline.
+`NEBU_COMPONENT_ID` is read per process: exporting a single value for a whole
+shell pipeline labels every stage the same and defeats the purpose.
+
+Identity belongs to the run, not to the record. It is stamped on write
+alongside `app` and `ts`, so one run cannot split itself across several ids.
+
+This does not make a run addressable from outside the process executing it;
+`inspect <id>` and `cancel <id>` remain excepted by
+[ADR 0003](adr/0003-exception-cli-12-operation-lifecycle.md). See
+[ADR 0005](adr/0005-status-stream-carries-the-run-id.md) for the decision.
 
 ## State vocabularies
 

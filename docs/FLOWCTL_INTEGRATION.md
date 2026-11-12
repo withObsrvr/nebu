@@ -26,6 +26,8 @@ wiring. Parsers must ignore unknown fields for forward compatibility.
 Create a dedicated status path for each component, then launch the processor:
 
 ```bash
+FLOWCTL_RUN_ID=$RUN_ID \
+FLOWCTL_COMPONENT_ID=token-transfer \
 NEBU_STATUS_FILE=/run/flowctl/token-transfer.status.ndjson \
 NEBU_PROGRAM_STATUS=never \
 token-transfer --start-ledger 60200000 --end-ledger 60200100
@@ -40,8 +42,30 @@ The process exposes four independent signals:
 | status file | Versioned `nebu.status.v1` NDJSON lifecycle and progress. |
 | process exit | Authoritative success, failure, or interruption result. |
 
-Flowctl should associate the status path with the child process it created;
-nebu does not require flowctl-specific run or component identifiers.
+## Run identity
+
+Nebu **adopts** flowctl's identifiers rather than minting its own. The two
+variables flowctl already exports to every child it starts are read, and their
+values appear on every record of that component's status stream:
+
+| Variable | Appears as | When absent |
+|---|---|---|
+| `FLOWCTL_RUN_ID` | `run_id` | Nebu mints a UUIDv4 for the run |
+| `FLOWCTL_COMPONENT_ID` | `component_id` | Omitted |
+
+So flowctl's record of a pipeline run and nebu's status stream for each of its
+stages share one id, with no mapping table to maintain. Nebu does not *require*
+them — a standalone run mints a run id, in the same UUID shape, so a consumer
+never has to handle a missing one — but supplying them is what makes the
+streams of several stages recognisable as one pipeline.
+
+Flowctl should still associate the status path with the child process it
+created. The identifiers correlate the *records*; the path and the process
+handle are how flowctl knows which stream it is reading.
+
+See [ADR 0005](adr/0005-status-stream-carries-the-run-id.md) for the decision
+and [STATUS_STREAM.md](STATUS_STREAM.md#run-identity) for the full precedence
+order, including the `NEBU_RUN_ID` form for callers that are not flowctl.
 
 ## Status and health
 
