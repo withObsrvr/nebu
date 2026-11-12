@@ -24,10 +24,10 @@ var (
 	statusFileHandle *os.File
 	statusWriter     *status.Writer
 
-	// statusCanceled records that the terminal cancellation record has
-	// already been written, so the normal finish path does not write a
-	// second terminal record after it.
-	statusCanceled bool
+	// statusTerminal records that a terminal record has been written.
+	// Nothing may follow one: a consumer that reads idle/cancelled and
+	// then working has watched a finished run come back to life.
+	statusTerminal bool
 )
 
 func statusFileDefault() string {
@@ -94,7 +94,7 @@ func writeStructuredStatus(state programstatus.State, message string) error {
 }
 
 func writeStructuredStatusLocked(state programstatus.State, message string) error {
-	if statusWriter == nil {
+	if statusWriter == nil || statusTerminal {
 		return nil
 	}
 	return statusWriter.Write(status.Record{State: state, Message: oneLine(message)})
@@ -104,7 +104,11 @@ func writeStructuredProgress(current, target uint32) error {
 	statusMu.Lock()
 	defer statusMu.Unlock()
 
-	if statusWriter == nil {
+	// Dropped once the run has reported a terminal state. The fetch loop
+	// checks the context and then writes progress, so a signal arriving in
+	// that gap — or while the preceding output write is blocked — would
+	// otherwise append a working record after the terminal one.
+	if statusWriter == nil || statusTerminal {
 		return nil
 	}
 	record := status.Record{
@@ -128,17 +132,21 @@ func writeStructuredProgress(current, target uint32) error {
 // live, forever. Reporting here means the record is already on disk before any
 // force-exit timer can fire.
 //
-// Safe to call more than once; only the first call writes. The stream is left
-// open so progress already in flight on the main goroutine can still land, and
-// so the normal finish path still owns closing it.
+// Safe to call more than once; only the first call writes. The record is
+// terminal, so every later write is dropped — including progress the main
+// goroutine was already about to emit. The stream stays open because the
+// normal finish path still owns closing it.
 func cancelStatusStream() {
 	statusMu.Lock()
-	if statusCanceled {
+	if statusTerminal {
 		statusMu.Unlock()
 		return
 	}
-	statusCanceled = true
+	// Write before marking, both inside one critical section: the mark is
+	// what suppresses later writes, so setting it first would suppress
+	// this one.
 	err := writeStructuredStatusLocked(programstatus.Idle, "Command canceled")
+	statusTerminal = true
 	statusMu.Unlock()
 
 	if err != nil {
@@ -151,10 +159,10 @@ func finishStatusStream(commandErr error) error {
 	statusMu.Lock()
 	defer statusMu.Unlock()
 
-	// cancelStatusStream already wrote the terminal record. Writing another
-	// would put a second terminal state on a stream whose contract says
-	// there is one.
-	if statusWriter != nil && !statusCanceled {
+	// cancelStatusStream may already have written the terminal record.
+	// Writing another would put a second terminal state on a stream whose
+	// contract says there is one.
+	if statusWriter != nil && !statusTerminal {
 		state := programstatus.Done
 		message := "Command finished"
 		if errors.Is(commandErr, context.Canceled) {
@@ -167,6 +175,7 @@ func finishStatusStream(commandErr error) error {
 		if err := writeStructuredStatusLocked(state, message); err != nil {
 			commandErr = errors.Join(commandErr, fmt.Errorf("write final status: %w", err))
 		}
+		statusTerminal = true
 	}
 	if err := closeStatusStreamLocked(); err != nil {
 		commandErr = errors.Join(commandErr, fmt.Errorf("close status file: %w", err))

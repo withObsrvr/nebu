@@ -19,11 +19,8 @@ import (
 )
 
 func TestStructuredStatusLifecycleWithoutTTY(t *testing.T) {
+	resetStatusStream(t)
 	path := filepath.Join(t.TempDir(), "status.ndjson")
-	programStatusStarted = false
-	statusFilePath = ""
-	statusFileHandle = nil
-	statusWriter = nil
 
 	cmd := newRootCmd()
 	cmd.SetArgs([]string{"--program-status=never", "--status-file", path, "list"})
@@ -39,10 +36,7 @@ func TestStructuredStatusLifecycleWithoutTTY(t *testing.T) {
 func TestStatusFileRejectsOutputAliasBeforeTruncating(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data")
 	require.NoError(t, os.WriteFile(path, []byte("keep"), 0o644))
-	programStatusStarted = false
-	statusFilePath = ""
-	statusFileHandle = nil
-	statusWriter = nil
+	resetStatusStream(t)
 
 	cmd := newRootCmd()
 	cmd.SetArgs([]string{
@@ -66,14 +60,14 @@ func TestStatusFileRejectsRedirectedStdoutAlias(t *testing.T) {
 		require.NoError(t, redirected.Close())
 	}()
 
+	resetStatusStream(t)
 	statusFilePath = path
-	statusFileHandle = nil
-	statusWriter = nil
 	err = openStatusStream(newFetchCmd())
 	require.ErrorContains(t, err, "redirected stdout")
 }
 
 func TestStructuredStatusCancellationEndsIdle(t *testing.T) {
+	resetStatusStream(t)
 	path := filepath.Join(t.TempDir(), "status.ndjson")
 	file, err := os.Create(path)
 	require.NoError(t, err)
@@ -87,9 +81,9 @@ func TestStructuredStatusCancellationEndsIdle(t *testing.T) {
 }
 
 func TestStructuredFetchProgressIncludesLedgerLag(t *testing.T) {
+	resetStatusStream(t)
 	var output bytes.Buffer
 	statusWriter = status.NewWriter(&output, "nebu")
-	defer func() { statusWriter = nil }()
 
 	count, err := writeRawLedgers(
 		context.Background(),
@@ -133,18 +127,25 @@ func readStatusRecords(t *testing.T, path string) []status.Record {
 	return records
 }
 
-// resetStatusStream restores the package-level status handles so these tests
-// do not leak state into each other.
+// resetStatusStream restores every package-level status global, before and
+// after the test, so these tests cannot leak state into each other.
+//
+// statusTerminal is the reason this is a helper rather than a few lines
+// repeated per test: it is deliberately sticky for the life of a process,
+// since one process is one run, so a test that reaches a terminal state
+// silences the status stream for everything that follows it.
 func resetStatusStream(t *testing.T) {
 	t.Helper()
-	t.Cleanup(func() {
+
+	reset := func() {
+		programStatusStarted = false
+		statusFilePath = ""
 		statusFileHandle = nil
 		statusWriter = nil
-		statusCanceled = false
-	})
-	statusFileHandle = nil
-	statusWriter = nil
-	statusCanceled = false
+		statusTerminal = false
+	}
+	t.Cleanup(reset)
+	reset()
 }
 
 func TestCancelStatusStreamWritesTheTerminalRecordBeforeAnyForcedExit(t *testing.T) {
@@ -260,6 +261,71 @@ func TestStatusStreamWritesAreSafeUnderConcurrentCancellation(t *testing.T) {
 		if record.State == programstatus.Idle {
 			terminal++
 		}
+	}
+	assert.Equal(t, 1, terminal, "exactly one terminal record, however the writes interleave")
+}
+
+func TestNothingFollowsTheTerminalCancellationRecord(t *testing.T) {
+	// The fetch loop checks the context and then writes progress, so a
+	// signal arriving in that gap — or while the preceding output write is
+	// blocked — used to append a working record after the terminal one. A
+	// consumer reading idle/cancelled and then working has watched a
+	// finished run come back to life.
+	resetStatusStream(t)
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	cancelStatusStream()
+
+	// Everything the command might still emit on its way out.
+	require.NoError(t, writeStructuredProgress(700, 900))
+	require.NoError(t, writeStructuredStatus(programstatus.Working, "late progress"))
+	require.ErrorIs(t, finishStatusStream(context.Canceled), context.Canceled)
+
+	records := readStatusRecords(t, path)
+	require.Len(t, records, 1, "the terminal record must be the only record left")
+	assert.Equal(t, programstatus.Idle, records[0].State)
+}
+
+func TestTerminalRecordIsLastUnderConcurrentProgress(t *testing.T) {
+	// The ordering guarantee, not just the count: whatever the interleaving,
+	// a consumer must never read a record after the terminal one.
+	resetStatusStream(t)
+	path := filepath.Join(t.TempDir(), "status.ndjson")
+	file, err := os.Create(path)
+	require.NoError(t, err)
+	statusFileHandle = file
+	statusWriter = status.NewWriter(file, "nebu")
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := range 500 {
+			_ = writeStructuredProgress(uint32(700+i), 1200)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		cancelStatusStream()
+	}()
+	wg.Wait()
+
+	require.NoError(t, closeStatusStream())
+
+	records := readStatusRecords(t, path)
+	require.NotEmpty(t, records)
+
+	terminal := 0
+	for i, record := range records {
+		if record.State != programstatus.Idle {
+			continue
+		}
+		terminal++
+		assert.Equal(t, len(records)-1, i, "a record followed the terminal one")
 	}
 	assert.Equal(t, 1, terminal, "exactly one terminal record, however the writes interleave")
 }

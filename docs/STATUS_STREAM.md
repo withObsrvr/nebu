@@ -21,7 +21,7 @@ and processor JSONL remain clean. Diagnostics and OSC 7501 remain on stderr.
 Each line is one JSON object:
 
 ```json
-{"_schema":"nebu.status.v1","state":"working","lifecycle":"running","app":"nebu","ts":"2026-10-11T14:00:00Z","current_ledger":60200050,"target_ledger":60200100,"ledger_lag":50,"message":"Fetching ledgers"}
+{"_schema":"nebu.status.v1","state":"working","lifecycle":"running","app":"nebu","run_id":"9f2b7c14-6d58-4a0e-9a3f-2c1d5e8b7a40","ts":"2026-10-11T14:00:00Z","current_ledger":60200050,"target_ledger":60200100,"ledger_lag":50,"message":"Fetching ledgers"}
 ```
 
 | Field | Type | Required | Meaning |
