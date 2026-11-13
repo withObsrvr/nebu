@@ -272,6 +272,10 @@ $ token-transfer --start-ledger 60200000</pre>
         <span>Ending ledger sequence (inclusive). Omit it for unbounded streaming.</span>
       </div>
       <div class="flex flex-col md:flex-row md:gap-8">
+        <span class="font-bold text-secondary w-44 shrink-0">--last N</span>
+        <span>Use the most recent N ledgers the source holds instead of an explicit range, so you do not have to look a sequence number up first. Mutually exclusive with explicit ledgers, with <span class="font-bold">--start-ledger</span>, and with <span class="font-bold">--checkpoint</span> — a checkpoint resumes a fixed range and <span class="font-bold">--last</span> resolves a new one as the chain advances. The resolved range is reported on stderr. Accepted by every origin processor; overrides <span class="font-bold">NEBU_LAST</span>.</span>
+      </div>
+      <div class="flex flex-col md:flex-row md:gap-8">
         <span class="font-bold text-secondary w-44 shrink-0">-f, --follow</span>
         <span>Stream ledgers continuously from <span class="font-bold">--start-ledger</span>, equivalent to an end ledger of 0.</span>
       </div>

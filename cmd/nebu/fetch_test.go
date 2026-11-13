@@ -469,3 +469,50 @@ func TestArchiveLayoutDisplay(t *testing.T) {
 		})
 	}
 }
+
+func TestFetchLastRejectsIncoherentCombinations(t *testing.T) {
+	// These are all caught before any network call, so the test needs no
+	// endpoint. Each one is a case where guessing which input the operator
+	// meant would quietly produce a different range than they asked for.
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "last with an explicit range",
+			args: []string{"--program-status=never", "fetch", "--last", "10", "65430000", "65430010"},
+		},
+		{
+			name: "last with a single explicit ledger",
+			args: []string{"--program-status=never", "fetch", "--last", "10", "65430000"},
+		},
+		{
+			name: "neither a range nor last",
+			args: []string{"--program-status=never", "fetch"},
+		},
+		{
+			// A checkpoint resumes a fixed range; --last resolves a
+			// different one as the chain advances.
+			name: "last with a checkpoint",
+			args: []string{"--program-status=never", "fetch", "--last", "10",
+				"--checkpoint", "/nonexistent/ckpt.json"},
+		},
+		{
+			name: "last is not a number",
+			args: []string{"--program-status=never", "fetch", "--last", "-1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetStatusStream(t)
+			cmd := newRootCmd()
+			cmd.SetArgs(tt.args)
+			cmd.SetOut(io.Discard)
+			cmd.SetErr(io.Discard)
+
+			assert.Equal(t, 2, execute(cmd),
+				"an incoherent range request is a usage error, not a guess")
+		})
+	}
+}

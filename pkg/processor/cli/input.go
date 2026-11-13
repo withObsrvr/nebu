@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/runtime"
+	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
 // policyFlagName is the flag every origin CLI exposes to choose what an
@@ -165,4 +169,82 @@ func processLedgerFile(
 	defer file.Close()
 
 	return processLedgerStream(ctx, origin, file, status, target, resolver, policy)
+}
+
+// lastFlagName is the flag every origin CLI exposes to ask for the most
+// recent N ledgers without having to look a sequence number up first.
+const lastFlagName = "last"
+
+// lastEnvVar is the environment fallback for lastFlagName.
+const lastEnvVar = "NEBU_LAST"
+
+// registerLastFlag adds the recent-ledgers flag to cmd.
+func registerLastFlag(cmd *cobra.Command, value *uint32) {
+	cmd.Flags().Uint32Var(value, lastFlagName, 0,
+		"Process the most recent N ledgers instead of an explicit range (or set "+lastEnvVar+")")
+}
+
+// resolveLast returns the flag value, or the environment fallback.
+func resolveLast(flagValue uint32) (uint32, error) {
+	if flagValue != 0 {
+		return flagValue, nil
+	}
+	raw := os.Getenv(lastEnvVar)
+	if raw == "" {
+		return 0, nil
+	}
+	parsed, err := strconv.ParseUint(raw, 10, 32)
+	if err != nil {
+		return 0, nebuErrors.Usage(fmt.Errorf("%s must be a ledger count: %w", lastEnvVar, err))
+	}
+	return uint32(parsed), nil
+}
+
+// lastLedgerRange turns --last N into a concrete bounded range by asking the
+// RPC endpoint which ledgers it holds.
+//
+// The range is always the full N that was asked for. A source that cannot
+// serve it fails the run rather than returning a shorter result that looks
+// complete, which is why the oldest ledger the endpoint reports produces a
+// note rather than a refusal — archive-backed endpoints report a window of
+// their last few dozen ledgers and serve history millions deeper.
+func lastLedgerRange(rpcURL, authHeader string, last uint32) (uint32, uint32, error) {
+	headers := map[string]string{}
+	if authHeader != "" {
+		headers["Authorization"] = authHeader
+	}
+
+	src, err := rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
+	if err != nil {
+		return 0, 0, nebuErrors.FailedToCreateSource("RPC", err)
+	}
+	defer func() { _ = src.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	window, err := src.LedgerWindow(ctx)
+	if err != nil {
+		return 0, 0, nebuErrors.FailedToCreateSource("RPC", err)
+	}
+
+	start, end, err := source.ResolveLast(window, last)
+	if err != nil {
+		return 0, 0, &nebuErrors.NebuError{
+			Kind:       nebuErrors.KindNotFound,
+			Cause:      err,
+			Message:    err.Error(),
+			Suggestion: fmt.Sprintf("The RPC source reports ledgers %s.", window),
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Resolved --last %d to ledgers %d-%d (source reports %s)\n",
+		last, start, end, window)
+	if !window.Covers(start) {
+		fmt.Fprintf(os.Stderr,
+			"Note: ledger %d is below the oldest the source reported (%d). Archive-backed "+
+				"endpoints routinely serve deeper than they report; if this one does not, "+
+				"the run will fail rather than process a partial range.\n", start, window.Oldest)
+	}
+	return start, end, nil
 }

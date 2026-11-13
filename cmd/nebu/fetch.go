@@ -18,6 +18,9 @@ import (
 	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
+	"github.com/withObsrvr/nebu/pkg/source"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
+	"github.com/withObsrvr/nebu/pkg/source/storage"
 )
 
 func newFetchCmd() *cobra.Command {
@@ -42,6 +45,7 @@ func newFetchCmd() *cobra.Command {
 		numWorkers         int
 		ledgersPerFile     int
 		filesPerPartition  int
+		last               int
 		checkpointPath     string
 		checkpointInterval uint32
 	)
@@ -85,7 +89,7 @@ Archive Mode Examples:
   export NEBU_BUCKET_PATH="stellar-data/mainnet"
   nebu fetch 60200000 60200100 | gzip > historical.xdr.gz
 `,
-		Args: cobra.RangeArgs(1, 2),
+		Args: cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Auto-quiet when stdout is a pipe and outputting binary XDR.
 			// Prevents status messages from corrupting the stream if stderr
@@ -96,30 +100,47 @@ Archive Mode Examples:
 				}
 			}
 
-			// Parse start ledger (always required)
 			var err error
-			_, err = fmt.Sscanf(args[0], "%d", &startLedger)
-			if err != nil {
-				return nebuErrors.InvalidLedgerFormat(args[0], "start")
+			lastConfig := getEnvOrFlagInt("NEBU_LAST", last, 0)
+
+			// The range comes from positional ledgers or from --last, never
+			// both: silently preferring one is how a run quietly covers a
+			// different range than the operator asked for.
+			switch {
+			case lastConfig.Value != 0 && len(args) > 0:
+				return nebuErrors.Usage(fmt.Errorf(
+					"--last and explicit ledger arguments are mutually exclusive; " +
+						"--last asks the source where the range is"))
+			case lastConfig.Value == 0 && len(args) == 0:
+				return nebuErrors.Usage(fmt.Errorf(
+					"specify a ledger range, or --last N for the most recent N ledgers"))
 			}
 
-			if startLedger == 0 {
-				return nebuErrors.LedgerMustBePositive("Start")
-			}
-
-			// Parse end ledger based on args and flags
-			if len(args) == 2 {
-				// Two arguments provided: use end-ledger from args
-				_, err = fmt.Sscanf(args[1], "%d", &endLedger)
+			if lastConfig.Value == 0 {
+				// Parse start ledger (always required)
+				_, err = fmt.Sscanf(args[0], "%d", &startLedger)
 				if err != nil {
-					return nebuErrors.InvalidLedgerFormat(args[1], "end")
+					return nebuErrors.InvalidLedgerFormat(args[0], "start")
 				}
-			} else if follow {
-				// Only one argument + --follow flag: stream indefinitely
-				endLedger = 0
-			} else {
-				// Only one argument, no --follow: fetch single ledger
-				endLedger = startLedger
+
+				if startLedger == 0 {
+					return nebuErrors.LedgerMustBePositive("Start")
+				}
+
+				// Parse end ledger based on args and flags
+				if len(args) == 2 {
+					// Two arguments provided: use end-ledger from args
+					_, err = fmt.Sscanf(args[1], "%d", &endLedger)
+					if err != nil {
+						return nebuErrors.InvalidLedgerFormat(args[1], "end")
+					}
+				} else if follow {
+					// Only one argument + --follow flag: stream indefinitely
+					endLedger = 0
+				} else {
+					// Only one argument, no --follow: fetch single ledger
+					endLedger = startLedger
+				}
 			}
 
 			// Validate ledger range
@@ -193,6 +214,69 @@ Archive Mode Examples:
 				}
 			} else {
 				return nebuErrors.InvalidMode(modeConfig.Value, []string{"rpc", "archive"})
+			}
+
+			if lastConfig.Value != 0 {
+				// A checkpoint resumes a fixed range; --last is a moving
+				// target. Combining them can only ever work if the tip has
+				// not advanced, and openCheckpoint would otherwise reject
+				// the mismatch on the second run with a confusing message.
+				if checkpointPath != "" {
+					return nebuErrors.Usage(fmt.Errorf(
+						"--last cannot be combined with --checkpoint: a checkpoint resumes a " +
+							"fixed range, and --last resolves a different one as the chain advances. " +
+							"Resolve the range once with --last, then re-run it explicitly with " +
+							"--checkpoint"))
+				}
+
+				count, err := flagUint32("--last", lastConfig.Value)
+				if err != nil {
+					return err
+				}
+
+				window, err := fetchLedgerWindow(
+					modeConfig.Value, rpcConfig.Value, authHeader, archiveConfig,
+				)
+				if err != nil {
+					return err
+				}
+
+				resolvedStart, resolvedEnd, err := source.ResolveLast(window, count)
+				if err != nil {
+					// Asking for more ledgers than the chain has is a range
+					// problem, not an unreachable source.
+					return &nebuErrors.NebuError{
+						Kind:    nebuErrors.KindNotFound,
+						Cause:   err,
+						Message: err.Error(),
+						Suggestion: fmt.Sprintf(
+							"The %s source reports ledgers %s.", modeConfig.Value, window),
+					}
+				}
+
+				startLedger = resolvedStart
+				if follow {
+					// Start the requested distance back and keep going.
+					endLedger = 0
+				} else {
+					endLedger = resolvedEnd
+				}
+				logInfo("Resolved --last %d to ledgers %d-%d (source reports %s)",
+					count, resolvedStart, resolvedEnd, window)
+
+				// A warning, not a refusal. An archive-backed RPC endpoint
+				// reports a window of its last few dozen ledgers and then
+				// serves history millions deep, so refusing here would reject
+				// ranges the default endpoint can serve. The full range is
+				// requested either way, so a source that genuinely cannot
+				// serve it fails the run rather than returning a short
+				// dataset that looks complete.
+				if !window.Covers(resolvedStart) {
+					logInfo("Note: ledger %d is below the oldest the source reported (%d). "+
+						"Archive-backed endpoints routinely serve deeper than they report; "+
+						"if this one does not, the fetch will fail rather than return a "+
+						"partial range.", resolvedStart, window.Oldest)
+				}
 			}
 
 			if err := validateCheckpointOutputPaths(checkpointPath, outputFile); err != nil {
@@ -322,6 +406,7 @@ Archive Mode Examples:
 
 	// Common flags
 	cmd.Flags().StringVar(&outputFile, "output", "", "Output file (default: stdout)")
+	cmd.Flags().IntVar(&last, "last", 0, "Fetch the most recent N ledgers the source holds, instead of an explicit range (or set NEBU_LAST)")
 	cmd.Flags().StringVar(&checkpointPath, "checkpoint", "", "Resume checkpoint file (opt-in)")
 	cmd.Flags().Uint32Var(&checkpointInterval, "checkpoint-interval", 1, "Ledgers between durable checkpoint writes")
 
@@ -365,7 +450,7 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, o
 // this, the stream that follows will retry it properly with its own policy.
 const archiveManifestTimeout = 30 * time.Second
 
-// archiveUint32 narrows a resolved archive option to the uint32 the SDK
+// flagUint32 narrows a resolved numeric option to the uint32 the SDK
 // expects, rejecting anything that would not survive the conversion.
 //
 // The options are ints because that is what pflag and strconv.Atoi produce,
@@ -374,7 +459,7 @@ const archiveManifestTimeout = 30 * time.Second
 // a layout override means the explicit assertion the operator asked for
 // quietly stops being made. An out-of-range value is a usage error, including
 // when it arrives through the environment.
-func archiveUint32(name string, value int) (uint32, error) {
+func flagUint32(name string, value int) (uint32, error) {
 	if value < 0 || int64(value) > math.MaxUint32 {
 		return 0, nebuErrors.Usage(fmt.Errorf(
 			"%s must be between 0 and 4294967295 (got %d)", name, value))
@@ -392,11 +477,11 @@ func archiveUint32(name string, value int) (uint32, error) {
 // file and 64000 files per partition against every bucket, which made any
 // other layout fail as a config mismatch with no flag available to correct it.
 func archiveDataStoreSchema(ledgersPerFile, filesPerPartition int) (datastore.DataStoreSchema, error) {
-	ledgers, err := archiveUint32("--ledgers-per-file", ledgersPerFile)
+	ledgers, err := flagUint32("--ledgers-per-file", ledgersPerFile)
 	if err != nil {
 		return datastore.DataStoreSchema{}, err
 	}
-	files, err := archiveUint32("--files-per-partition", filesPerPartition)
+	files, err := flagUint32("--files-per-partition", filesPerPartition)
 	if err != nil {
 		return datastore.DataStoreSchema{}, err
 	}
@@ -478,11 +563,11 @@ func resolveArchiveLayout(config datastore.DataStoreConfig) datastore.DataStoreS
 func archiveBufferConfig(bufferSize, numWorkers int, ledgersPerFile uint32) (ledgerbackend.BufferedStorageBackendConfig, error) {
 	config := ingest.DefaultBufferedStorageBackendConfig(ledgersPerFile)
 
-	size, err := archiveUint32("--buffer-size", bufferSize)
+	size, err := flagUint32("--buffer-size", bufferSize)
 	if err != nil {
 		return config, err
 	}
-	workers, err := archiveUint32("--num-workers", numWorkers)
+	workers, err := flagUint32("--num-workers", numWorkers)
 	if err != nil {
 		return config, err
 	}
@@ -514,6 +599,55 @@ func archiveLayoutDisplay(resolved, overrides datastore.DataStoreSchema) string 
 	return fmt.Sprintf("%d ledgers/file, %d files/partition (%s)",
 		resolved.LedgersPerFile, resolved.FilesPerPartition, source)
 }
+
+// fetchLedgerWindow asks the configured source which ledgers it currently
+// holds, so --last can be turned into a concrete range.
+//
+// It builds a pkg/source implementation purely for the query and never
+// streams from it. That is deliberate: it keeps one implementation of "what
+// does this source hold" per source type, shared with the origin CLIs,
+// rather than a second copy of the health call living here.
+func fetchLedgerWindow(
+	mode, rpcURL, authHeader string,
+	archive datastore.DataStoreConfig,
+) (source.LedgerWindow, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), ledgerWindowTimeout)
+	defer cancel()
+
+	var windowed source.WindowedSource
+
+	switch mode {
+	case "archive":
+		storageSource, err := storage.NewLedgerSource(archive, storage.DefaultBufferedStorageBackendConfig())
+		if err != nil {
+			return source.LedgerWindow{}, nebuErrors.FailedToCreateSource("archive", err)
+		}
+		defer func() { _ = storageSource.Close() }()
+		windowed = storageSource
+	default:
+		headers := map[string]string{}
+		if authHeader != "" {
+			headers["Authorization"] = authHeader
+		}
+		rpcSource, err := rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
+		if err != nil {
+			return source.LedgerWindow{}, nebuErrors.FailedToCreateSource("RPC", err)
+		}
+		defer func() { _ = rpcSource.Close() }()
+		windowed = rpcSource
+	}
+
+	window, err := windowed.LedgerWindow(ctx)
+	if err != nil {
+		return source.LedgerWindow{}, nebuErrors.FailedToCreateSource(mode, err)
+	}
+	return window, nil
+}
+
+// ledgerWindowTimeout bounds the window lookup. It is a single small request
+// against a source that is about to be streamed from anyway, so a slow answer
+// means the real work would have been slower still.
+const ledgerWindowTimeout = 30 * time.Second
 
 func fetchLedgersArchive(
 	ctx context.Context,
