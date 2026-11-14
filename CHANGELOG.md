@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.7
+
 ### Added
 
 - **`processor.LedgerCloseTimeRFC3339` and `processor.FormatCloseTimeRFC3339`** render a ledger's close time as RFC 3339 in UTC with millisecond precision, which is the form DATA-3 asks events to carry. `LedgerCloseTimeMs` already shared the *read* — both Protocol 30 union arms, with a pre-Protocol-30 promotion — but the rendering had been solved three separate times: `"2006-01-02T15:04:05.000Z07:00"` in one processor, `"...05.000Z"` in another, and `time.RFC3339Nano` is the tempting third answer and the wrong one, because it drops trailing zeros, so a ledger closing on a whole second renders without a fractional part and the field's shape varies with its value. These render three digits always. Additive; the API snapshot diff is purely additive.

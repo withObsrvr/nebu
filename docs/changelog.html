@@ -131,7 +131,8 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#v0-7-6">#v0.7.6</a>
+        <a class="text-tertiary hover:underline" href="#v0-7-7">#v0.7.7</a>
+<a class="text-tertiary hover:underline" href="#v0-7-6">#v0.7.6</a>
 <a class="text-tertiary hover:underline" href="#v0-7-5">#v0.7.5</a>
 <a class="text-tertiary hover:underline" href="#v0-7-4">#v0.7.4</a>
 <a class="text-tertiary hover:underline" href="#v0-7-3">#v0.7.3</a>
@@ -158,6 +159,19 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.7.7 -->
+    <section id="v0-7-7" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.7</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.7" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">One way to render a close time.</strong> <code class="text-on-surface">processor.LedgerCloseTimeRFC3339</code> and <code class="text-on-surface">processor.FormatCloseTimeRFC3339</code> give the RFC 3339 UTC millisecond form that DATA-3 asks events to carry. Reading the value was already shared; rendering it had been solved three separate times, and <code class="text-on-surface">time.RFC3339Nano</code> — the obvious answer — drops trailing zeros, so a ledger closing on a whole second renders with no fractional part and the field's shape varies with its value. These render three digits always.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">The Protocol 30 review is accepted for nebu and the registry,</strong> and measured against ledgers that now exist: testnet voted on 2026-11-03. Over 400 consecutive testnet ledgers the millisecond close time reads correctly, every ledger is the signed-with-milliseconds arm, and there are no same-second pairs yet — so CAP-88's ambiguity is permitted but not observable, and the empty-transaction-set arm still has no real ledger to test against, exactly as the review predicted from the code side.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Measuring that adoption found a defect counting it would have missed.</strong> Twelve of the registry's fourteen origin processors read the shared helper and none still call the truncating SDK accessors — but <code class="text-on-surface">token-transfer</code>'s millisecond field was derived from a truncated value, because the Stellar SDK's own token transfer processor builds its event meta from a whole-second close time. On one Protocol 30 ledger it reported <code class="text-on-surface">...44.000Z</code> where the ledger closed at <code class="text-on-surface">...44.916</code>. Fixed in the registry the same day.</li>
+      </ul>
+    </section>
 
     <!-- v0.7.6 -->
     <section id="v0-7-6" class="mb-12">
@@ -687,7 +701,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.6</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.7</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
