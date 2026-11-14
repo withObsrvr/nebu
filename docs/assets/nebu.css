@@ -60,6 +60,9 @@ body {
   text-wrap: pretty;
 }
 
+/* Code must show the characters typed: no == or -> ligatures */
+pre, code, kbd, .mono { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--fg); text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -301,6 +304,20 @@ a:hover { color: var(--fg); text-decoration: underline; }
 h1, h2, h3 { overflow-wrap: anywhere; }
 
 .eyebrow { font-size: 13.5px; color: var(--muted); }
+
+.tagline {
+  font-size: 22px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Two-up panels that drop to one column on narrow screens */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
+}
 
 .lede {
   font-size: 18.5px;
