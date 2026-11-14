@@ -248,3 +248,41 @@ func TestProcessLedgerStreamAttributesResolverWarningsToTheRightLedger(t *testin
 	require.NoError(t, err)
 	assert.Equal(t, []uint32{10, 11}, origin.seen)
 }
+
+func TestResolveLast(t *testing.T) {
+	tests := []struct {
+		name    string
+		flag    uint32
+		env     string
+		want    uint32
+		wantErr bool
+	}{
+		{name: "unset", want: 0},
+		{name: "flag", flag: 100, want: 100},
+		{name: "env fallback", env: "250", want: 250},
+		{name: "flag beats env", flag: 100, env: "250", want: 100},
+		{name: "env garbage is a usage error", env: "not-a-number", wantErr: true},
+		{
+			// uint32 is the flag's type, so an env value past the ceiling
+			// must be rejected rather than silently wrapping.
+			name:    "env above uint32 is rejected",
+			env:     "4294967296",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(lastEnvVar, tt.env)
+
+			got, err := resolveLast(tt.flag)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, 2, nebuErrors.ExitCode(err), "a bad count is a usage error")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

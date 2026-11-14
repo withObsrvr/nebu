@@ -671,6 +671,47 @@ Data remains on stdout, diagnostics and OSC reports remain on stderr, and
 [`docs/STATUS_STREAM.md`](./docs/STATUS_STREAM.md) and
 [`docs/PROCESSOR_CONTRACT.md`](./docs/PROCESSOR_CONTRACT.md).
 
+### Asking for recent ledgers
+
+Every example here names an explicit ledger range, which means knowing a
+sequence number before you can run anything. `--last N` asks the source
+instead:
+
+```bash
+# The most recent 100 ledgers, whatever they are right now
+nebu fetch --last 100 | token-transfer
+
+# Works on an origin processor directly
+token-transfer --last 100
+
+# Recent history, then keep streaming
+nebu fetch --last 100 --follow | token-transfer
+```
+
+The resolved range goes to stderr, so a script or a UI can see what "the last
+100" actually meant:
+
+```
+Resolved --last 100 to ledgers 65457987-65458086 (source reports 65458023-65458086)
+```
+
+Two things worth knowing:
+
+- **It means something different per source.** On RPC it counts back from the
+  network tip; in archive mode it counts back from the newest *exported*
+  ledger, which lags the network. Same flag, different hundred — which is why
+  the resolved range is always printed.
+- **It never returns fewer ledgers than you asked for.** The full range is
+  requested, so a source that cannot serve it fails the run rather than
+  handing back a short dataset that looks complete. Asking for more ledgers
+  than the chain has is an error, not a clamp.
+
+`--last` is mutually exclusive with an explicit range, with `--start-ledger`,
+and with `--checkpoint`: a checkpoint resumes a fixed range, and `--last`
+resolves a different one every time the chain advances. Resolve the range once
+with `--last`, then re-run it explicitly with `--checkpoint` to make it
+resumable.
+
 ### Dataset completeness
 
 A processor reports a per-ledger problem through its reporter and keeps going —

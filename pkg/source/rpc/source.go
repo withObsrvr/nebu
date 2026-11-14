@@ -11,8 +11,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/stellar/go-stellar-sdk/clients/rpcclient"
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/xdr"
+	"github.com/withObsrvr/nebu/pkg/source"
 	"github.com/withObsrvr/nebu/pkg/source/internal/ledgerstream"
 )
 
@@ -20,6 +22,10 @@ import (
 type LedgerSource struct {
 	stream ledgerbackend.LedgerStream
 	rpcURL string
+	// httpClient carries any auth headers the caller supplied, so that
+	// LedgerWindow reaches the same endpoint on the same terms as the
+	// stream. nil means the default transport.
+	httpClient *http.Client
 }
 
 // headerTransport is an HTTP transport that adds custom headers to all requests.
@@ -73,8 +79,38 @@ func NewLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*Ledg
 	}
 
 	return &LedgerSource{
-		stream: ledgerbackend.NewRPCStream(opts, nil),
-		rpcURL: rpcURL,
+		stream:     ledgerbackend.NewRPCStream(opts, nil),
+		rpcURL:     rpcURL,
+		httpClient: opts.HttpClient,
+	}, nil
+}
+
+// LedgerWindow implements source.WindowedSource.
+//
+// It reads the RPC health endpoint, which reports both the network tip the
+// endpoint has seen and the oldest ledger it has retained. Both are needed:
+// an endpoint will happily tell you the tip and then fail part-way through a
+// range that fell out of its retention window.
+//
+// This goes to the health endpoint rather than the ledger backend because a
+// LedgerStream only streams — it has no tip query — so there is no backend
+// handle to ask.
+func (s *LedgerSource) LedgerWindow(ctx context.Context) (source.LedgerWindow, error) {
+	client := rpcclient.NewClient(s.rpcURL, s.httpClient)
+	defer func() {
+		// A failure closing an idle HTTP client tells the caller nothing
+		// actionable about the window it asked for.
+		_ = client.Close()
+	}()
+
+	health, err := client.GetHealth(ctx)
+	if err != nil {
+		return source.LedgerWindow{}, fmt.Errorf("get RPC health from %s: %w", s.rpcURL, err)
+	}
+
+	return source.LedgerWindow{
+		Oldest: health.OldestLedger,
+		Latest: health.LatestLedger,
 	}, nil
 }
 
@@ -106,3 +142,6 @@ func (s *LedgerSource) Stream(
 func (s *LedgerSource) Close() error {
 	return nil
 }
+
+// assert at compile time that the source can report its window.
+var _ source.WindowedSource = (*LedgerSource)(nil)

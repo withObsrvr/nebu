@@ -43,6 +43,7 @@ func RunProtoOriginCLI[T proto.Message](
 		networkPass string
 		quietMode   bool
 		policyFlag  string
+		lastFlag    uint32
 	)
 
 	// Build help text
@@ -60,6 +61,16 @@ func RunProtoOriginCLI[T proto.Message](
 			policy, policyErr := resolvePolicy(policyFlag)
 			if policyErr != nil {
 				return policyErr
+			}
+
+			last, lastErr := resolveLast(lastFlag)
+			if lastErr != nil {
+				return lastErr
+			}
+			if last != 0 && startLedger != 0 {
+				return nebuErrors.Usage(fmt.Errorf(
+					"--last and --start-ledger are mutually exclusive; --last asks the " +
+						"source where the range is"))
 			}
 
 			// Check input mode. Resolution order:
@@ -83,7 +94,7 @@ func RunProtoOriginCLI[T proto.Message](
 				} else {
 					inputFile = args[0]
 				}
-			} else if startLedger == 0 {
+			} else if startLedger == 0 && last == 0 {
 				// No positional arg, no explicit RPC range — try to
 				// auto-detect a piped stdin source.
 				stat, _ := os.Stdin.Stat()
@@ -93,9 +104,24 @@ func RunProtoOriginCLI[T proto.Message](
 			}
 
 			// Validate flags
-			if !useStdin && inputFile == "" {
+			if useStdin || inputFile != "" {
+				if last != 0 {
+					return nebuErrors.Usage(fmt.Errorf(
+						"--last has no meaning when ledgers come from stdin or a file; " +
+							"the range is whatever is piped in"))
+				}
+			} else {
+				if last != 0 {
+					resolvedStart, resolvedEnd, err := lastLedgerRange(rpcURL, getAuthHeader(), last)
+					if err != nil {
+						return err
+					}
+					startLedger = resolvedStart
+					endLedger = resolvedEnd
+				}
 				if startLedger == 0 {
-					return fmt.Errorf("--start-ledger is required for RPC mode (or provide input file/stdin)")
+					return nebuErrors.Usage(fmt.Errorf(
+						"--start-ledger or --last is required for RPC mode (or provide input file/stdin)"))
 				}
 				// endLedger == 0 is valid (unbounded streaming)
 			}
@@ -235,6 +261,7 @@ func RunProtoOriginCLI[T proto.Message](
 	rootCmd.Flags().StringVar(&networkPass, "network", network.PublicNetworkPassphrase, "Network passphrase")
 	rootCmd.Flags().BoolVarP(&quietMode, "quiet", "q", false, "Suppress non-error output")
 	registerPolicyFlag(rootCmd, &policyFlag)
+	registerLastFlag(rootCmd, &lastFlag)
 	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
 

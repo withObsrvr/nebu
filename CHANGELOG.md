@@ -6,6 +6,15 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+
+- **`--last N`** on `nebu fetch` and every origin processor (`NEBU_LAST`): use the most recent N ledgers the source holds instead of an explicit range. Until now the first thing a newcomer had to do was go find a ledger sequence number, which is the one piece of friction standing between installing nebu and getting data out of it.
+  - **It means something different per source, so the resolved range is always reported.** On RPC it counts back from the network tip; in archive mode from the newest *exported* ledger, which lags the network. `Resolved --last 100 to ledgers 65457987-65458086 (source reports 65458023-65458086)` goes to stderr so a script or a UI can see what "the last 100" meant.
+  - **It never returns fewer ledgers than asked.** The full range is requested, so a source that cannot serve it fails the run rather than handing back a short dataset that looks complete — the same principle as exit code 8, one layer earlier. Asking for more ledgers than the chain has is exit 3, not a clamp.
+  - **The retention floor an endpoint reports is a note, not a gate.** `archive-rpc.lightsail.network` — nebu's default — reports a 64-ledger window and serves ledger 60200000 without complaint, 5.2 million ledgers below its own reported floor. Refusing on that basis would have rejected `--last 1000` on the default endpoint, so a request below the reported floor warns and proceeds, and the stream decides.
+  - Mutually exclusive with an explicit range, `--start-ledger`, stdin input, and `--checkpoint` — all usage errors rather than silent precedence. The checkpoint case is structural: a checkpoint resumes a fixed range and `--last` resolves a different one as the chain advances, so combining them could only ever work if the tip had not moved.
+  - `pkg/source` gains `LedgerWindow`, `WindowedSource` and `ResolveLast`. `WindowedSource` is a separate interface rather than a method on `LedgerSource`, because adding a method to the frozen interface would break every external implementation; callers type-assert for it. The committed snapshot diff is purely additive and `LedgerSource` is unchanged.
+
 ### Fixed
 
 - **The DuckDB cookbook's volume queries summed stroops into a `DOUBLE`.** Amounts are integers that reach into `int64`, and `DOUBLE` holds integers exactly only to 2^53 — a single ordinary XLM transfer of 4.06 × 10^16 stroops already exceeds that. Over 51 ledgers of pubnet traffic the documented query and an exact `::HUGEINT` sum disagree by 648 stroops, and the gap grows with the range without ever announcing itself. Both volume queries now cast to `HUGEINT`. The existing smoke assertions did not catch it because they all count rows: they check that a query runs, not that its answer is right.
