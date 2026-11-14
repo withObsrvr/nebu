@@ -386,11 +386,29 @@ func InstallFailedWithOutput(name string, err error, output string) *NebuError {
 	if trimmed := strings.TrimSpace(output); trimmed != "" {
 		msg += "\n\n--- go install output ---\n" + trimmed + "\n--- end go install output ---"
 	}
-	return &NebuError{
-		Message: msg,
-		Suggestion: `Check that:
+	suggestion := `Check that:
   - You have write permission to $GOPATH/bin
   - The module path is correct
-  - You have network access for remote modules`,
+  - You have network access for remote modules`
+
+	// The Go module proxy returns a 404 with "fetch timed out" the first time
+	// anyone asks for a module it has not cached yet, and the registry's
+	// processor modules are large enough for that to happen. It succeeds on a
+	// retry once the proxy has populated in the background, so the three
+	// checks above all point at the wrong thing.
+	if strings.Contains(output, "fetch timed out") ||
+		strings.Contains(output, "not found: fetch timed out") {
+		suggestion = `The Go module proxy has not cached this processor yet — that is what
+"fetch timed out" means here, and it is not a problem with your setup.
+
+Run the same command again: the proxy populates in the background and the
+second attempt usually succeeds. To skip the proxy entirely:
+
+  GOPROXY=direct nebu install ` + name
+	}
+
+	return &NebuError{
+		Message:    msg,
+		Suggestion: suggestion,
 	}
 }
