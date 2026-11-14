@@ -17,6 +17,12 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Two of the four quickstart commands in `nebu --help` did not work.** The root help is the first thing anyone runs, and nothing checked it. `jq 'select(.type == "transfer")'` selected **nothing** — token-transfer events have no `.type` field, the event kind is a protobuf oneof, and the correct filter returns 1,044 events over the same three ledgers where the documented one returns 0. And `token-transfer --start N --end M` exits with `unknown flag: --start`, because the processor exposes `--start-ledger`/`--end-ledger` (an abbreviation `docs/CLI_QUALITY_ROADMAP.md` had already flagged). Found by installing the released binary from scratch and running the printed quickstart verbatim.
+  - `scripts/check-help-examples.py` now verifies that every flag the root help uses on a processor is one that processor actually accepts, wired into `docs-smoke`. Negative-tested against a binary built from the old help text: it names both `--start` and `--end`. A second assertion runs the documented jq filter and requires it to select something, since a filter that silently matches nothing is the failure that was there.
+- **`nebu install` blamed the wrong things when the module proxy was cold.** The Go proxy returns a 404 with `fetch timed out` the first time anyone asks for a module it has not cached, and the registry's processor modules are large enough for that to happen — `nebu install json-file-sink` failed that way on a clean machine and succeeded on retry. The suggestion offered write permissions, module path and network access, none of which was the cause. It now says the proxy has not cached the processor yet, that a retry usually works, and offers `GOPROXY=direct`.
+
+### Fixed
+
 - **The DuckDB cookbook's volume queries summed stroops into a `DOUBLE`.** Amounts are integers that reach into `int64`, and `DOUBLE` holds integers exactly only to 2^53 — a single ordinary XLM transfer of 4.06 × 10^16 stroops already exceeds that. Over 51 ledgers of pubnet traffic the documented query and an exact `::HUGEINT` sum disagree by 648 stroops, and the gap grows with the range without ever announcing itself. Both volume queries now cast to `HUGEINT`. The existing smoke assertions did not catch it because they all count rows: they check that a query runs, not that its answer is right.
 
 ### Changed

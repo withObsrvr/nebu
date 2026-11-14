@@ -64,6 +64,17 @@ run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".sc
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
 
 run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
+# The root help is the first thing a reader runs and nothing checked it. By
+# v0.7.2 two of its four quickstart commands were broken — a jq filter on a
+# field that does not exist, and --start/--end against a processor that
+# exposes --start-ledger/--end-ledger.
+run "root help flags exist on the processors it names" bash -lc \
+  'python3 "$0" "$1" "$2"' \
+  "$ROOT/scripts/check-help-examples.py" "$ROOT/bin/nebu" "$TOKEN_TRANSFER_BIN"
+
+run "root help jq filter actually selects events" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
+  | jq -c "select(.transfer != null)" | head -1 | jq -e ".transfer.amount" >/dev/null' "$TOKEN_TRANSFER_BIN"
+
 run "SAMPLE_EVENT matches real output" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -c "select(.transfer != null)" | head -1 | python3 "$1"' "$TOKEN_TRANSFER_BIN" "$ROOT/scripts/check-sample-event.py"
 run "token-transfer jq USDC filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -e "select(.transfer != null and .transfer.assetCode == \"USDC\")" | head -1 >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "contract-events jq eventType filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.eventType == \"fee\")" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"

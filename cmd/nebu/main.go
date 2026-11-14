@@ -44,7 +44,7 @@ QUICK START:
 
   # Filter and analyze with standard tools
   token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-    jq 'select(.type == "transfer")' | \
+    jq 'select(.transfer != null)' | \
     head -10
 
 PROCESSOR TYPES:
@@ -60,7 +60,7 @@ COMMON WORKFLOWS:
   nebu fetch 60200000 60200100 > ledgers.xdr
 
   # Build a full pipeline
-  token-transfer --start 60200000 --end 60200100 | \
+  token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
     usdc-filter | \
     amount-filter --min 1000000 | \
     json-file-sink --out large-usdc.jsonl
