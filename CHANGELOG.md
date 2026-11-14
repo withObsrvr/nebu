@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.9
+
 ### Changed
 
 - **`docs/ARCHIVE_MODE.md` now measures archive mode against RPC, and names the ten seconds the public archive costs off EC2.** Detecting a missing credential chain means walking it, and the last stop is the EC2 instance metadata service: nowhere near EC2, the probe runs until its retries expire before the anonymous fallback happens. A one-ledger fetch from the public pubnet archive takes **10.76s by default and 0.70s with `AWS_EC2_METADATA_DISABLED=true`** — a fixed per-process cost, so it hurts most exactly where archive mode is otherwise at its best.
