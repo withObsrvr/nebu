@@ -131,7 +131,8 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#v0-7-3">#v0.7.3</a>
+        <a class="text-tertiary hover:underline" href="#v0-7-4">#v0.7.4</a>
+<a class="text-tertiary hover:underline" href="#v0-7-3">#v0.7.3</a>
 <a class="text-tertiary hover:underline" href="#v0-7-2">#v0.7.2</a>
 <a class="text-tertiary hover:underline" href="#v0-7-1">#v0.7.1</a>
 <a class="text-tertiary hover:underline" href="#v0-7-0">#v0.7.0</a>
@@ -155,6 +156,20 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.7.4 -->
+    <section id="v0-7-4" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.4</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.4" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Every processor's help advertised a jq filter that selects nothing.</strong> Each processor's examples are generated from its name in <code class="text-on-surface">pkg/processor/cli/help.go</code>, so one wrong line there ships in every processor built against the release. It offered <code class="text-on-surface">jq 'select(.type == "transfer")'</code> — no origin emits a top-level <code class="text-on-surface">type</code> field, so the filter matched nothing, and for a non-transfer origin like <code class="text-on-surface">contract-events</code> it was not even the right idea. A generator that knows only a processor's name cannot know its field names, so the examples now show how to look them up, and how to read the one field every nebu event carries whatever the processor: its schema id.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">The sink example was wrong twice over.</strong> <code class="text-on-surface">jq 'select(.amount > "1000000")'</code> read <code class="text-on-surface">.amount</code>, which is null — token-transfer puts it at <code class="text-on-surface">.transfer.amount</code> — and amounts are JSON strings, so even at the right path <code class="text-on-surface">&gt;</code> compared them lexicographically. The replacement guards on the event kind before converting, since a ledger holds fees, mints and burns beside transfers, and it is written only for the origin whose shape the package knows; any other origin gets a passthrough rather than a guess.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Generated examples lead with <code class="text-on-surface">--last</code></strong> instead of a hardcoded ledger sequence, and the literal <code class="text-on-surface">...</code> is gone from the transform and sink examples — it was never a command a reader could run.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Two checks guard the generators.</strong> A table-driven test rejects a jq <code class="text-on-surface">select</code> on any top-level field but the schema id, an unguarded numeric conversion, a literal <code class="text-on-surface">...</code>, and an example invoking a processor with <code class="text-on-surface">--follow</code>; it fails on the exact line that shipped. And <code class="text-on-surface">check-help-examples.py --self</code> reads a processor's own examples against its own flag definitions, so a flag a processor advertises but does not define fails the docs smoke run.</li>
+      </ul>
+    </section>
 
     <!-- v0.7.3 -->
     <section id="v0-7-3" class="mb-12">
@@ -643,7 +658,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.3</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.4</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

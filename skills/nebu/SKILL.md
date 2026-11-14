@@ -17,7 +17,7 @@ Nebu turns Stellar RPC/archive ledgers into schema-versioned JSONL for `jq`, Duc
 
 - Canonical: https://nebu.withobsrvr.com/SKILL.md
 - Repo: https://github.com/withObsrvr/nebu
-- Last checked: nebu v0.7.3
+- Last checked: nebu v0.7.4
 
 ## Use when
 
