@@ -1,511 +1,173 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>NEBU // QUICKSTART</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>nebu quickstart</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "surface-bright": "#3a3939",
-          "tertiary": "#4dd9e4",
-          "tertiary-container": "#00b5c0",
-          "on-tertiary": "#00363a",
-          "on-tertiary-container": "#004145",
-          "outline": "#7a6a6a",
-          "outline-variant": "#3d3535",
-          "error": "#ffb4ab",
-          "surface-container-highest": "#353534",
-          "surface-container": "#201f1f",
-          "surface-container-high": "#2a2a2a",
-          "primary": "#ffb59c",
-          "surface-container-low": "#1c1b1b",
-          "on-primary": "#5c1a00",
-          "primary-container": "#ff7f50",
-          "on-primary-container": "#6c2000",
-          "on-surface": "#e5e2e1",
-          "on-background": "#e5e2e1",
-          "secondary": "#c6c6c6",
-          "surface": "#131313",
-          "background": "#131313",
-          "ember":  "#ff7f50",
-          "signal": "#4dd9e4",
-          "coal":   "#131313",
-          "ash":    "#c6c6c6",
-          "ink":    "#e5e2e1"
-        },
-        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
-        fontFamily: {
-          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
-          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
-        }
-      }
-    }
-  }
-</script>
-<link rel="stylesheet" href="assets/nebu.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="assets/nebu.css">
 </head>
-<body class="bg-background text-on-surface">
+<body id="top">
 
-<!-- TopAppBar -->
-<header class="bg-[#131313] text-[#ff7f50] uppercase tracking-tighter flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50">
-  <div class="text-xl font-bold text-[#e5e2e1] flex items-center gap-3">
-    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
-    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
-  </div>
-  <nav class="hidden md:flex gap-8 items-center">
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html">[ HOME ]</a>
-    <a class="text-[#ff7f50] font-bold hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="#">[ QUICKSTART ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="build-processors.html">[ BUILD ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="man.html">[ MAN ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
-  </nav>
-  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
-          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
-    [ MENU ]
-  </button>
-  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+<header class="site-header">
+<div class="site-header__inner">
+<a href="index.html" class="brand">
+<span class="brand__name">nebu</span>
+<span class="brand__version">v0.7.7</span>
+</a>
+<nav aria-label="Primary" class="site-nav">
+<a href="index.html" class="site-nav__link is-current">Docs</a>
+<a href="processors.html" class="site-nav__link">Processors</a>
+<a href="schemas.html" class="site-nav__link">Schemas</a>
+<a href="changelog.html" class="site-nav__link">Changelog</a>
+</nav>
+<label data-search class="search">
+<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span class="sr-only">Search the docs</span>
+<input type="search" placeholder="Search docs" class="search__input">
+<span class="search__kbd">⌘K</span>
+</label>
+<a href="https://github.com/withObsrvr/nebu" class="site-nav__link">GitHub</a>
+</div>
 </header>
 
-<!-- Mobile drawer -->
-<div id="mobile-menu" aria-hidden="true"
-     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
-  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
-    <a class="text-[#ff7f50] font-bold py-3 border-b border-[#57423b] border-opacity-40" href="#">[ QUICKSTART ]</a>
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="build-processors.html">[ BUILD ]</a>
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
-    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
-  </nav>
-</div>
+<div class="layout">
+<nav aria-label="Documentation" class="sidebar"><div class="stack gap-2"><div class="sidebar__title">Get started</div><a href="index.html" class="sidebar__link">Introduction</a><a href="quickstart.html" aria-current="page" class="sidebar__link is-current">Quickstart</a></div><div class="stack gap-2"><div class="sidebar__title">Guides</div><a href="build-processors.html" class="sidebar__link">Build a processor</a></div><div class="stack gap-2"><div class="sidebar__title">Reference</div><a href="man.html" class="sidebar__link">nebu(1) man page</a><a href="processors.html" class="sidebar__link">Processors</a><a href="schemas.html" class="sidebar__link">Schemas</a><a href="changelog.html" class="sidebar__link">Changelog</a></div><div class="stack gap-2"><div class="sidebar__title">For agents</div><a href="https://nebu.withobsrvr.com/SKILL.md" class="sidebar__link">SKILL.md</a><a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md" class="sidebar__link">Runtime hooks</a></div></nav>
+<main class="content">
+<section class="stack gap-20"><div class="eyebrow">Get started</div>
+<h1>Quickstart</h1>
+<p class="lede">From install to a live JSON stream of Stellar events — in two minutes.</p>
+<p class="measure">This is the “I want to query Stellar data” path. No Go required after install. If you want to build a processor, head to <a href="build-processors.html">Build a processor</a>.</p>
+<nav aria-label="On this page" class="toc"><span class="muted">On this page</span><a href="#install" class="fg">Install</a><a href="#first" class="fg">First stream</a><a href="#filter" class="fg">Filter with jq</a><a href="#persist" class="fg">Persist</a><a href="#analyze" class="fg">Analyze</a><a href="#follow" class="fg">Follow live</a><a href="#separate" class="fg">Fetch and process separately</a><a href="#errors" class="fg">Troubleshoot</a><a href="#next" class="fg">Next</a></nav></section>
 
-<div class="max-w-7xl mx-auto px-6 lg:flex lg:gap-10 lg:items-start">
-
-  <!-- Sticky sidebar -->
-  <aside class="hidden lg:block lg:w-48 shrink-0 py-12">
-    <nav aria-label="On this page" class="sticky top-24 text-sm">
-      <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ ON_THIS_PAGE ]</div>
-      <ul>
-        <li><a href="#install"   data-toc="install"   class="toc-link">INSTALL</a></li>
-        <li><a href="#first"     data-toc="first"     class="toc-link">FIRST_STREAM</a></li>
-        <li><a href="#filter"    data-toc="filter"    class="toc-link">FILTER_WITH_JQ</a></li>
-        <li><a href="#persist"   data-toc="persist"   class="toc-link">PERSIST</a></li>
-        <li><a href="#analyze"   data-toc="analyze"   class="toc-link">ANALYZE</a></li>
-        <li><a href="#follow"    data-toc="follow"    class="toc-link">FOLLOW_LIVE</a></li>
-        <li><a href="#separate"  data-toc="separate"  class="toc-link">FETCH / PROCESS</a></li>
-        <li><a href="#errors"    data-toc="errors"    class="toc-link">TROUBLESHOOT</a></li>
-        <li><a href="#next"      data-toc="next"      class="toc-link">NEXT</a></li>
-      </ul>
-      <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
-        guide · query<br/>
-        <span class="text-tertiary">rev 2026-08-03</span>
-      </div>
-    </nav>
-  </aside>
-
-  <main class="flex-1 min-w-0 lg:max-w-3xl py-12 pb-32">
-
-    <!-- Breadcrumb -->
-    <div class="text-[0.8125rem] text-secondary mb-6 uppercase tracking-tight">
-      ROOT / DOCS / <span class="text-primary-container">QUICKSTART</span>
-    </div>
-
-    <!-- Hero -->
-    <section class="mb-12">
-      <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-6 text-on-surface"># QUICKSTART</h1>
-      <p class="text-xl text-secondary max-w-2xl leading-relaxed">
-        From install to a live JSON stream of Stellar events — in two minutes.
-      </p>
-      <p class="text-base text-secondary max-w-2xl leading-relaxed mt-3">
-        This is the <span class="text-tertiary">I want to query Stellar data</span> path. No Go required after install.
-        If you want to build a processor, head to <a href="build-processors.html" class="text-tertiary hover:underline">BUILD &rarr;</a>.
-      </p>
-    </section>
-
-    <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
-      <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
-      <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#install">#INSTALL</a>
-        <a class="text-tertiary hover:underline" href="#first">#FIRST_STREAM</a>
-        <a class="text-tertiary hover:underline" href="#filter">#FILTER</a>
-        <a class="text-tertiary hover:underline" href="#persist">#PERSIST</a>
-        <a class="text-tertiary hover:underline" href="#analyze">#ANALYZE</a>
-        <a class="text-tertiary hover:underline" href="#follow">#FOLLOW</a>
-        <a class="text-tertiary hover:underline" href="#separate">#FETCH/PROCESS</a>
-        <a class="text-tertiary hover:underline" href="#errors">#TROUBLESHOOT</a>
-        <a class="text-tertiary hover:underline" href="#next">#NEXT</a>
-      </div>
-    </nav>
-
-    <!-- 01 INSTALL -->
-    <section id="install" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 01_INSTALL</h2>
-      <p class="text-secondary mb-6">Pick the path that matches your environment.</p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="flex flex-wrap items-end border-b border-outline-variant">
-          <button type="button" data-install-tab="go"
-                  class="install-tab is-active px-5 py-3 text-sm uppercase tracking-tight font-bold text-primary-container border-b-2 border-primary-container -mb-px">
-            [ GO ]
-          </button>
-          <button type="button" data-install-tab="curl"
-                  class="install-tab px-5 py-3 text-sm uppercase tracking-tight text-secondary hover:text-on-surface border-b-2 border-transparent -mb-px">
-            [ CURL ]
-          </button>
-          <button type="button" data-install-tab="docker"
-                  class="install-tab px-5 py-3 text-sm uppercase tracking-tight text-secondary hover:text-on-surface border-b-2 border-transparent -mb-px">
-            [ DOCKER ]
-          </button>
-        </div>
-        <div class="p-6">
-          <div data-install-panel="go">
-            <div class="bg-background border border-outline-variant">
-              <div class="code-head">
-                <span class="code-head__lang">bash</span>
-                <button class="copy-btn copy-btn--inline" data-copy-target="qi-go" type="button">[ COPY ]</button>
-              </div>
-              <pre id="qi-go" class="overflow-x-auto p-3 text-sm">go install github.com/withObsrvr/nebu/cmd/nebu@latest
+<section class="stack gap-16"><h2 id="install">1. Install</h2>
+<p class="measure">Pick the path that matches your environment.</p>
+<div data-code class="code-block"><div class="code-block__head code-block__head--tabs"><div role="tablist" data-tabs aria-label="Install method" class="tabs"><button type="button" role="tab" class="tab" id="tab-go" data-tab="go" aria-controls="panel-go" aria-selected="true">Go</button><button type="button" role="tab" class="tab" id="tab-curl" data-tab="curl" aria-controls="panel-curl" aria-selected="false" tabindex="-1">curl</button><button type="button" role="tab" class="tab" id="tab-docker" data-tab="docker" aria-controls="panel-docker" aria-selected="false" tabindex="-1">Docker</button></div><button type="button" data-copy class="copy-btn">Copy</button></div><div role="tabpanel" id="panel-go" aria-labelledby="tab-go" data-panel="go">
+<pre class="code-block__pre">go install github.com/withObsrvr/nebu/cmd/nebu@latest
 export PATH="$HOME/go/bin:$PATH"
 nebu --version</pre>
-            </div>
-            <p class="mt-3 text-secondary text-sm">Requires Go &gt;= 1.22. The canonical path.</p>
-          </div>
-          <div data-install-panel="curl" class="hidden">
-            <div class="bg-background border border-outline-variant">
-              <div class="code-head">
-                <span class="code-head__lang">bash</span>
-                <button class="copy-btn copy-btn--inline" data-copy-target="qi-curl" type="button">[ COPY ]</button>
-              </div>
-              <pre id="qi-curl" class="overflow-x-auto p-3 text-sm">curl -sSL https://nebu.withobsrvr.com/install.sh | sh</pre>
-            </div>
-            <p class="mt-3 text-secondary text-sm">Pulls a pre-built binary from the latest GitHub release. No toolchain required.</p>
-          </div>
-          <div data-install-panel="docker" class="hidden">
-            <div class="bg-background border border-outline-variant">
-              <div class="code-head">
-                <span class="code-head__lang">bash</span>
-                <button class="copy-btn copy-btn--inline" data-copy-target="qi-docker" type="button">[ COPY ]</button>
-              </div>
-              <pre id="qi-docker" class="overflow-x-auto p-3 text-sm">docker run --rm withobsrvr/nebu:latest --version
+</div><div role="tabpanel" id="panel-curl" aria-labelledby="tab-curl" data-panel="curl" hidden>
+<pre class="code-block__pre">curl -sSL https://nebu.withobsrvr.com/install.sh | sh</pre>
+</div><div role="tabpanel" id="panel-docker" aria-labelledby="tab-docker" data-panel="docker" hidden>
+<pre class="code-block__pre">docker run --rm withobsrvr/nebu:latest --version
 docker run --rm withobsrvr/nebu:latest \
   fetch 60200000 60200001 &gt; ledgers.xdr</pre>
-            </div>
-            <p class="mt-3 text-secondary text-sm">The image contains the nebu CLI only. Install or package published processors separately from the external registry.</p>
-          </div>
-        </div>
-      </div>
-    </section>
+</div></div><div data-panel="go">
+<p class="small muted">Requires Go 1.22 or newer. The canonical path.</p>
+</div><div data-panel="curl" hidden>
+<p class="small muted">Grabs a pre-built binary from the latest GitHub release. No Go toolchain required. Read the script before piping to sh if that's your policy.</p>
+</div><div data-panel="docker" hidden>
+<p class="small muted">The image contains the nebu CLI only; published processors are installed or packaged separately from the external registry. Use it for raw fetches and CLI inspection.</p>
+</div></section>
 
-    <!-- 02 FIRST STREAM -->
-    <section id="first" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 02_FIRST_STREAM</h2>
-      <p class="text-secondary mb-6">
-        Install a processor, then run it. Each processor is its own binary — <span class="text-tertiary">nebu install</span> uses
-        <span class="text-tertiary">go install</span> under the hood and drops the binary at <span class="text-on-surface">$GOPATH/bin</span>.
-      </p>
+<section class="stack gap-16"><h2 id="first">2. First stream</h2>
+<p class="measure">Install a processor, then run it. Each processor is its own binary — <code class="ic">nebu install</code> uses <code class="ic">go install</code> under the hood and drops the binary at <code class="ic">$GOPATH/bin</code>.</p>
+<div data-code class="code-block code-block--inline"><pre class="code-block__pre">nebu install token-transfer
+token-transfer --start-ledger 60200000 --end-ledger 60200001</pre><button type="button" data-copy class="copy-btn">Copy</button></div>
+<p class="measure">You'll see newline-delimited JSON on stdout. One object per transfer event:</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">stdout · NDJSON</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
+  <span class="teal">"_schema"</span>: "nebu.token_transfer.v1",
+  <span class="teal">"_nebu_version"</span>: "v0.7.5",
+  <span class="teal">"network"</span>: "pubnet",
+  <span class="teal">"meta"</span>: {
+    "ledgerSequence": 65430000,
+    "closedAtUnix": "1794436042",
+    "closedAt": "2026-11-11T22:27:22.000Z",
+    "txHash": "165fee89...",
+    "transactionIndex": 1,
+    "operationIndex": 0,
+    "contractAddress": "CAS3J7GY...",
+    "inSuccessfulTx": true
+  },
+  <span class="accent">"transfer"</span>: {
+    "from": "GA3HLUKH...",
+    "to": "CC3TDKJD...",
+    "assetCode": "USDC",
+    "assetIssuer": "GAGVZMOD...",
+    "amount": "95667990"
+  }
+}</pre></div>
+<p class="measure small muted"><span class="teal">Teal</span> is nebu meta (schema, version, ledger info). <span class="accent">Coral</span> is payload data (the transfer itself).</p></section>
 
-      <div class="bg-surface-container-low border border-outline-variant mb-6">
-        <div class="code-head">
-          <span class="code-head__lang">bash</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-first" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-first" class="overflow-x-auto p-4 text-sm">nebu install token-transfer
-token-transfer --start-ledger 60200000 --end-ledger 60200001</pre>
-      </div>
+<section class="stack gap-16"><h2 id="filter">3. Filter with jq</h2>
+<p class="measure">Pipe the stream through <code class="ic">jq</code> to keep only the events you care about. Exactly the same ergonomics as any other NDJSON source.</p>
+<div data-code class="code-block code-block--inline"><pre class="code-block__pre">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | jq -c 'select(.transfer.assetCode == "USDC")'</pre><button type="button" data-copy class="copy-btn">Copy</button></div>
+<p class="measure small muted">Swap the predicate for any jq expression — filter by issuer, amount threshold, contract address, whatever the schema exposes.</p></section>
 
-      <p class="text-secondary mb-3 text-sm">You'll see newline-delimited JSON on stdout. One object per transfer event:</p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">ndjson</span>
-          <span class="text-secondary">[ STDOUT ]</span>
-        </div>
-        <pre class="overflow-x-auto p-4 text-xs text-secondary leading-relaxed"><span class="text-on-surface">{</span>
-  <span class="text-tertiary">"_schema"</span>:        <span class="text-on-surface">"nebu.token_transfer.v1"</span>,
-  <span class="text-tertiary">"_nebu_version"</span>:  <span class="text-on-surface">"v0.7.5"</span>,
-  <span class="text-tertiary">"network"</span>:        <span class="text-on-surface">"pubnet"</span>,
-  <span class="text-tertiary">"meta"</span>: {
-    <span class="text-tertiary">"ledgerSequence"</span>:    <span class="text-on-surface">65430000</span>,
-    <span class="text-tertiary">"closedAtUnix"</span>:      <span class="text-on-surface">"1794436042"</span>,
-    <span class="text-tertiary">"closedAt"</span>:          <span class="text-on-surface">"2026-11-11T22:27:22.000Z"</span>,
-    <span class="text-tertiary">"txHash"</span>:            <span class="text-on-surface">"165fee89..."</span>,
-    <span class="text-tertiary">"transactionIndex"</span>:  <span class="text-on-surface">1</span>,
-    <span class="text-tertiary">"operationIndex"</span>:    <span class="text-on-surface">0</span>,
-    <span class="text-tertiary">"contractAddress"</span>:   <span class="text-on-surface">"CAS3J7GY..."</span>,
-    <span class="text-tertiary">"inSuccessfulTx"</span>:    <span class="text-on-surface">true</span>
-  <span class="text-on-surface">}</span>,
-  <span class="text-primary-container">"transfer"</span>: {
-    <span class="text-primary-container">"from"</span>:         <span class="text-on-surface">"GA3HLUKH..."</span>,
-    <span class="text-primary-container">"to"</span>:           <span class="text-on-surface">"CC3TDKJD..."</span>,
-    <span class="text-primary-container">"assetCode"</span>:    <span class="text-on-surface">"USDC"</span>,
-    <span class="text-primary-container">"assetIssuer"</span>:  <span class="text-on-surface">"GAGVZMOD..."</span>,
-    <span class="text-primary-container">"amount"</span>:       <span class="text-on-surface">"95667990"</span>
-  <span class="text-on-surface">}</span>
-<span class="text-on-surface">}</span></pre>
-      </div>
-
-      <p class="text-secondary text-xs mt-3">
-        <span class="text-tertiary">Teal = nebu meta</span> (schema, version, ledger info). <span class="text-primary-container">Coral = payload data</span> (the transfer itself).
-      </p>
-    </section>
-
-    <!-- 03 FILTER -->
-    <section id="filter" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 03_FILTER_WITH_JQ</h2>
-      <p class="text-secondary mb-6">
-        Pipe the stream through <span class="text-tertiary">jq</span> to keep only the events you care about. Exactly the same ergonomics as any other NDJSON source.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">bash</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-filter" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-filter" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
-  | jq -c 'select(.transfer.assetCode == "USDC")'</pre>
-      </div>
-
-      <p class="text-secondary text-sm mt-4">
-        Swap the predicate for any jq expression — filter by issuer, amount threshold, contract address, whatever the schema exposes.
-      </p>
-    </section>
-
-    <!-- 04 PERSIST -->
-    <section id="persist" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 04_PERSIST</h2>
-      <p class="text-secondary mb-6">
-        Write to a file with <span class="text-tertiary">json-file-sink</span>, or a NATS subject with <span class="text-tertiary">nats-sink</span>, or both at once with <span class="text-tertiary">tee</span>.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant mb-4">
-        <div class="code-head">
-          <span class="code-head__lang">bash · single sink</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-sink-1" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-sink-1" class="overflow-x-auto p-4 text-sm">nebu install json-file-sink
-
+<section class="stack gap-16"><h2 id="persist">4. Persist</h2>
+<p class="measure">Write to a file with <code class="ic">json-file-sink</code>, or a NATS subject with <code class="ic">nats-sink</code>, or both at once with <code class="ic">tee</code>.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Single sink</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">nebu install json-file-sink
 token-transfer --start-ledger 60200000 --end-ledger 60200100 \
   | jq -c 'select(.transfer.assetCode == "USDC")' \
-  | json-file-sink --out usdc.jsonl</pre>
-      </div>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">bash · fan-out</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-sink-2" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-sink-2" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 \
+  | json-file-sink --out usdc.jsonl</pre></div>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Fan-out</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">token-transfer --start-ledger 60200000 \
   | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
   | tee &gt;(json-file-sink --out archive.jsonl) \
-  | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre>
-      </div>
-    </section>
+  | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre></div></section>
 
-    <!-- 05 ANALYZE -->
-    <section id="analyze" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 05_ANALYZE</h2>
-      <p class="text-secondary mb-6">
-        <span class="text-tertiary">duckdb</span> reads NDJSON directly from stdin — no database, no schema, no ETL job. SQL across the stream in seconds.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">bash · duckdb</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-duckdb" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-duckdb" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+<section class="stack gap-16"><h2 id="analyze">5. Analyze</h2>
+<p class="measure"><code class="ic">duckdb</code> reads NDJSON directly from stdin — no database, no schema, no ETL job. SQL across the stream in seconds.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">DuckDB</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
   | duckdb -c "
-      SELECT
-        json_extract_string(transfer, '\$.assetCode') AS asset,
-        COUNT(*)                                      AS transfers,
-        SUM(CAST(json_extract_string(transfer, '\$.amount') AS DOUBLE)) AS volume
-      FROM read_json('/dev/stdin')
-      WHERE transfer IS NOT NULL
-      GROUP BY asset
-      ORDER BY volume DESC"</pre>
-      </div>
+    SELECT json_extract_string(transfer, '\$.assetCode') AS asset,
+           COUNT(*) AS transfers,
+           SUM(CAST(json_extract_string(transfer, '\$.amount') AS DOUBLE)) AS volume
+    FROM read_json('/dev/stdin')
+    WHERE transfer IS NOT NULL
+    GROUP BY asset ORDER BY volume DESC"</pre></div>
+<p class="measure small muted">See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/DUCKDB_COOKBOOK.md">docs/DUCKDB_COOKBOOK.md</a> for deeper recipes — windowing, joins, exports to Parquet.</p></section>
 
-      <p class="text-secondary text-sm mt-4">
-        See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/DUCKDB_COOKBOOK.md" class="text-tertiary hover:underline">docs/DUCKDB_COOKBOOK.md</a> for deeper recipes — windowing, joins, exports to Parquet.
-      </p>
-    </section>
+<section class="stack gap-16"><h2 id="follow">6. Follow live</h2>
+<p class="measure">Omit <code class="ic">--end-ledger</code> to stream continuously, or compose <code class="ic">nebu fetch --follow</code> with the processor over stdin.</p>
+<div data-code class="code-block code-block--inline"><pre class="code-block__pre">token-transfer --start-ledger 60200000 \
+  | jq -c 'select(.transfer.assetCode == "USDC" and (.transfer.amount | tonumber) &gt; 1000000)'</pre><button type="button" data-copy class="copy-btn">Copy</button></div></section>
 
-    <!-- 06 FOLLOW LIVE -->
-    <section id="follow" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 06_FOLLOW_LIVE</h2>
-      <p class="text-secondary mb-6">
-        Omit <span class="text-tertiary">--end-ledger</span> to stream continuously, or compose <span class="text-tertiary">nebu fetch --follow</span> with the processor over stdin.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">bash</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-follow" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-follow" class="overflow-x-auto p-4 text-sm">token-transfer --start-ledger 60200000 \
-  | jq -c 'select(.transfer.assetCode == "USDC" and (.transfer.amount | tonumber) &gt; 1000000)'</pre>
-      </div>
-    </section>
-
-    <!-- 07 SEPARATE FETCH AND PROCESS -->
-    <section id="separate" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 07_FETCH_AND_PROCESS_SEPARATELY</h2>
-      <p class="text-secondary mb-6">
-        Capture raw XDR once with <span class="text-tertiary">nebu fetch</span>, replay it through as many processors as you like — no repeated RPC calls. Nebu passes RPC or archive XDR bytes directly to the output without decoding and re-encoding each ledger.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">bash</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-fetch" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-fetch" class="overflow-x-auto p-4 text-sm">nebu fetch 60200000 60200100 &gt; ledgers.xdr
-
-cat ledgers.xdr | token-transfer  | jq 'select(.transfer)'
+<section class="stack gap-16"><h2 id="separate">7. Fetch and process separately</h2>
+<p class="measure">Capture raw XDR once with <code class="ic">nebu fetch</code>, replay it through as many processors as you like — no repeated RPC calls. Nebu passes RPC or archive XDR bytes directly to the output without decoding and re-encoding each ledger.</p>
+<div data-code class="code-block code-block--inline"><pre class="code-block__pre">nebu fetch 60200000 60200100 &gt; ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.transfer)'
 cat ledgers.xdr | contract-events | grep -i swap
-cat ledgers.xdr | token-transfer  | duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin')"</pre>
-      </div>
-
-      <p class="text-secondary text-sm mt-4">
-        For deep history, switch to archive mode against the public
-        <span class="text-tertiary">aws-public-blockchain</span> S3 bucket — no AWS account required, the AWS SDK
-        falls back to anonymous access automatically:
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant mt-4">
-        <div class="code-head">
-          <span class="code-head__lang">bash · archive mode · pubnet</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-fetch-archive" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-fetch-archive" class="overflow-x-auto p-4 text-sm">nebu fetch --mode archive \
+cat ledgers.xdr | token-transfer | duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin')"</pre><button type="button" data-copy class="copy-btn">Copy</button></div>
+<p class="measure">For deep history, switch to archive mode against the public aws-public-blockchain S3 bucket — no AWS account required, the AWS SDK falls back to anonymous access automatically:</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Archive mode · pubnet</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">nebu fetch --mode archive \
   --datastore-type S3 \
   --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
   --region us-east-2 \
   62080000 62080100 &gt; ledgers.xdr
-
-cat ledgers.xdr | token-transfer | jq 'select(.transfer)'</pre>
-      </div>
-
-      <p class="text-secondary text-sm mt-4">
-        For a restartable bounded backfill, keep XDR and checkpoint state in separate files. Re-run the same command after interruption:
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant mt-4">
-        <div class="code-head">
-          <span class="code-head__lang">bash · resumable archive fetch</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="qs-fetch-resume" type="button">[ COPY ]</button>
-        </div>
-        <pre id="qs-fetch-resume" class="overflow-x-auto p-4 text-sm">nebu --status-file fetch.status.ndjson fetch --mode archive \
+cat ledgers.xdr | token-transfer | jq 'select(.transfer)'</pre></div>
+<p class="measure">For a restartable bounded backfill, keep XDR and checkpoint state in separate files. Re-run the same command after interruption:</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Resumable archive fetch</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">nebu --status-file fetch.status.ndjson fetch --mode archive \
   --datastore-type S3 \
   --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
   --region us-east-2 \
   --checkpoint ledgers.checkpoint.json \
   --checkpoint-interval 100 \
   --output ledgers.xdr \
-  62080000 62180000</pre>
-      </div>
+  62080000 62180000</pre></div>
+<p class="measure">The status file is stable <code class="ic">nebu.status.v1</code> NDJSON for scripts and orchestrators. Interactive terminal status uses OSC 7501 on stderr and can be controlled with <code class="ic">--program-status=auto|always|never</code>.</p>
+<p class="measure small muted">See <a href="man.html">nebu(1) › Commands</a> for the full flag set.</p></section>
 
-      <p class="text-secondary text-sm mt-4">
-        The status file is stable <span class="text-tertiary">nebu.status.v1</span> NDJSON for scripts and orchestrators. Interactive terminal status uses OSC 7501 on stderr and can be controlled with <span class="text-tertiary">--program-status=auto|always|never</span>.
-      </p>
+<section class="stack gap-16"><h2 id="errors">Troubleshoot</h2>
+<div class="table-wrap"><table class="table" style="min-width: 600px"><thead><tr><th scope="col">Symptom</th><th scope="col">Fix</th></tr></thead><tbody><tr><td class="mono nowrap">command not found: nebu</td><td class="muted">Your $GOPATH/bin isn't on $PATH. Add <code class="ic">export PATH="$HOME/go/bin:$PATH"</code> to your shell rc.</td></tr><tr><td class="mono nowrap">RPC 429 or timeouts</td><td class="muted">The default endpoint is a shared archive RPC. For sustained ingestion, use an authenticated endpoint: <code class="ic">export NEBU_RPC_AUTH="Api-Key YOUR_KEY"</code>, then pass <code class="ic">--rpc-url</code>.</td></tr><tr><td class="mono nowrap">start-ledger is before<br>network genesis</td><td class="muted">RPC only serves recent ledgers. For deep history, switch to <code class="ic">nebu fetch --mode archive</code> against a GCS/S3 archive.</td></tr><tr><td class="mono nowrap">my jq pipeline drops events</td><td class="muted">Use <code class="ic">jq -c</code> (compact output) in pipelines — the default pretty-printed output breaks NDJSON framing for downstream consumers.</td></tr></tbody></table></div></section>
 
-      <p class="text-secondary text-sm mt-4">
-        See <a href="man.html#commands" class="text-tertiary hover:underline">nebu(1) › COMMANDS &rarr;</a> for the full flag set.
-      </p>
-    </section>
+<section class="stack gap-16"><h2 id="next">Next</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px"><a href="index.html" class="card"><span class="card__title">Cookbook</span><span class="small muted">Scannable patterns for archives, premium RPC, fan-out, DuckDB.</span><span class="card__cta">Named recipes →</span></a><a href="man.html" class="card"><span class="card__title">nebu(1)</span><span class="small muted">Commands, options, env vars, exit codes — the full man page.</span><span class="card__cta">Reference →</span></a><a href="build-processors.html" class="card"><span class="card__title">Build a processor</span><span class="small muted">Ship your own origin / transform / sink against the stable contract.</span><span class="card__cta">Author guide →</span></a></div></section>
 
-    <!-- TROUBLESHOOT -->
-    <section id="errors" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 08_TROUBLESHOOT</h2>
-      <div class="space-y-6">
-        <div>
-          <div class="text-primary-container font-bold mb-1">&gt; command not found: nebu</div>
-          <p class="text-secondary text-sm">
-            Your <span class="text-on-surface">$GOPATH/bin</span> isn't on <span class="text-on-surface">$PATH</span>. Add <span class="text-tertiary">export PATH="$HOME/go/bin:$PATH"</span> to your shell rc.
-          </p>
-        </div>
-        <div>
-          <div class="text-primary-container font-bold mb-1">&gt; RPC 429 or timeouts</div>
-          <p class="text-secondary text-sm">
-            The default endpoint is a shared archive RPC. For sustained ingestion, use an authenticated endpoint:
-            <span class="text-tertiary">export NEBU_RPC_AUTH="Api-Key YOUR_KEY"</span>, then pass <span class="text-tertiary">--rpc-url</span>.
-          </p>
-        </div>
-        <div>
-          <div class="text-primary-container font-bold mb-1">&gt; start-ledger is before network genesis</div>
-          <p class="text-secondary text-sm">
-            RPC only serves recent ledgers. For deep history, switch to
-            <span class="text-tertiary">nebu fetch --mode archive</span> against a GCS/S3 archive.
-          </p>
-        </div>
-        <div>
-          <div class="text-primary-container font-bold mb-1">&gt; my jq pipeline drops events</div>
-          <p class="text-secondary text-sm">
-            Use <span class="text-tertiary">jq -c</span> (compact output) in pipelines — the default pretty-printed output breaks NDJSON framing for downstream consumers.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- NEXT -->
-    <section id="next" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 09_NEXT</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="index.html#cookbook" class="block bg-surface-container-low p-5 hover:bg-surface-container-high transition-colors">
-          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ COOKBOOK ]</div>
-          <div class="text-on-surface font-bold mb-2">NAMED_RECIPES</div>
-          <p class="text-secondary text-sm">Scannable patterns for archives, premium RPC, fan-out, DuckDB.</p>
-        </a>
-        <a href="man.html" class="block bg-surface-container-low p-5 hover:bg-surface-container-high transition-colors">
-          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ REFERENCE ]</div>
-          <div class="text-on-surface font-bold mb-2">NEBU(1)</div>
-          <p class="text-secondary text-sm">Commands, options, env vars, exit codes — the full man page.</p>
-        </a>
-        <a href="build-processors.html" class="block bg-surface-container-low p-5 hover:bg-surface-container-high transition-colors">
-          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ AUTHOR ]</div>
-          <div class="text-on-surface font-bold mb-2">BUILD_A_PROCESSOR</div>
-          <p class="text-secondary text-sm">Ship your own origin / transform / sink against the stable contract.</p>
-        </a>
-      </div>
-    </section>
-
-    <!-- Barrier -->
-    <div class="text-secondary opacity-30 select-none py-8 overflow-hidden">
-      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    </div>
-
-    <!-- Masthead footer -->
-    <div class="flex justify-between items-baseline border-t border-outline-variant pt-2 mt-12 text-secondary text-sm">
-      <span>OBSRVR</span>
-      <span class="hidden md:inline">2026-08-03</span>
-      <span>NEBU(7)</span>
-    </div>
-
-  </main>
+<footer class="site-footer">
+<span>nebu v0.7.7</span>
+<div class="site-footer__links">
+<a href="processors.html" class="muted">Processors</a>
+<a href="schemas.html" class="muted">Schemas</a>
+<a href="changelog.html" class="muted">Changelog</a>
+<a href="https://github.com/withObsrvr/nebu" class="muted">GitHub</a>
 </div>
-
-<!-- Fixed footer -->
-<footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.7</div>
-  <div class="flex gap-4">
-    <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
-    <span class="hidden md:inline text-[#3d3535]">::</span>
-    <a href="schemas.html" class="hover:text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
-    <span class="hidden md:inline text-[#3d3535]">::</span>
-    <a href="changelog.html" class="hover:text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
-    <span class="hidden md:inline text-[#3d3535]">::</span>
-    <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
-  </div>
 </footer>
+</main>
+</div>
 
 <script src="assets/nebu.js"></script>
 </body>
