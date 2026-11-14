@@ -6,6 +6,13 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Every origin processor's help advertised a jq filter that selects nothing.** `pkg/processor/cli/help.go` generates each processor's EXAMPLES from its name, so one wrong line there ships in every processor built against the release. The line was `jq 'select(.type == "transfer")'` — the same filter that was wrong in `nebu --help`, and wrong here for a second reason: no origin emits a top-level `type` field, and for `contract-events` or `ttl-tracker` a transfer filter is not even the right idea. A generator that knows only the processor's name cannot know its field names, so the examples now show how to look them up (`--last 1 -q | head -1 | jq 'keys'`) and how to read the one field every nebu event does carry (`jq -r '._schema' | sort | uniq -c`). Both verified against real output.
+  - The sink examples had the same failure twice over: `jq 'select(.amount > "1000000")'` reads `.amount`, but token-transfer puts it at `.transfer.amount`, and amounts are JSON strings, so even at the right path `>` compares them lexicographically. The replacement guards on the event kind before converting — a ledger holds fees, mints and burns beside transfers, and an unguarded `tonumber` errors once per non-transfer event — and it is written only for the origin whose shape this package knows; any other origin gets a passthrough rather than a guess.
+  - The transform and sink examples no longer contain a literal `...`, which was not a command a reader could run, and every generated example now leads with `--last` instead of a hardcoded ledger sequence.
+  - Two checks, because the old unit test only covered the one flag that had already gone wrong. `help_test.go` is table-driven over all three generators and rejects a `select(` on any top-level field except `_schema`, a `tonumber` without a guard, a literal `...`, and an example invoking the processor with `--follow`; it fails on the exact line that shipped. `check-help-examples.py --self` reads a processor's own EXAMPLES and its own Flags block and reports any flag it advertises but does not define — the flags have to come from the Flags block, since scraping the whole help text would let an example's own flags count as available and pass by construction. Wired into `docs-smoke` across seven processors.
+
 ## v0.7.3
 
 ### Added
