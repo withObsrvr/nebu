@@ -1,401 +1,161 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>NEBU // BUILD A PROCESSOR</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Build a nebu processor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "surface-bright": "#3a3939",
-          "tertiary": "#4dd9e4",
-          "tertiary-container": "#00b5c0",
-          "on-tertiary": "#00363a",
-          "on-tertiary-container": "#004145",
-          "outline": "#7a6a6a",
-          "outline-variant": "#3d3535",
-          "error": "#ffb4ab",
-          "surface-container-highest": "#353534",
-          "surface-container": "#201f1f",
-          "surface-container-high": "#2a2a2a",
-          "primary": "#ffb59c",
-          "surface-container-low": "#1c1b1b",
-          "on-primary": "#5c1a00",
-          "primary-container": "#ff7f50",
-          "on-primary-container": "#6c2000",
-          "on-surface": "#e5e2e1",
-          "on-background": "#e5e2e1",
-          "secondary": "#c6c6c6",
-          "surface": "#131313",
-          "background": "#131313",
-          "ember":  "#ff7f50",
-          "signal": "#4dd9e4",
-          "coal":   "#131313",
-          "ash":    "#c6c6c6",
-          "ink":    "#e5e2e1"
-        },
-        borderRadius: { DEFAULT: "0px", lg: "0px", xl: "0px", full: "0px" },
-        fontFamily: {
-          sans: ["'Atkinson Hyperlegible'", "system-ui", "sans-serif"],
-          mono: ["'JetBrains Mono'", "ui-monospace", "Menlo", "Monaco", "Consolas", "monospace"]
-        }
-      }
-    }
-  }
-</script>
-<link rel="stylesheet" href="assets/nebu.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<link rel="stylesheet" href="assets/nebu.css">
 </head>
-<body class="bg-background text-on-surface">
+<body id="top">
 
-<!-- TopAppBar -->
-<header class="bg-[#131313] text-[#ff7f50] uppercase tracking-tighter flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50">
-  <div class="text-xl font-bold text-[#e5e2e1] flex items-center gap-3">
-    <span>NEBU <span class="text-[#c6c6c6] font-normal normal-case">/ˈnɛ.buː/</span></span>
-    <span class="hidden sm:inline text-[0.6875rem] px-2 py-0.5 bg-primary-container text-background tracking-normal">MAINNET</span>
-  </div>
-  <nav class="hidden md:flex gap-8 items-center">
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="index.html">[ HOME ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="quickstart.html">[ QUICKSTART ]</a>
-    <a class="text-[#ff7f50] font-bold hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="#">[ BUILD ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="man.html">[ MAN ]</a>
-    <a class="text-[#c6c6c6] hover:bg-[#ff7f50] hover:text-[#131313] px-2 py-1 transition-colors" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
-  </nav>
-  <button id="menu-btn" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu"
-          class="md:hidden text-[#ff7f50] uppercase tracking-tighter text-sm font-bold">
-    [ MENU ]
-  </button>
-  <span class="material-symbols-outlined text-[#ff7f50] hidden md:inline">terminal</span>
+<header class="site-header">
+<div class="site-header__inner">
+<a href="index.html" class="brand">
+<span class="brand__name">nebu</span>
+<span class="brand__version">v0.7.7</span>
+</a>
+<nav aria-label="Primary" class="site-nav">
+<a href="index.html" class="site-nav__link is-current">Docs</a>
+<a href="processors.html" class="site-nav__link">Processors</a>
+<a href="schemas.html" class="site-nav__link">Schemas</a>
+<a href="changelog.html" class="site-nav__link">Changelog</a>
+</nav>
+<label data-search class="search">
+<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span class="sr-only">Search the docs</span>
+<input type="search" placeholder="Search docs" class="search__input">
+<span class="search__kbd">⌘K</span>
+</label>
+<a href="https://github.com/withObsrvr/nebu" class="site-nav__link">GitHub</a>
+</div>
 </header>
 
-<div id="mobile-menu" aria-hidden="true"
-     class="drawer-hidden md:hidden fixed inset-x-0 top-[64px] z-40 bg-[#1c1b1b] border-t border-[#57423b] transition-transform duration-150">
-  <nav class="flex flex-col p-4 uppercase tracking-tighter text-lg">
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="index.html">[ HOME ]</a>
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="quickstart.html">[ QUICKSTART ]</a>
-    <a class="text-[#ff7f50] font-bold py-3 border-b border-[#57423b] border-opacity-40" href="#">[ BUILD ]</a>
-    <a class="text-[#c6c6c6] py-3 border-b border-[#57423b] border-opacity-40" href="man.html">[ MAN ]</a>
-    <a class="text-[#c6c6c6] py-3" href="https://github.com/withObsrvr/nebu">[ REPO ]</a>
-  </nav>
-</div>
+<div class="layout">
+<nav aria-label="Documentation" class="sidebar"><div class="stack gap-2"><div class="sidebar__title">Get started</div><a href="index.html" class="sidebar__link">Introduction</a><a href="quickstart.html" class="sidebar__link">Quickstart</a></div><div class="stack gap-2"><div class="sidebar__title">Guides</div><a href="build-processors.html" aria-current="page" class="sidebar__link is-current">Build a processor</a></div><div class="stack gap-2"><div class="sidebar__title">Reference</div><a href="man.html" class="sidebar__link">nebu(1) man page</a><a href="processors.html" class="sidebar__link">Processors</a><a href="schemas.html" class="sidebar__link">Schemas</a><a href="changelog.html" class="sidebar__link">Changelog</a></div><div class="stack gap-2"><div class="sidebar__title">For agents</div><a href="https://nebu.withobsrvr.com/SKILL.md" class="sidebar__link">SKILL.md</a><a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md" class="sidebar__link">Runtime hooks</a></div></nav>
+<main class="content">
+<section class="stack gap-20"><div class="eyebrow">Guides</div>
+<h1>Build a processor</h1>
+<p class="lede">Ship a binary against the nebu contract. Your module, your repo, your release cadence.</p>
+<p class="measure">The contract is intentionally tiny — six interfaces, committed-stable, enforced by CI. When you build against it, you get a CLI, a JSON-schema-emitting <code class="ic">--describe-json</code> contract, and runtime hooks for free.</p>
+<nav aria-label="On this page" class="toc"><span class="muted">On this page</span><a href="#contract" class="fg">The contract</a><a href="#types" class="fg">Processor types</a><a href="#minimal" class="fg">Minimal origin</a><a href="#runtime" class="fg">Runtime</a><a href="#describe" class="fg">Describe JSON</a><a href="#ship" class="fg">Ship a binary</a><a href="#register" class="fg">Register</a><a href="#hooks" class="fg">Hooks</a><a href="#stability" class="fg">Stability</a><a href="#next" class="fg">Next</a></nav></section>
 
-<div class="max-w-7xl mx-auto px-6 lg:flex lg:gap-10 lg:items-start">
+<section class="stack gap-16"><h2 id="contract">The contract</h2>
+<p class="measure">The stable surface lives in <code class="ic">pkg/processor</code> and <code class="ic">pkg/source</code>. Anything outside those packages is free to evolve.</p>
+<div class="table-wrap"><table class="table" style="min-width: 420px"><thead><tr><th scope="col">Interface</th><th scope="col">Role</th></tr></thead><tbody><tr><td class="mono nowrap">Processor</td><td class="muted">Root interface</td></tr><tr><td class="mono nowrap">Origin</td><td class="muted">Reads ledgers, emits events</td></tr><tr><td class="mono nowrap">Transform</td><td class="muted">Events → events</td></tr><tr><td class="mono nowrap">Sink</td><td class="muted">Events → side effects</td></tr><tr><td class="mono nowrap">Emitter[T]</td><td class="muted">Typed output channel</td></tr><tr><td class="mono nowrap">Reporter</td><td class="muted">Progress / metrics hook</td></tr><tr><td class="mono nowrap">LedgerSource</td><td class="muted">Ledger stream (RPC / archive)</td></tr></tbody></table></div>
+<p class="measure small muted">Full API snapshots live in <code class="ic">.api/</code> and are diffed on every PR. See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/STABILITY.md">docs/STABILITY.md</a> for the versioning policy.</p></section>
 
-  <aside class="hidden lg:block lg:w-48 shrink-0 py-12">
-    <nav aria-label="On this page" class="sticky top-24 text-sm">
-      <div class="text-[0.6875rem] uppercase text-tertiary mb-4 font-bold tracking-widest">[ ON_THIS_PAGE ]</div>
-      <ul>
-        <li><a href="#contract"   data-toc="contract"   class="toc-link">THE_CONTRACT</a></li>
-        <li><a href="#types"      data-toc="types"      class="toc-link">PROCESSOR_TYPES</a></li>
-        <li><a href="#minimal"    data-toc="minimal"    class="toc-link">MINIMAL_ORIGIN</a></li>
-        <li><a href="#runtime"    data-toc="runtime"    class="toc-link">RUNTIME</a></li>
-        <li><a href="#describe"   data-toc="describe"   class="toc-link">DESCRIBE_JSON</a></li>
-        <li><a href="#ship"       data-toc="ship"       class="toc-link">SHIP_BINARY</a></li>
-        <li><a href="#register"   data-toc="register"   class="toc-link">REGISTER</a></li>
-        <li><a href="#hooks"      data-toc="hooks"      class="toc-link">HOOKS</a></li>
-        <li><a href="#stability"  data-toc="stability"  class="toc-link">STABILITY</a></li>
-        <li><a href="#next"       data-toc="next"       class="toc-link">NEXT</a></li>
-      </ul>
-      <div class="mt-6 pt-4 border-t border-outline-variant text-[0.6875rem] uppercase text-secondary">
-        guide · author<br/>
-        <span class="text-tertiary">rev 2026-08-03</span>
-      </div>
-    </nav>
-  </aside>
+<section class="stack gap-24"><h2 id="types">Processor types</h2>
+<div class="stack gap-10"><h3>Origin</h3>
+<p class="measure small muted">Consumes ledger XDR, emits typed events as NDJSON. The “producer” end of a pipe.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Go · pkg/processor</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">type Origin interface {
+	ProcessLedger(ctx context.Context, ledger xdr.LedgerCloseMeta) error
+}</pre></div></div>
+<div class="stack gap-10"><h3>Transform</h3>
+<p class="measure small muted">Consumes events, emits events. Filters, enrichers, deduplicators, windowers.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Go · pkg/processor</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">type Transform interface {
+	ProcessEvent(ctx context.Context, event proto.Message) error
+}</pre></div></div>
+<div class="stack gap-10"><h3>Sink</h3>
+<p class="measure small muted">Consumes events, produces side effects — DB writes, files, message queues, metrics.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Go · pkg/processor</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">type Sink interface {
+	WriteEvent(ctx context.Context, event proto.Message) error
+}</pre></div></div></section>
 
-  <main class="flex-1 min-w-0 lg:max-w-3xl py-12 pb-32">
+<section class="stack gap-16"><h2 id="minimal">Minimal origin</h2>
+<p class="measure">A complete origin processor that counts transactions per ledger and emits one event per ledger close. Real code — starting point for anything you'd build.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Go · main.go</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">package main
 
-    <div class="text-[0.8125rem] text-secondary mb-6 uppercase tracking-tight">
-      ROOT / DOCS / <span class="text-primary-container">BUILD</span>
-    </div>
+import (
+	"context"
+	"encoding/json"
+	"os"
 
-    <section class="mb-12">
-      <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-6 text-on-surface"># BUILD_A_PROCESSOR</h1>
-      <p class="text-xl text-secondary max-w-2xl leading-relaxed">
-        Ship a binary against the nebu contract. Your module, your repo, your release cadence.
-      </p>
-      <p class="text-base text-secondary max-w-2xl leading-relaxed mt-3">
-        The contract is intentionally tiny — six interfaces, committed-stable, enforced by CI.
-        When you build against it, you get a CLI, a JSON-schema-emitting
-        <span class="text-tertiary">--describe-json</span> contract, and runtime hooks for free.
-      </p>
-    </section>
-
-    <!-- Mobile TOC -->
-    <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
-      <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
-      <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#contract">#CONTRACT</a>
-        <a class="text-tertiary hover:underline" href="#types">#TYPES</a>
-        <a class="text-tertiary hover:underline" href="#minimal">#MINIMAL</a>
-        <a class="text-tertiary hover:underline" href="#runtime">#RUNTIME</a>
-        <a class="text-tertiary hover:underline" href="#describe">#DESCRIBE</a>
-        <a class="text-tertiary hover:underline" href="#ship">#SHIP</a>
-        <a class="text-tertiary hover:underline" href="#register">#REGISTER</a>
-        <a class="text-tertiary hover:underline" href="#hooks">#HOOKS</a>
-        <a class="text-tertiary hover:underline" href="#stability">#STABILITY</a>
-        <a class="text-tertiary hover:underline" href="#next">#NEXT</a>
-      </div>
-    </nav>
-
-    <!-- CONTRACT -->
-    <section id="contract" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 01_THE_CONTRACT</h2>
-      <p class="text-secondary mb-6">
-        The stable surface lives in <span class="text-tertiary">pkg/processor</span> and <span class="text-tertiary">pkg/source</span>.
-        Anything outside those packages is free to evolve.
-      </p>
-
-      <div class="bg-surface-container-low p-6 border border-outline-variant mb-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-          <div><span class="text-tertiary">Processor</span>       <span class="text-secondary">· root interface</span></div>
-          <div><span class="text-tertiary">Origin</span>           <span class="text-secondary">· reads ledgers, emits events</span></div>
-          <div><span class="text-tertiary">Transform</span>        <span class="text-secondary">· events → events</span></div>
-          <div><span class="text-tertiary">Sink</span>             <span class="text-secondary">· events → side effects</span></div>
-          <div><span class="text-tertiary">Emitter[T]</span>       <span class="text-secondary">· typed output channel</span></div>
-          <div><span class="text-tertiary">Reporter</span>         <span class="text-secondary">· progress / metrics hook</span></div>
-          <div><span class="text-tertiary">LedgerSource</span>     <span class="text-secondary">· ledger stream (RPC / archive)</span></div>
-        </div>
-      </div>
-
-      <p class="text-secondary text-sm">
-        Full API snapshots live in <span class="text-on-surface">.api/</span> and are diffed on every PR.
-        See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/STABILITY.md" class="text-tertiary hover:underline">docs/STABILITY.md</a>
-        for the versioning policy.
-      </p>
-    </section>
-
-    <!-- TYPES -->
-    <section id="types" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 02_PROCESSOR_TYPES</h2>
-      <div class="space-y-6">
-
-        <div class="bg-surface-container-low p-5 border border-outline-variant">
-          <div class="text-primary-container font-bold mb-1">ORIGIN</div>
-          <p class="text-secondary text-sm mb-3">
-            Consumes ledger XDR, emits typed events as NDJSON. The "producer" end of a pipe.
-          </p>
-          <div class="bg-background border border-outline-variant">
-            <div class="code-head">
-              <span class="code-head__lang">go</span>
-              <span class="text-secondary">pkg/processor</span>
-            </div>
-            <pre class="overflow-x-auto p-3 text-sm"><span class="tok-kw">type</span> <span class="tok-type">Origin</span> <span class="tok-kw">interface</span> {
-    <span class="tok-fn">ProcessLedger</span>(ctx context.<span class="tok-type">Context</span>, ledger xdr.<span class="tok-type">LedgerCloseMeta</span>) <span class="tok-kw">error</span>
-}</pre>
-          </div>
-        </div>
-
-        <div class="bg-surface-container-low p-5 border border-outline-variant">
-          <div class="text-primary-container font-bold mb-1">TRANSFORM</div>
-          <p class="text-secondary text-sm mb-3">
-            Consumes events, emits events. Filters, enrichers, deduplicators, windowers.
-          </p>
-          <div class="bg-background border border-outline-variant">
-            <div class="code-head">
-              <span class="code-head__lang">go</span>
-              <span class="text-secondary">pkg/processor</span>
-            </div>
-            <pre class="overflow-x-auto p-3 text-sm"><span class="tok-kw">type</span> <span class="tok-type">Transform</span> <span class="tok-kw">interface</span> {
-    <span class="tok-fn">ProcessEvent</span>(ctx context.<span class="tok-type">Context</span>, event proto.<span class="tok-type">Message</span>) <span class="tok-kw">error</span>
-}</pre>
-          </div>
-        </div>
-
-        <div class="bg-surface-container-low p-5 border border-outline-variant">
-          <div class="text-primary-container font-bold mb-1">SINK</div>
-          <p class="text-secondary text-sm mb-3">
-            Consumes events, produces side effects — DB writes, files, message queues, metrics.
-          </p>
-          <div class="bg-background border border-outline-variant">
-            <div class="code-head">
-              <span class="code-head__lang">go</span>
-              <span class="text-secondary">pkg/processor</span>
-            </div>
-            <pre class="overflow-x-auto p-3 text-sm"><span class="tok-kw">type</span> <span class="tok-type">Sink</span> <span class="tok-kw">interface</span> {
-    <span class="tok-fn">WriteEvent</span>(ctx context.<span class="tok-type">Context</span>, event proto.<span class="tok-type">Message</span>) <span class="tok-kw">error</span>
-}</pre>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- MINIMAL ORIGIN -->
-    <section id="minimal" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 03_MINIMAL_ORIGIN</h2>
-      <p class="text-secondary mb-6">
-        A complete origin processor that counts transactions per ledger and emits one event per ledger close. Real code — starting point for anything you'd build.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant mb-4">
-        <div class="code-head">
-          <span class="code-head__lang">go · main.go</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="bp-origin" type="button">[ COPY ]</button>
-        </div>
-        <pre id="bp-origin" class="overflow-x-auto p-4 text-sm"><span class="tok-kw">package</span> main
-
-<span class="tok-kw">import</span> (
-    <span class="tok-str">"context"</span>
-    <span class="tok-str">"encoding/json"</span>
-    <span class="tok-str">"os"</span>
-
-    <span class="tok-str">"github.com/stellar/go/xdr"</span>
-    <span class="tok-str">"github.com/withObsrvr/nebu/pkg/processor"</span>
-    <span class="tok-str">"github.com/withObsrvr/nebu/pkg/runtime"</span>
-    <span class="tok-str">"github.com/withObsrvr/nebu/pkg/source/rpc"</span>
+	"github.com/stellar/go/xdr"
+	"github.com/withObsrvr/nebu/pkg/processor"
+	"github.com/withObsrvr/nebu/pkg/runtime"
+	"github.com/withObsrvr/nebu/pkg/source/rpc"
 )
 
-<span class="tok-com">// Emitted event schema</span>
-<span class="tok-kw">type</span> <span class="tok-type">TxCount</span> <span class="tok-kw">struct</span> {
-    Schema    <span class="tok-kw">string</span> <span class="tok-str">`json:"_schema"`</span>
-    NebuVer   <span class="tok-kw">string</span> <span class="tok-str">`json:"_nebu_version"`</span>
-    Ledger    <span class="tok-kw">uint32</span> <span class="tok-str">`json:"ledger"`</span>
-    TxCount   <span class="tok-kw">int</span>    <span class="tok-str">`json:"tx_count"`</span>
+// Emitted event schema
+type TxCount struct {
+	Schema  string `json:"_schema"`
+	NebuVer string `json:"_nebu_version"`
+	Ledger  uint32 `json:"ledger"`
+	TxCount int    `json:"tx_count"`
 }
 
-<span class="tok-kw">type</span> <span class="tok-type">TxCountOrigin</span> <span class="tok-kw">struct</span> {
-    out *json.<span class="tok-type">Encoder</span>
+type TxCountOrigin struct {
+	out *json.Encoder
 }
 
-<span class="tok-kw">func</span> (o *<span class="tok-type">TxCountOrigin</span>) <span class="tok-fn">ProcessLedger</span>(ctx context.<span class="tok-type">Context</span>, lcm xdr.<span class="tok-type">LedgerCloseMeta</span>) <span class="tok-kw">error</span> {
-    <span class="tok-kw">return</span> o.out.<span class="tok-fn">Encode</span>(<span class="tok-type">TxCount</span>{
-        Schema:  <span class="tok-str">"example.tx_count.v1"</span>,
-        NebuVer: <span class="tok-str">"v0.7.5"</span>,
-        Ledger:  <span class="tok-fn">uint32</span>(lcm.<span class="tok-fn">LedgerSequence</span>()),
-        TxCount: <span class="tok-fn">len</span>(lcm.<span class="tok-fn">TransactionEnvelopes</span>()),
-    })
+func (o *TxCountOrigin) ProcessLedger(ctx context.Context, lcm xdr.LedgerCloseMeta) error {
+	return o.out.Encode(TxCount{
+		Schema:  "example.tx_count.v1",
+		NebuVer: "v0.7.5",
+		Ledger:  uint32(lcm.LedgerSequence()),
+		TxCount: len(lcm.TransactionEnvelopes()),
+	})
 }
 
-<span class="tok-kw">func</span> <span class="tok-fn">main</span>() {
-    src, _ := rpc.<span class="tok-fn">NewLedgerSource</span>(<span class="tok-str">"https://archive-rpc.lightsail.network"</span>)
-    <span class="tok-kw">defer</span> src.<span class="tok-fn">Close</span>()
+func main() {
+	src, _ := rpc.NewLedgerSource("https://archive-rpc.lightsail.network")
+	defer src.Close()
 
-    p := &amp;<span class="tok-type">TxCountOrigin</span>{out: json.<span class="tok-fn">NewEncoder</span>(os.Stdout)}
+	p := &amp;TxCountOrigin{out: json.NewEncoder(os.Stdout)}
+	rt := runtime.NewRuntime()
+	rt.RunOrigin(context.Background(), src, p, 60200000, 60200010)
+}</pre></div>
+<p class="measure">That's the whole processor. No framework, no DI container, no config file — the CLI flags, the <code class="ic">--describe-json</code> manifest, the observability hooks are all wired up by the runtime.</p></section>
 
-    rt := runtime.<span class="tok-fn">NewRuntime</span>()
-    rt.<span class="tok-fn">RunOrigin</span>(context.<span class="tok-fn">Background</span>(), src, p, <span class="tok-str">60200000</span>, <span class="tok-str">60200010</span>)
-}</pre>
-      </div>
+<section class="stack gap-16"><h2 id="runtime">Runtime</h2>
+<p class="measure"><code class="ic">runtime.NewRuntime()</code> wires the source, the processor, and the CLI together. It owns flag parsing, signal handling, metrics emission, and graceful shutdown.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Go</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">// Origin: ledger source → processor
+rt.RunOrigin(ctx, source, proc, startLedger, endLedger)
 
-      <p class="text-secondary text-sm">
-        That's the whole processor. No framework, no DI container, no config file — the CLI flags, the
-        <span class="text-tertiary">--describe-json</span> manifest, the observability hooks are all wired up by the runtime.
-      </p>
-    </section>
+// Transform: stdin (NDJSON) → processor → stdout
+rt.RunTransform(ctx, proc)
 
-    <!-- RUNTIME -->
-    <section id="runtime" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 04_RUNTIME</h2>
-      <p class="text-secondary mb-6">
-        <span class="text-tertiary">runtime.NewRuntime()</span> wires the source, the processor, and the CLI together.
-        It owns flag parsing, signal handling, metrics emission, and graceful shutdown.
-      </p>
+// Sink: stdin (NDJSON) → processor (side effects)
+rt.RunSink(ctx, proc)</pre></div></section>
 
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">go</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="bp-rt" type="button">[ COPY ]</button>
-        </div>
-        <pre id="bp-rt" class="overflow-x-auto p-4 text-sm"><span class="tok-com">// Origin: ledger source → processor</span>
-rt.<span class="tok-fn">RunOrigin</span>(ctx, source, proc, startLedger, endLedger)
-
-<span class="tok-com">// Transform: stdin (NDJSON) → processor → stdout</span>
-rt.<span class="tok-fn">RunTransform</span>(ctx, proc)
-
-<span class="tok-com">// Sink: stdin (NDJSON) → processor (side effects)</span>
-rt.<span class="tok-fn">RunSink</span>(ctx, proc)</pre>
-      </div>
-    </section>
-
-    <!-- DESCRIBE JSON -->
-    <section id="describe" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 05_DESCRIBE_JSON</h2>
-      <p class="text-secondary mb-6">
-        Every processor binary must respond to <span class="text-tertiary">--describe-json</span> with a JSON-schema-valid manifest.
-        This is the agent-legible contract — tooling and LLMs can discover your processor's flags, inputs, outputs, and emitted schema IDs without reading source.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">json</span>
-          <span class="text-secondary">--describe-json</span>
-        </div>
-        <pre class="overflow-x-auto p-4 text-xs"><span class="text-on-surface">{</span>
-  <span class="tok-fn">"name"</span>:        <span class="text-on-surface">"tx-count"</span>,
-  <span class="tok-fn">"type"</span>:        <span class="text-on-surface">"origin"</span>,
-  <span class="tok-fn">"description"</span>: <span class="text-on-surface">"Emit one event per ledger close, with tx count"</span>,
-  <span class="tok-fn">"flags"</span>: [
-    { <span class="tok-fn">"name"</span>: <span class="text-on-surface">"--start-ledger"</span>, <span class="tok-fn">"type"</span>: <span class="text-on-surface">"uint32"</span>, <span class="tok-fn">"required"</span>: <span class="tok-kw">true</span> },
-    { <span class="tok-fn">"name"</span>: <span class="text-on-surface">"--end-ledger"</span>,   <span class="tok-fn">"type"</span>: <span class="text-on-surface">"uint32"</span> }
+<section class="stack gap-16"><h2 id="describe">Describe JSON</h2>
+<p class="measure">Every processor binary must respond to <code class="ic">--describe-json</code> with a JSON-schema-valid manifest. This is the agent-legible contract — tooling and LLMs can discover your processor's flags, inputs, outputs, and emitted schema IDs without reading source.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">JSON · --describe-json</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
+  "name": "tx-count",
+  "type": "origin",
+  "description": "Emit one event per ledger close, with tx count",
+  "flags": [
+    { "name": "--start-ledger", "type": "uint32", "required": true },
+    { "name": "--end-ledger", "type": "uint32" }
   ],
-  <span class="tok-fn">"inputs"</span>:  [ { <span class="tok-fn">"kind"</span>: <span class="text-on-surface">"ledger_stream"</span> } ],
-  <span class="tok-fn">"outputs"</span>: [ { <span class="tok-fn">"schema"</span>: <span class="text-on-surface">"example.tx_count.v1"</span> } ]
-<span class="text-on-surface">}</span></pre>
-      </div>
+  "inputs": [ { "kind": "ledger_stream" } ],
+  "outputs": [ { "schema": "example.tx_count.v1" } ]
+}</pre></div>
+<p class="measure small muted">The runtime generates this manifest from struct tags + a small <code class="ic">Describe()</code> hook you implement — you don't hand-write the JSON.</p></section>
 
-      <p class="text-secondary text-sm mt-4">
-        The runtime generates this manifest from struct tags + a small <span class="text-tertiary">Describe()</span> hook you implement — you don't hand-write the JSON.
-      </p>
-    </section>
-
-    <!-- SHIP BINARY -->
-    <section id="ship" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 06_SHIP_BINARY</h2>
-      <p class="text-secondary mb-6">
-        Processors are standalone binaries, not plugins. Ship them via <span class="text-tertiary">go install</span>-able modules — GoReleaser, GitHub Releases, or a Nix flake.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant mb-4">
-        <div class="code-head">
-          <span class="code-head__lang">bash · layout</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="bp-layout" type="button">[ COPY ]</button>
-        </div>
-        <pre id="bp-layout" class="overflow-x-auto p-4 text-sm">my-processor/
-├── go.mod                   # depends on nebu/pkg/processor only
+<section class="stack gap-16"><h2 id="ship">Ship a binary</h2>
+<p class="measure">Processors are standalone binaries, not plugins. Ship them via <code class="ic">go install</code>-able modules — GoReleaser, GitHub Releases, or a Nix flake.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Layout</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">my-processor/
+├── go.mod                  # depends on nebu/pkg/processor only
 ├── cmd/my-processor/
-│   └── main.go              # runtime.NewRuntime().RunOrigin(...)
-├── description.yml          # registry manifest (see § 07)
-├── SCHEMA.md                # document your emitted _schema
-└── README.md</pre>
-      </div>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">bash · publish</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="bp-publish" type="button">[ COPY ]</button>
-        </div>
-        <pre id="bp-publish" class="overflow-x-auto p-4 text-sm"># Tag a release
+│   └── main.go             # runtime.NewRuntime().RunOrigin(...)
+├── description.yml         # registry manifest (see Register)
+├── SCHEMA.md               # document your emitted _schema
+└── README.md</pre></div>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">Publish</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre"># Tag a release
 git tag v0.1.0 &amp;&amp; git push --tags
 
 # Anyone can now install it
-go install github.com/you/my-processor/cmd/my-processor@v0.1.0</pre>
-      </div>
-    </section>
+go install github.com/you/my-processor/cmd/my-processor@v0.1.0</pre></div></section>
 
-    <!-- REGISTER -->
-    <section id="register" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 07_REGISTER</h2>
-      <p class="text-secondary mb-6">
-        Drop a <span class="text-tertiary">description.yml</span> at the root of your repo and submit a PR to the
-        <a href="https://github.com/withObsrvr/nebu-processor-registry" class="text-tertiary hover:underline">community registry</a>.
-        Once merged, <span class="text-on-surface">nebu list</span> surfaces it for everyone.
-      </p>
-
-      <div class="bg-surface-container-low border border-outline-variant">
-        <div class="code-head">
-          <span class="code-head__lang">yaml · description.yml</span>
-          <button class="copy-btn copy-btn--inline" data-copy-target="bp-desc" type="button">[ COPY ]</button>
-        </div>
-        <pre id="bp-desc" class="overflow-x-auto p-4 text-sm">name: my-processor
-type: origin                  # origin | transform | sink
+<section class="stack gap-16"><h2 id="register">Register</h2>
+<p class="measure">Drop a <code class="ic">description.yml</code> at the root of your repo and submit a PR to the <a href="https://github.com/withObsrvr/nebu-processor-registry">community registry</a>. Once merged, <code class="ic">nebu list</code> surfaces it for everyone.</p>
+<div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">YAML · description.yml</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">name: my-processor
+type: origin              # origin | transform | sink
 description: One-line summary for `nebu list`
 location:
   type: git
@@ -405,152 +165,36 @@ schemas:
   - example.tx_count.v1
 maintainer:
   name: Your Name
-  url:  https://github.com/you</pre>
-      </div>
+  url: https://github.com/you</pre></div>
+<p class="measure small muted">Schema IDs are namespaced — use <code class="ic">&lt;org&gt;.&lt;processor&gt;.v&lt;N&gt;</code>. Bump the version on breaking changes; never reuse a version for a different payload.</p></section>
 
-      <p class="text-secondary text-sm mt-4">
-        Schema IDs are namespaced — use <span class="text-tertiary">&lt;org&gt;.&lt;processor&gt;.v&lt;N&gt;</span>. Bump the version on breaking changes; never reuse a version for a different payload.
-      </p>
-    </section>
+<section class="stack gap-16"><h2 id="hooks">Hooks</h2>
+<p class="measure">The runtime exposes six lifecycle callbacks — <code class="ic">OnStart</code>, <code class="ic">BeforeLedger</code>, <code class="ic">AfterLedger</code>, <code class="ic">OnWarning</code>, <code class="ic">OnFatal</code>, <code class="ic">OnEnd</code>. Register any subset via <code class="ic">Runtime.Use(Hooks{...})</code> or <code class="ic">OriginConfig.Hooks</code>; nil fields are no-ops. See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md">docs/HOOKS.md</a> for lifecycle, firing order, and abort semantics.</p>
+<h3>Reference implementations</h3>
+<p class="measure small muted">Four drop-in files. Each is self-contained. Copy into your processor's <code class="ic">cmd/&lt;name&gt;/</code> directory, rename <code class="ic">package hooks</code> to your package, and wire it into your Hooks slice. No framework, no abstract factory.</p>
+<div class="table-wrap"><table class="table"><thead><tr><th scope="col">File</th><th scope="col">What it does</th></tr></thead><tbody><tr><td class="mono nowrap"><a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/cmd/token-transfer/progress.go">progress.go</a></td><td class="muted">Live stderr progress bar, TTY-aware, 108 lines, stdlib only</td></tr><tr><td class="mono nowrap"><a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/rate_limit.go">rate_limit.go</a></td><td class="muted">Token-bucket throttle via BeforeLedger, stdlib only</td></tr><tr><td class="mono nowrap"><a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/metrics.go">metrics.go</a></td><td class="muted">Prometheus counters + histograms (nebu_ledgers_processed_total, nebu_ledger_duration_seconds, nebu_warnings_total, nebu_fatals_total, nebu_pipeline_duration_seconds)</td></tr><tr><td class="mono nowrap"><a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/tracing.go">tracing.go</a></td><td class="muted">OpenTelemetry parent nebu.pipeline span with one nebu.ledger child per ledger; warnings as span events, fatals as span error records</td></tr></tbody></table></div>
+<p class="measure small muted">Smoke test: <a href="https://github.com/withObsrvr/nebu/tree/main/examples/hooks/cmd/hooks-demo">hooks-demo</a> wires all three into a real RPC run. <code class="ic">go run ./examples/hooks/cmd/hooks-demo</code>.</p>
+<h3>Common patterns</h3>
+<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Pattern</th><th scope="col">Callbacks and use</th></tr></thead><tbody><tr><td class="muted">Progress</td><td class="muted">OnStart + AfterLedger + OnEnd — live stderr output, health-check endpoints, flowctl control-plane reporting.</td></tr><tr><td class="muted">Metrics</td><td class="muted">AfterLedger + OnWarning + OnFatal + OnEnd — Prometheus / OTel / StatsD counters and histograms.</td></tr><tr><td class="muted">Tracing</td><td class="muted">OnStart + BeforeLedger + AfterLedger + OnEnd — OTel parent + per-ledger child spans, span events on warnings, span errors on fatals.</td></tr><tr><td class="muted">Rate limiting</td><td class="muted">BeforeLedger — token bucket or explicit sleep between ledgers for back-pressure against downstream sinks.</td></tr><tr><td class="muted">Agent gates</td><td class="muted">BeforeLedger error-abort for human-in-the-loop approval on destructive sinks. Use rate_limit.go as a starting point.</td></tr></tbody></table></div></section>
 
-    <!-- HOOKS -->
-    <section id="hooks" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 08_HOOKS</h2>
-      <p class="text-secondary mb-6">
-        The runtime exposes six lifecycle callbacks — <span class="text-tertiary">OnStart</span>, <span class="text-tertiary">BeforeLedger</span>, <span class="text-tertiary">AfterLedger</span>, <span class="text-tertiary">OnWarning</span>, <span class="text-tertiary">OnFatal</span>, <span class="text-tertiary">OnEnd</span>. Register any subset via <span class="text-tertiary">Runtime.Use(Hooks{...})</span> or <span class="text-tertiary">OriginConfig.Hooks</span>; nil fields are no-ops. See <a href="https://github.com/withObsrvr/nebu/blob/main/docs/HOOKS.md" class="text-tertiary hover:underline">docs/HOOKS.md</a> for lifecycle, firing order, and abort semantics.
-      </p>
+<section class="stack gap-16"><h2 id="stability">Stability</h2>
+<div class="table-wrap"><table class="table" style="min-width: 640px"><thead><tr><th scope="col">Tier</th><th scope="col">Packages</th><th scope="col">Policy</th></tr></thead><tbody><tr><td class="muted">Stable</td><td class="muted"><code class="ic">pkg/processor</code> <code class="ic">pkg/source</code></td><td class="muted">Breaking changes require a new major version and a deprecation cycle.</td></tr><tr><td class="muted">Unstable</td><td class="muted"><code class="ic">pkg/source/rpc</code> <code class="ic">pkg/source/storage</code> <code class="ic">pkg/runtime</code></td><td class="muted">Can change without notice — pin minor versions if you depend on them.</td></tr><tr><td class="muted">Private</td><td class="muted"><code class="ic">internal/*</code></td><td class="muted">Do not import.</td></tr></tbody></table></div>
+<p class="measure small muted">A CI check diffs every PR against API snapshots in <code class="ic">.api/</code>. If you accidentally break the stable surface, CI blocks the merge.</p></section>
 
-      <div class="bg-surface-container-low p-5 border border-outline-variant mb-6">
-        <div class="text-[0.6875rem] uppercase text-tertiary mb-2 tracking-widest">[ REFERENCE IMPLEMENTATIONS · 4 FILES, DROP-IN ]</div>
-        <p class="text-secondary text-sm mb-4">
-          Each file is self-contained. Copy into your processor's <span class="text-on-surface">cmd/&lt;name&gt;/</span> directory, rename <span class="text-on-surface">package hooks</span> to your package, and wire it into your <span class="text-on-surface">Hooks</span> slice. No framework, no abstract factory.
-        </p>
-        <div class="space-y-3 text-sm">
-          <div>
-            <a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/processors/token-transfer/cmd/token-transfer/progress.go" class="text-on-surface font-bold hover:underline">progress.go</a>
-            <span class="text-secondary"> — live stderr progress bar, TTY-aware, 108 lines, stdlib only</span>
-          </div>
-          <div>
-            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/rate_limit.go" class="text-on-surface font-bold hover:underline">rate_limit.go</a>
-            <span class="text-secondary"> — token-bucket throttle via <span class="text-tertiary">BeforeLedger</span>, stdlib only</span>
-          </div>
-          <div>
-            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/metrics.go" class="text-on-surface font-bold hover:underline">metrics.go</a>
-            <span class="text-secondary"> — Prometheus counters + histograms (<code>nebu_ledgers_processed_total</code>, <code>nebu_ledger_duration_seconds</code>, <code>nebu_warnings_total</code>, <code>nebu_fatals_total</code>, <code>nebu_pipeline_duration_seconds</code>)</span>
-          </div>
-          <div>
-            <a href="https://github.com/withObsrvr/nebu/blob/main/examples/hooks/tracing.go" class="text-on-surface font-bold hover:underline">tracing.go</a>
-            <span class="text-secondary"> — OpenTelemetry parent <code>nebu.pipeline</code> span with one <code>nebu.ledger</code> child per ledger; warnings as span events, fatals as span error records</span>
-          </div>
-        </div>
-        <p class="text-secondary text-sm mt-4">
-          Smoke test: <a href="https://github.com/withObsrvr/nebu/tree/main/examples/hooks/cmd/hooks-demo" class="text-tertiary hover:underline">hooks-demo</a> wires all three into a real RPC run. <span class="text-tertiary">go run ./examples/hooks/cmd/hooks-demo</span>.
-        </p>
-      </div>
+<section class="stack gap-16"><h2 id="next">Next</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px"><a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md" class="card"><span class="card__title">Proto-first</span><span class="small muted">The full proto-first walkthrough for strongly-typed processors.</span><span class="card__cta">Deep dive →</span></a><a href="https://github.com/withObsrvr/nebu/tree/main/examples/processors" class="card"><span class="card__title">Reference processors</span><span class="small muted">Twelve working processors — origin, transform, sink. Copy from them.</span><span class="card__cta">Examples →</span></a><a href="man.html" class="card"><span class="card__title">nebu(1)</span><span class="small muted">Commands, flags, env vars — the full CLI man page.</span><span class="card__cta">Reference →</span></a></div></section>
 
-      <p class="text-secondary mb-3 text-sm">Common patterns the six callbacks enable:</p>
-
-      <div class="space-y-4 text-sm">
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-on-surface w-44 shrink-0">Progress</span>
-          <span class="text-secondary"><span class="text-tertiary">OnStart</span> + <span class="text-tertiary">AfterLedger</span> + <span class="text-tertiary">OnEnd</span> — live stderr output, health-check endpoints, flowctl control-plane reporting.</span>
-        </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-on-surface w-44 shrink-0">Metrics</span>
-          <span class="text-secondary"><span class="text-tertiary">AfterLedger</span> + <span class="text-tertiary">OnWarning</span> + <span class="text-tertiary">OnFatal</span> + <span class="text-tertiary">OnEnd</span> — Prometheus / OTel / StatsD counters and histograms.</span>
-        </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-on-surface w-44 shrink-0">Tracing</span>
-          <span class="text-secondary"><span class="text-tertiary">OnStart</span> + <span class="text-tertiary">BeforeLedger</span> + <span class="text-tertiary">AfterLedger</span> + <span class="text-tertiary">OnEnd</span> — OTel parent + per-ledger child spans, span events on warnings, span errors on fatals.</span>
-        </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-on-surface w-44 shrink-0">Rate limiting</span>
-          <span class="text-secondary"><span class="text-tertiary">BeforeLedger</span> — token bucket or explicit sleep between ledgers for back-pressure against downstream sinks.</span>
-        </div>
-        <div class="flex flex-col md:flex-row md:gap-8">
-          <span class="font-bold text-on-surface w-44 shrink-0">Agent gates</span>
-          <span class="text-secondary"><span class="text-tertiary">BeforeLedger</span> error-abort for human-in-the-loop approval on destructive sinks. <span class="text-secondary opacity-70">[ pattern · use rate_limit.go as a starting point ]</span></span>
-        </div>
-      </div>
-    </section>
-
-    <!-- STABILITY -->
-    <section id="stability" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 09_STABILITY</h2>
-      <div class="bg-surface-container-low p-6 border border-outline-variant">
-        <div class="space-y-3 text-sm">
-          <p>
-            <span class="text-tertiary font-bold">STABLE:</span>
-            <span class="text-on-surface">pkg/processor</span> and <span class="text-on-surface">pkg/source</span>.
-            Breaking changes require a new major version and a deprecation cycle.
-          </p>
-          <p>
-            <span class="text-tertiary font-bold">UNSTABLE:</span>
-            <span class="text-on-surface">pkg/source/rpc</span>, <span class="text-on-surface">pkg/source/storage</span>, <span class="text-on-surface">pkg/runtime</span>.
-            Can change without notice — pin minor versions if you depend on them.
-          </p>
-          <p>
-            <span class="text-tertiary font-bold">PRIVATE:</span>
-            <span class="text-on-surface">internal/*</span>. Do not import.
-          </p>
-        </div>
-      </div>
-      <p class="text-secondary text-sm mt-4">
-        A CI check diffs every PR against API snapshots in <span class="text-on-surface">.api/</span>.
-        If you accidentally break the stable surface, CI blocks the merge.
-      </p>
-    </section>
-
-    <!-- NEXT -->
-    <section id="next" class="mb-16">
-      <h2 class="text-on-surface font-bold text-2xl mb-4">## 10_NEXT</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md"
-           class="block bg-surface-container-low p-5 hover:bg-surface-container-high transition-colors">
-          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ DEEP_DIVE ]</div>
-          <div class="text-on-surface font-bold mb-2">PROTO_FIRST</div>
-          <p class="text-secondary text-sm">The full proto-first walkthrough for strongly-typed processors.</p>
-        </a>
-        <a href="https://github.com/withObsrvr/nebu/tree/main/examples/processors"
-           class="block bg-surface-container-low p-5 hover:bg-surface-container-high transition-colors">
-          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ EXAMPLES ]</div>
-          <div class="text-on-surface font-bold mb-2">REFERENCE_PROCESSORS</div>
-          <p class="text-secondary text-sm">Twelve working processors — origin, transform, sink. Copy from them.</p>
-        </a>
-        <a href="man.html"
-           class="block bg-surface-container-low p-5 hover:bg-surface-container-high transition-colors">
-          <div class="text-[0.6875rem] uppercase text-tertiary mb-1">[ REFERENCE ]</div>
-          <div class="text-on-surface font-bold mb-2">NEBU(1)</div>
-          <p class="text-secondary text-sm">Commands, flags, env vars — the full CLI man page.</p>
-        </a>
-      </div>
-    </section>
-
-    <div class="text-secondary opacity-30 select-none py-8 overflow-hidden">
-      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    </div>
-
-    <div class="flex justify-between items-baseline border-t border-outline-variant pt-2 mt-12 text-secondary text-sm">
-      <span>OBSRVR</span>
-      <span class="hidden md:inline">2026-08-03</span>
-      <span>NEBU(7)</span>
-    </div>
-
-  </main>
+<footer class="site-footer">
+<span>nebu v0.7.7</span>
+<div class="site-footer__links">
+<a href="processors.html" class="muted">Processors</a>
+<a href="schemas.html" class="muted">Schemas</a>
+<a href="changelog.html" class="muted">Changelog</a>
+<a href="https://github.com/withObsrvr/nebu" class="muted">GitHub</a>
 </div>
-
-<footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.7</div>
-  <div class="flex gap-4">
-    <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
-    <span class="hidden md:inline text-[#3d3535]">::</span>
-    <a href="schemas.html" class="hover:text-[#ff7f50] cursor-pointer">[ SCHEMAS ]</a>
-    <span class="hidden md:inline text-[#3d3535]">::</span>
-    <a href="changelog.html" class="hover:text-[#ff7f50] cursor-pointer">[ CHANGELOG ]</a>
-    <span class="hidden md:inline text-[#3d3535]">::</span>
-    <a href="https://github.com/withObsrvr/nebu" class="hover:text-[#ff7f50] cursor-pointer">[ REPO ]</a>
-  </div>
 </footer>
+</main>
+</div>
 
 <script src="assets/nebu.js"></script>
 </body>

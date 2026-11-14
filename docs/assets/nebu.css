@@ -1,174 +1,628 @@
 /* =============================================================================
- * nebu.css — shared styles for the terminal-brutalist design system.
- * Loaded after the Tailwind CDN + tailwind-config inline script.
+ * nebu.css — shared styles for the nebu documentation site.
+ *
+ * Calm docs layout: top bar, section sidebar, one reading column.
+ * Dark by default; follows the reader's light-mode preference.
+ * Every page links this file; no build step, no CDN framework.
  * =========================================================================== */
+
+/* ---- Tokens ------------------------------------------------------------ */
+
+:root {
+  --bg: #141413;
+  --panel: #1c1c1a;
+  --code: #0f0f0e;
+  --line: #2e2d2a;
+  --fg: #ebe9e4;
+  --muted: #a8a49c;
+  --accent: #ff8a5c;
+  --teal: #6fd3c5;
+  --btn-bg: #ff7f50;
+  --btn-fg: #1d0e07;
+  --code-fg: #e4e1da;
+
+  --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fbfaf7;
+    --panel: #f4f2ed;
+    --code: #f4f2ed;
+    --line: #e0ddd5;
+    --fg: #1d1c1a;
+    --muted: #5e5b54;
+    --accent: #b4431b;
+    --teal: #0d6b61;
+    --btn-bg: #b4431b;
+    --btn-fg: #ffffff;
+    --code-fg: #1d1c1a;
+    color-scheme: light;
+  }
+}
 
 /* ---- Base -------------------------------------------------------------- */
 
-:root {
-  --font-term:  'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
-  --font-prose: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, -apple-system, sans-serif;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
-html, body {
-  background-color: #131313;
-  color: #e5e2e1;
-  font-family: var(--font-term);
-  font-feature-settings: "liga" 0, "calt" 0;
-  line-height: 1.6;
-}
+html { scroll-behavior: smooth; }
 
-/* ---- Prose voice --------------------------------------------------------
- * Two-voice typography: JetBrains Mono owns the chrome (nav, headings,
- * labels, code, tables, ASCII); running paragraphs read in Atkinson
- * Hyperlegible. Inline command/flag tokens inside prose stay terminal.
- */
-
-main p {
-  font-family: var(--font-prose);
-  font-size: 1.0625rem;
-  line-height: 1.7;
-  max-width: 70ch;
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
   text-wrap: pretty;
 }
-main p.text-sm { font-size: 0.9375rem; line-height: 1.65; }
-main p.text-xs { font-size: 0.875rem;  line-height: 1.6; }
 
-/* Tokens (commands, flags, schema fields) keep the terminal voice.
- * Mono runs larger than sans at equal size, hence the 0.88em trim. */
-main p span[class*="text-"],
-main p span.font-mono,
-main p code {
-  font-family: var(--font-term);
-  font-size: 0.88em;
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--fg); text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* In-page jumps land clear of the top edge */
+[id] { scroll-margin-top: 24px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-/* Opt-out for plain-English emphasis inside prose */
-main p span.plain {
-  font-family: inherit;
-  font-size: inherit;
+/* ---- Text utilities ---------------------------------------------------- */
+
+.fg     { color: var(--fg); }
+.muted  { color: var(--muted); }
+.accent { color: var(--accent); }
+.teal   { color: var(--teal); }
+.strong { font-weight: 600; }
+.small  { font-size: 15px; }
+.mono   { font-family: var(--font-mono); font-size: 13.5px; }
+.mono.xs { font-size: 12.5px; }
+.nowrap { white-space: nowrap; }
+.measure { max-width: 720px; }
+
+.stack { display: flex; flex-direction: column; }
+.gap-2  { gap: 2px; }
+.gap-4  { gap: 4px; }
+.gap-6  { gap: 6px; }
+.gap-8  { gap: 8px; }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+.gap-14 { gap: 14px; }
+.gap-16 { gap: 16px; }
+.gap-18 { gap: 18px; }
+.gap-20 { gap: 20px; }
+.gap-22 { gap: 22px; }
+.gap-24 { gap: 24px; }
+.gap-26 { gap: 26px; }
+
+.row      { display: flex; align-items: center; gap: 12px; }
+.row-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+
+/* ---- Top bar ----------------------------------------------------------- */
+
+.site-header { border-bottom: 1px solid var(--line); }
+
+.site-header__inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 10px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
 }
 
-/* Floor for dense code blocks: 12px mono was below comfortable reading */
-pre.text-xs { font-size: 0.8125rem; line-height: 1.6; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--fg);
+}
+.brand:hover { text-decoration: none; }
 
-/* Clear the fixed footer on every viewport */
-body { padding-bottom: 3rem; }
-
-::selection { background-color: #ff7f50; color: #131313; }
-
-/* ---- Scrollbar --------------------------------------------------------- */
-
-::-webkit-scrollbar       { width: 4px; }
-::-webkit-scrollbar-track { background: #131313; }
-::-webkit-scrollbar-thumb { background: #ff7f50; }
-
-/* ---- Icons ------------------------------------------------------------- */
-
-.material-symbols-outlined {
-  font-size: 1.25rem;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+.brand__name {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-/* ---- Navigation --------------------------------------------------------- */
+.brand__version {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
 
-/* Smooth in-page jumps, with offset for sticky header */
-html                  { scroll-behavior: smooth; }
-section[id]           { scroll-margin-top: 5rem; }
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  font-size: 14.5px;
+  flex: 1 1 auto;
+}
 
-/* Sticky sidebar TOC */
-.toc-link {
-  display: block;
-  padding: 0.25rem 0 0.25rem 0.625rem;
-  color: #c6c6c6;
-  border-left: 2px solid transparent;
+.site-nav__link { color: var(--muted); font-size: 14.5px; line-height: 44px; }
+.site-nav__link.is-current { color: var(--fg); font-weight: 500; }
+
+/* ---- Search ------------------------------------------------------------ */
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 14px;
+  flex: 0 1 240px;
+}
+.search:focus-within { border-color: var(--accent); }
+
+.search__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--fg);
+  font: inherit;
+}
+.search__input::-webkit-search-cancel-button { display: none; }
+
+.search__kbd {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+.search__results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  width: max(100%, 340px);
+  max-width: calc(100vw - 48px);
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+.search__results[hidden] { display: none; }
+
+.search__result a {
+  display: flex;
+  flex-direction: column;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--fg);
   line-height: 1.4;
 }
-.toc-link:hover { color: #4dd9e4; }
-.toc-link.is-active {
-  color: #4dd9e4;
-  border-left-color: #4dd9e4;
-  background: rgba(77, 217, 228, 0.05);
+.search__result a:hover,
+.search__result[aria-selected="true"] a {
+  background: var(--bg);
+  text-decoration: none;
+}
+.search__result-page { font-size: 12.5px; color: var(--muted); }
+.search__empty { padding: 7px 10px; color: var(--muted); }
+
+/* ---- Layout ------------------------------------------------------------ */
+
+.layout {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 56px;
 }
 
-/* Mobile drawer */
-.drawer-hidden { transform: translateY(-100%); }
+.sidebar {
+  flex: 1 1 210px;
+  max-width: 100%;
+  padding: 36px 0 24px;
+  font-size: 14.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.sidebar__title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 6px;
+}
+
+.sidebar__link { color: var(--muted); padding: 5px 10px; border-radius: 6px; }
+.sidebar__link.is-current {
+  color: var(--accent);
+  font-weight: 500;
+  background: var(--panel);
+}
+
+.content {
+  flex: 999 1 560px;
+  min-width: 0;
+  max-width: 820px;
+  padding: 44px 0 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+.content p { margin: 0; }
+.content strong { font-weight: 600; }
+
+.content h1 {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.content h2 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.content h3 { margin: 0; font-size: 17px; font-weight: 600; }
+.content h3.h3-sm { font-size: 16.5px; }
+.content h3.h3-mono { font-family: var(--font-mono); font-size: 16.5px; }
+
+h1, h2, h3 { overflow-wrap: anywhere; }
+
+.eyebrow { font-size: 13.5px; color: var(--muted); }
+
+.lede {
+  font-size: 18.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 680px;
+}
+
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--muted);
+}
+.site-footer a { color: var(--muted); }
+.site-footer__links { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+
+/* ---- Inline code ------------------------------------------------------- */
+
+.ic {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
 
 /* ---- Code blocks ------------------------------------------------------- */
 
-pre { white-space: pre; overflow-x: auto; }
-
-/* Flex rows (e.g. STEP_NN + content) must let code blocks shrink-and-scroll
- * instead of widening the page on small screens */
-main .flex-1 { min-width: 0; }
-
-/* Long SNAKE_CASE headings have no natural break points; allow breaking
- * rather than widening the page on narrow viewports */
-h1, h2, h3 { overflow-wrap: anywhere; }
-
-/* Header bar above a <pre>: language label + copy button */
-.code-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #2a2a2a;
-  padding: 0.125rem 0.75rem;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.code-block {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--code);
+  overflow: hidden;
 }
-.code-head__lang { color: #4dd9e4; }
-/* Absolute-positioned copy button needs a positioned ancestor */
-.copy-block { position: relative; }
 
-/* Copy button — absolute variant (inside a `.copy-block` container) */
+/* Copy button sits beside the code instead of a header bar */
+.code-block--inline { display: flex; align-items: flex-start; }
+.code-block--inline .code-block__pre { flex: 1 1 auto; min-width: 0; }
+
+.code-block__pre {
+  margin: 0;
+  padding: 14px 18px;
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 4;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--code-fg);
+}
+.code-block__pre--roomy { padding: 16px 18px; }
+
+.code-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.code-block__head--tabs { padding: 0 8px 0 6px; }
+
+.code-block__label { font-size: 13px; color: var(--muted); }
+
 .copy-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  font-size: 0.6875rem;
-  letter-spacing: 0.02em;
-  padding: 0.125rem 0.375rem;
-  color: #c6c6c6;
+  flex: 0 0 auto;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
   background: transparent;
-  border: 1px solid transparent;
-  text-transform: uppercase;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13.5px;
   cursor: pointer;
 }
 .copy-btn:hover,
-.copy-btn.is-copied { color: #131313; background: #ff7f50; }
+.copy-btn.is-copied { color: var(--fg); }
 
-/* Inline variant: sits in a code-head bar, never overlaps code */
-.copy-btn--inline {
-  position: static;
-  top: auto;
-  right: auto;
+/* ---- Tabs -------------------------------------------------------------- */
+
+.tabs { display: flex; gap: 2px; }
+
+.tab {
+  height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
 }
 
-/* On phones, wrapped command lines must not run under the copy button */
-@media (max-width: 640px) {
-  .copy-block pre { padding-right: 4.75rem; }
+/* ---- Buttons ----------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn:hover { color: var(--fg); text-decoration: none; border-color: var(--muted); }
+
+.btn--sm {
+  padding: 0 16px;
+  background: var(--bg);
+  font-size: 14px;
 }
 
-/* ---- Go syntax highlighting (minimal, used in build-processors.html) -- */
-
-.tok-kw   { color: #ff7f50; }
-.tok-str  { color: #e5e2e1; }
-.tok-com  { color: #7a6a6a; font-style: italic; }
-.tok-type { color: #4dd9e4; }
-.tok-fn   { color: #ffb59c; }
-
-/* ---- Flourishes -------------------------------------------------------- */
-
-/* Blinking cursor (hero on landing page) */
-.cursor-blink::after {
-  content: '_';
-  animation: blink 1s step-start infinite;
+.btn--primary {
+  border-color: transparent;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-weight: 600;
 }
-@keyframes blink { 50% { opacity: 0; } }
+.btn--primary:hover { color: var(--btn-fg); border-color: transparent; filter: brightness(1.08); }
 
-/* ASCII pipeline diagrams keep a tight line-height */
-.ascii-pipe {
-  white-space: pre;
-  line-height: 1.25;
+/* ---- Tables ------------------------------------------------------------ */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
+
+.table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  text-align: left;
+}
+.table thead tr { background: var(--panel); color: var(--muted); }
+.table thead th { padding: 10px 18px; font-weight: 500; font-size: 13px; }
+.table tbody tr { border-top: 1px solid var(--line); }
+.table tbody th { padding: 10px 18px; font-weight: 400; vertical-align: top; }
+.table td { padding: 10px 18px; vertical-align: top; }
+
+/* ---- Cards, entries, pills -------------------------------------------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--fg);
+}
+.card:hover { color: var(--fg); text-decoration: none; border-color: var(--muted); }
+.card__title { font-size: 16.5px; font-weight: 600; }
+.card__cta { font-size: 14.5px; font-weight: 500; color: var(--accent); margin-top: 4px; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.entry__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pill {
+  font-size: 12.5px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 10px;
+  white-space: nowrap;
+}
+.pill--accent { color: var(--accent); }
+.pill--teal   { color: var(--teal); }
+.pill--fg     { color: var(--fg); }
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+.chip:hover { color: var(--fg); text-decoration: none; border-color: var(--muted); }
+
+.meta-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14.5px;
+}
+.meta-list__row { display: flex; flex-wrap: wrap; gap: 2px 16px; }
+.meta-list__key { flex: 0 0 84px; color: var(--muted); }
+.meta-list__val { margin: 0; flex: 1 1 260px; }
+
+.callout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 15px;
+}
+
+/* ---- Lists ------------------------------------------------------------- */
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.list.gap-8  { max-width: 720px; }
+.list.gap-14 { max-width: 760px; }
+.list--small { font-size: 15px; }
+
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.step-num { color: var(--muted); font-weight: 500; margin-right: 8px; }
+
+/* ---- Pipeline diagram (home) ------------------------------------------ */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  font-size: 14.5px;
+}
+
+.flow__source {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.flow__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.flow__stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.flow__stage-name { flex: 0 0 92px; font-weight: 600; color: var(--accent); }
+.flow__stage-items { flex: 1 1 260px; font-family: var(--font-mono); font-size: 13px; }
