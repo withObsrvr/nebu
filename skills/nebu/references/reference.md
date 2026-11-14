@@ -51,7 +51,7 @@ NEBU_LAST             # most recent N ledgers instead of an explicit range
 
 **Trust posture:** nebu inherits the trust of the RPC endpoint or archive source. For mainnet work, use a trusted provider or your own infrastructure. Never hardcode `NEBU_RPC_AUTH` in committed scripts.
 
-## Processors you will usually see (v0.7.4)
+## Processors you will usually see (v0.7.5)
 
 Always confirm with `nebu list` against the installed version.
 
