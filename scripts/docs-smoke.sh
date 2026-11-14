@@ -69,8 +69,16 @@ run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 
 # field that does not exist, and --start/--end against a processor that
 # exposes --start-ledger/--end-ledger.
 run "root help flags exist on the processors it names" bash -lc \
-  'python3 "$0" "$1" "$2"' \
-  "$ROOT/scripts/check-help-examples.py" "$ROOT/bin/nebu" "$TOKEN_TRANSFER_BIN"
+  'python3 "$0" "$1" "$2" "$3" "$4" "$5"' \
+  "$ROOT/scripts/check-help-examples.py" "$ROOT/bin/nebu" \
+  "$TOKEN_TRANSFER_BIN" "$USDC_FILTER_BIN" "$AMOUNT_FILTER_BIN" "$ROOT/bin/json-file-sink"
+
+# A piped fetch is the form the quickstart documents, and it was the one form
+# that dropped the resolved --last range: fetch infers quiet mode when stdout
+# is not a terminal, which silenced the only report of which ledgers it chose.
+run "piped fetch still reports the range --last resolved to" bash -lc \
+  '"$0" fetch --last 2 2>&1 >/dev/null | grep -q "Resolved --last 2 to ledgers"' \
+  "$ROOT/bin/nebu"
 
 run "root help jq filter actually selects events" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
   | jq -c "select(.transfer != null)" | head -1 | jq -e ".transfer.amount" >/dev/null' "$TOKEN_TRANSFER_BIN"

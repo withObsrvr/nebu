@@ -13,12 +13,34 @@ import (
 // Global flag for quiet mode
 var quietMode bool
 
+// autoQuiet records that quiet mode was inferred rather than asked for:
+// `nebu fetch` turns it on when stdout is a pipe, so a merged stderr cannot
+// corrupt the data stream. The two are not the same instruction, and a few
+// messages are worth keeping through the inferred one.
+var autoQuiet bool
+
 // logInfo writes informational/progress messages to stderr.
 // These messages are suppressed when --quiet flag is set.
 func logInfo(format string, args ...interface{}) {
 	if !quietMode {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 	}
+}
+
+// logResolved reports a decision nebu made on the caller's behalf, today the
+// ledger range that --last resolved to. It survives the auto-quiet that fetch
+// turns on for a piped stdout, and only an explicit --quiet silences it.
+//
+// Piping is the normal way to run fetch, and it was the one case where the
+// resolved range went missing: `nebu fetch --last 100 | token-transfer`
+// printed nothing about which 100 ledgers it had chosen, and nothing
+// downstream can recover that from the stream. The origin processors report
+// it unconditionally; this keeps fetch consistent with them.
+func logResolved(format string, args ...interface{}) {
+	if quietMode && !autoQuiet {
+		return
+	}
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
 }
 
 // logError writes error messages to stderr.
