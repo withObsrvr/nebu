@@ -6,7 +6,12 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.8
+
 ### Changed
+
+- **The documentation site is redesigned.** All eight pages were rewritten against a smaller shared stylesheet, for a net 2,063 fewer lines across the site, and the per-page `VER: v0.x` footer was replaced with a version in the header and one in the site footer. Authored outside this changelog's usual path, so it is recorded here from the diff rather than from its own notes.
+  - `docs-smoke` passes against the new markup unchanged, the four documented samples included — the samples are parsed out of `index.html`, `quickstart.html`, `README.md` and `PIPELINE.md`, and the rewrite kept every one of them parseable and correct. That is the check doing its job on a change it did not know was coming.
 
 - **`registry_version` moves to the registry main built on nebu v0.7.7, and the documented samples move to `_nebu_version: v0.7.7`** — the published processors now report the same nebu the CLI does, because the registry bump that collected thirteen copies of the close-time renderer onto `processor.FormatCloseTimeRFC3339` is merged. The samples could not move earlier for the usual reason: the field names the nebu a processor was *built against*, and until that bump the answer was v0.7.5, which is what made `nebu --version` and an event's `_nebu_version` disagree. Output is otherwise unchanged — every sample is taken from pre-Protocol-30 pubnet ledger 60200000, where the whole `meta` object is byte-identical before and after.
   - Re-applied onto the redesigned site rather than merged into it. The site redesign rewrote all eight pages, so a three-character version bump arrived as a conflict across files it had nothing to contend with; taking the redesign whole and redoing the substitution left a diff of twelve lines, each one a sample value. `docs-smoke` passes against the new markup, including the four documented samples, so the redesign kept every sample parseable and correct.
