@@ -64,6 +64,15 @@ run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".sc
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
 
 run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
+# Pinning the registry version is right -- @latest is not a contract, and it
+# had already installed pre-Protocol-30 processors from a warm module cache --
+# but nothing prompted anyone to advance the pin, so it sat two weeks and four
+# merged registry PRs behind while every check here passed against processors
+# built before meta.closedAt existed.
+run "the pinned registry version is the newest published" bash -lc \
+  'python3 "$0" "$1"' \
+  "$ROOT/scripts/check-registry-pin.py" "$ROOT/justfile"
+
 # The root help is the first thing a reader runs and nothing checked it. By
 # v0.7.2 two of its four quickstart commands were broken — a jq filter on a
 # field that does not exist, and --start/--end against a processor that
