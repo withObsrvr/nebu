@@ -94,9 +94,10 @@ Archive Mode Examples:
 			// Auto-quiet when stdout is a pipe and outputting binary XDR.
 			// Prevents status messages from corrupting the stream if stderr
 			// is merged with stdout (common in some SSH/shell configurations).
-			if outputFile == "" {
+			if outputFile == "" && !quietMode {
 				if stat, _ := os.Stdout.Stat(); stat != nil && (stat.Mode()&os.ModeCharDevice) == 0 {
 					quietMode = true
+					autoQuiet = true
 				}
 			}
 
@@ -261,7 +262,7 @@ Archive Mode Examples:
 				} else {
 					endLedger = resolvedEnd
 				}
-				logInfo("Resolved --last %d to ledgers %d-%d (source reports %s)",
+				logResolved("Resolved --last %d to ledgers %d-%d (source reports %s)",
 					count, resolvedStart, resolvedEnd, window)
 
 				// A warning, not a refusal. An archive-backed RPC endpoint
@@ -272,7 +273,7 @@ Archive Mode Examples:
 				// serve it fails the run rather than returning a short
 				// dataset that looks complete.
 				if !window.Covers(resolvedStart) {
-					logInfo("Note: ledger %d is below the oldest the source reported (%d). "+
+					logResolved("Note: ledger %d is below the oldest the source reported (%d). "+
 						"Archive-backed endpoints routinely serve deeper than they report; "+
 						"if this one does not, the fetch will fail rather than return a "+
 						"partial range.", resolvedStart, window.Oldest)

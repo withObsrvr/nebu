@@ -32,6 +32,29 @@ def flags_of(binary):
     return set(FLAG.findall(out))
 
 
+def stages(help_text):
+    """Each pipeline stage in the help, paired with the line it came from.
+
+    Flags have to be attributed per stage rather than per line.
+    `nebu fetch --last 100 | token-transfer` puts --last and token-transfer on
+    one line, but the flag belongs to fetch; checking it against the processor
+    reports a failure that is not there.
+    """
+    for line in help_text.splitlines():
+        text = line.strip()
+        if text.startswith("#"):
+            continue
+        for stage in text.rstrip("\\").split("|"):
+            if stage.strip():
+                yield stage.strip(), line
+
+
+def command_of(stage):
+    """The command a stage invokes, by basename, or "" if it has no words."""
+    words = stage.split()
+    return Path(words[0]).name if words else ""
+
+
 def main():
     if len(sys.argv) < 3:
         sys.exit("usage: check-help-examples.py <nebu> <processor>...")
@@ -44,15 +67,18 @@ def main():
     known = {Path(p).name: flags_of(p) for p in processors}
 
     problems = []
-    for line in help_text.splitlines():
-        for name, available in known.items():
-            if name not in line:
-                continue
-            for flag in FLAG.findall(line):
-                if flag not in available:
-                    problems.append(
-                        f"  {name}: root help uses {flag}, which it does not accept"
-                    )
+    checked = 0
+    for stage, line in stages(help_text):
+        name = command_of(stage)
+        if name not in known:
+            continue
+        checked += 1
+        for flag in FLAG.findall(stage):
+            if flag not in known[name]:
+                problems.append(
+                    f"  {name}: root help uses {flag}, which it does not accept"
+                    f"\n      in: {line.strip()}"
+                )
 
     if problems:
         print("nebu --help advertises flags that do not exist:", file=sys.stderr)
@@ -65,8 +91,7 @@ def main():
         )
         return 1
 
-    checked = sum(1 for line in help_text.splitlines() for n in known if n in line)
-    print(f"root help: flags on {checked} example lines match {len(known)} processors")
+    print(f"root help: {checked} pipeline stages check out against {len(known)} processors")
     return 0
 
 

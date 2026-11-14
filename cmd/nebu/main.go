@@ -23,6 +23,15 @@ func main() {
 	os.Exit(execute(newRootCmd()))
 }
 
+// The quickstart reaches the recent-ledger shortcut through `nebu fetch
+// --last`, not `token-transfer --last`, even though origin processors
+// implement the flag. The help text ships inside this binary, so `nebu fetch
+// --last` is always true of the nebu a reader is holding; a processor's
+// --last only exists once the registry rebuilds it against a nebu release
+// that has the flag, and the currently published processors are built on
+// v0.7.2, which does not. Move the processor lines over after a registry
+// release carries it, not before — advertising a flag the installed
+// processor rejects is the bug check-help-examples.py exists to catch.
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "nebu",
@@ -36,14 +45,14 @@ QUICK START:
   # Install a processor
   nebu install token-transfer
 
-  # Extract token transfer events
+  # Extract events from the most recent ledgers, without looking a sequence up
+  nebu fetch --last 100 | token-transfer
+
+  # Or name an explicit range
   token-transfer --start-ledger 60200000 --end-ledger 60200100
 
-  # Or pipe from nebu fetch
-  nebu fetch 60200000 60200100 | token-transfer
-
   # Filter and analyze with standard tools
-  token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  nebu fetch --last 100 | token-transfer | \
     jq 'select(.transfer != null)' | \
     head -10
 
@@ -57,10 +66,10 @@ COMMON WORKFLOWS:
   nebu list
 
   # Fetch raw ledger data
-  nebu fetch 60200000 60200100 > ledgers.xdr
+  nebu fetch --last 100 > ledgers.xdr
 
   # Build a full pipeline
-  token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
+  nebu fetch --last 100 | token-transfer | \
     usdc-filter | \
     amount-filter --min 1000000 | \
     json-file-sink --out large-usdc.jsonl
