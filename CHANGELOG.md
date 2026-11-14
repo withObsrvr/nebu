@@ -6,6 +6,14 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+
+- **`examples/processors/checkpoint-entries`** streams the ledger entries in a history archive checkpoint as JSONL, and `examples/README.md` now maps all three [Stellar ingest SDK examples](https://developers.stellar.org/docs/data/indexers/build-your-own/ingest-sdk/examples/index) to their nebu equivalents. Transaction Statistics and Ledger Entry Changes already existed in both library and processor form; Ledger Entry Statistics did not, because it reads something nebu had no example for — a full state snapshot from the bucket list rather than a ledger range.
+  - **It emits entries, not a tally.** The SDK example prints four totals (accounts, accounts holding trustlines, claimable balances, offers) and those four are the only four it can answer; a fifth means editing Go and reading the checkpoint again. This emits one event per entry, so the four totals are a DuckDB query over the stream — verified at 200,000 entries of pubnet checkpoint 65470463 in under four seconds — and so is "which assets have the most trustlines", from the same file with no second read.
+  - It is deliberately not a `processor.Origin`: a checkpoint is a snapshot, there is no `LedgerCloseMeta` to process, and the shared origin CLI is ledger-stream shaped. It keeps its own command, reads through `ingest.CheckpointChangeReader`, and implements `--describe-json` like any other processor.
+  - **The documented commands pin `--checkpoint`.** Without it the archive's latest checkpoint is resolved, which advances every 64 ledgers: the same `--limit 200000` command reported 26,988 accounts and then 25,977 minutes later, because it had sampled a different snapshot. With the checkpoint pinned the read is deterministic, and two runs produce identical counts. The README says so, since a reader checking the numbers would otherwise conclude the tool is wrong.
+  - Two `docs-smoke` assertions, both against testnet so they cost seconds: a bounded read whose entries all carry an `entry_type`, and the statistics query the README answers the SDK example with.
+
 ## v0.7.5
 
 ### Fixed

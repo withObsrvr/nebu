@@ -64,6 +64,21 @@ run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".sc
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
 
 run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
+# checkpoint-entries reads a history archive checkpoint rather than a ledger
+# stream, so none of the ledger-range assertions reach it. A bounded testnet
+# read is a few seconds and proves the archive path still works end to end:
+# the checkpoint resolves, the bucket list reads, and the entries parse.
+run "checkpoint-entries reads a testnet checkpoint" bash -lc \
+  '"$0" --network testnet --limit 500 -q | jq -e -s "length == 500 and (map(.entry_type) | all(. != null))" >/dev/null' \
+  "$ROOT/bin/checkpoint-entries"
+
+# The README answers the Stellar SDK's "Ledger Entry Statistics" example with
+# this query rather than a Go program, so the query has to keep working.
+run "the ledger entry statistics query runs" bash -lc \
+  '"$0" --network testnet --limit 2000 -q > "$TMPDIR/entries.jsonl" && \
+   duckdb -c "SELECT count(*) AS total, count_if(entry_type = '"'"'account'"'"') AS accounts, count(DISTINCT CASE WHEN entry_type = '"'"'trustline'"'"' THEN account_id END) AS with_trustlines FROM read_json('"'"'$TMPDIR/entries.jsonl'"'"')" | grep -Eq "[0-9]+"' \
+  "$ROOT/bin/checkpoint-entries"
+
 # Pinning the registry version is right -- @latest is not a contract, and it
 # had already installed pre-Protocol-30 processors from a warm module cache --
 # but nothing prompted anyone to advance the pin, so it sat two weeks and four
