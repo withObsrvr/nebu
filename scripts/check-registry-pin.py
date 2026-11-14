@@ -21,20 +21,33 @@ Usage: check-registry-pin.py <justfile>
 """
 
 import json
+import os
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-# The proxy escapes an uppercase letter as "!" plus its lowercase form, so
-# withObsrvr is with!obsrvr. Asking the proxy directly also sidesteps the
-# warm-cache resolution that made @latest unreliable in the first place.
-MODULE = "github.com/with!obsrvr/nebu-processor-registry/processors/{}"
+# One module path per processor, and the escaped spelling the proxy's URLs
+# use: it encodes an uppercase letter as "!" plus its lowercase form, so
+# withObsrvr becomes with!obsrvr.
+MODULE = "github.com/withObsrvr/nebu-processor-registry/processors/{}"
+ESCAPED_MODULE = "github.com/with!obsrvr/nebu-processor-registry/processors/{}"
 # /@latest, not /@v/latest: these modules carry no tags, and @v/list is
 # empty for them, so the latest-version endpoint is the only one that
 # answers with a pseudo-version.
+#
+# It is the fallback rather than the source of truth. The proxy caches this
+# endpoint, and it kept answering with the previous commit for a while after
+# the registry's main had moved on — long enough for this check to report a
+# stale pin as current, which is the one thing it exists not to do. The
+# registry's git HEAD does not lag.
 PROXY = "https://proxy.golang.org/{}/@latest"
+
+# The repository the processor modules live in, derived from their shared
+# module path prefix.
+REPO = "https://github.com/withObsrvr/nebu-processor-registry"
 
 PIN = re.compile(r'^registry_version\s*:=\s*"([^"]+)"', re.MULTILINE)
 # The processor list is read out of the recipe rather than copied here, so
@@ -70,9 +83,50 @@ def processors_of(justfile):
     return names
 
 
+def main_head():
+    """The commit main points at, straight from the repository.
+
+    Returns None when git cannot answer, in which case the caller falls back
+    to the proxy.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-remote", REPO, "refs/heads/main"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    return result.stdout.split()[0]
+
+
+def version_at(processor, commit):
+    """The pseudo-version one processor module has at a commit.
+
+    This is also what makes the proxy index that version: a nested module is
+    not fetched until something asks for it by path, which is why a repin can
+    otherwise resolve the parent module and fail with "found, but does not
+    contain package".
+    """
+    module = MODULE.format(processor)
+    try:
+        result = subprocess.run(
+            ["go", "list", "-m", f"{module}@{commit}"],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, "GOWORK": "off", "GOFLAGS": ""},
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    parts = result.stdout.split()
+    return parts[1] if len(parts) >= 2 else None
+
+
 def latest_version(processor):
     """The newest version the proxy will serve for one processor module."""
-    url = PROXY.format(MODULE.format(processor))
+    url = PROXY.format(ESCAPED_MODULE.format(processor))
     with urllib.request.urlopen(url, timeout=20) as response:
         return json.load(response)["Version"]
 
@@ -83,6 +137,24 @@ def stamp_of(version):
     return match.group(1) if match else None
 
 
+def repin_advice(version, processors):
+    """What to do about a stale pin, including the priming step."""
+    primes = "\n".join(
+        f"     go list -m {MODULE.format(p)}@{version}" for p in processors[:2]
+    )
+    return f"""
+Processors built from the pin are older than what a user installs, so the checks
+that compare documentation against processor output are reading an old product.
+
+  1. Set registry_version to {version} in the justfile.
+  2. Prime the proxy for each nested module, or `go install` resolves the parent
+     module and fails with "found, but does not contain package":
+{primes}
+     ... and the same for the rest of the list.
+  3. just build-processors
+  4. just docs-smoke -- expect it to find whatever drifted in between."""
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit("usage: check-registry-pin.py <justfile>")
@@ -90,6 +162,43 @@ def main():
     pin = pinned_version(sys.argv[1])
     pin_stamp = stamp_of(pin)
     processors = processors_of(sys.argv[1])
+
+    # Ask git first. A pseudo-version ends in the first 12 characters of the
+    # commit it was built from, so the pin names its own commit.
+    head = main_head()
+    if head:
+        pinned_commit = pin.rsplit("-", 1)[-1]
+        if head.startswith(pinned_commit):
+            print(f"registry pin {pin} is main ({head[:12]})")
+            return 0
+
+        resolved = version_at(processors[0], head)
+        if resolved is None:
+            print(
+                f"the pinned registry version is not main:\n"
+                f"  pinned:  {pin}\n"
+                f"  main is: {head[:12]}\n\n"
+                "Resolving its pseudo-version failed, so repin by hand:\n"
+                f"  go list -m {MODULE.format(processors[0])}@{head}",
+                file=sys.stderr,
+            )
+            return 1
+
+        resolved_stamp = stamp_of(resolved)
+        if pin_stamp and resolved_stamp and resolved_stamp <= pin_stamp:
+            # The pin is at or ahead of main: a local commit, or a reverted
+            # one. Not the drift this checks for.
+            print(f"registry pin {pin} is not behind main ({head[:12]})")
+            return 0
+
+        print("the pinned registry version is behind the registry's main:", file=sys.stderr)
+        print(f"  pinned:  {pin}", file=sys.stderr)
+        print(f"  main:    {resolved}", file=sys.stderr)
+        print(repin_advice(resolved, processors), file=sys.stderr)
+        return 1
+
+    # No git: fall back to the proxy, which is a weaker signal.
+    print("git could not reach the registry; falling back to the module proxy, which caches")
 
     stale = []
     for processor in processors:
@@ -121,14 +230,7 @@ def main():
         for latest, names in sorted(by_version.items()):
             print(f"  newer:   {latest}  ({', '.join(names)})", file=sys.stderr)
         newest = max(by_version)
-        print(
-            "\nProcessors built from the pin are older than what a user installs, so the "
-            "checks that compare documentation against processor output are reading an old "
-            f"product. Repin registry_version to {newest} in the justfile, run "
-            "`just build-processors`, and rerun docs-smoke — expect it to find whatever "
-            "drifted in between.",
-            file=sys.stderr,
-        )
+        print(repin_advice(newest, processors), file=sys.stderr)
         return 1
 
     print(f"registry pin {pin} is current across {len(processors)} processor modules")

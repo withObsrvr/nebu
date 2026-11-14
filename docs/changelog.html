@@ -131,7 +131,8 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#v0-7-5">#v0.7.5</a>
+        <a class="text-tertiary hover:underline" href="#v0-7-6">#v0.7.6</a>
+<a class="text-tertiary hover:underline" href="#v0-7-5">#v0.7.5</a>
 <a class="text-tertiary hover:underline" href="#v0-7-4">#v0.7.4</a>
 <a class="text-tertiary hover:underline" href="#v0-7-3">#v0.7.3</a>
 <a class="text-tertiary hover:underline" href="#v0-7-2">#v0.7.2</a>
@@ -157,6 +158,20 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.7.6 -->
+    <section id="v0-7-6" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.6</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.6" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">A new example reads ledger entries out of a history archive checkpoint.</strong> <code class="text-on-surface">checkpoint-entries</code> streams a full state snapshot as JSONL, which is the nebu shape of the Stellar ingest SDK's "Ledger Entry Statistics" example: that one prints four totals, this one emits the entries those totals are counted from, so the statistics are a query and a fifth question needs no second read. The other two SDK examples already had nebu equivalents, in both library and processor form, and <code class="text-on-surface">examples/README.md</code> now maps all three.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">It reads the hot archive too</strong> — the bucket list holding entries state archival has evicted, which nothing in nebu touched before and no SDK example covers. The gap is not small: on one testnet checkpoint there are 9,403,519 archived contract data entries against 1,001,740 live ones, so "how many contract data entries exist" has two answers nine times apart depending on which list you read. Every event says which list it came from.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">A checkpoint read that fails exits 8 and says to discard what it wrote.</strong> Each bucket's hash is checked only after its entries have been read, so a failure invalidates everything, not just the tail — and a run stopped at a limit is not verified at all, which it now reports rather than leaving to the SDK's documentation. A ledger that is not a checkpoint is refused before any fetch, naming the two nearest.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">The registry pin check could report a stale pin as current.</strong> It asked the module proxy's latest-version endpoint, which caches: after the registry's main moved, the proxy kept answering with the previous commit, so the check whose only job is noticing that said everything was fine. It asks the registry's git HEAD now, and its advice includes the priming step a repin needs — the proxy does not index a nested module until something asks for it by path, and without that <code class="text-on-surface">go install</code> resolves the parent module and fails.</li>
+      </ul>
+    </section>
 
     <!-- v0.7.5 -->
     <section id="v0-7-5" class="mb-12">
@@ -672,7 +687,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.5</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.6</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

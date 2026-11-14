@@ -23,7 +23,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Current release:** [v0.7.5](https://github.com/withObsrvr/nebu/releases/tag/v0.7.5)
+- **Current release:** [v0.7.6](https://github.com/withObsrvr/nebu/releases/tag/v0.7.6)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **CLI exit codes:** [docs/EXIT_CODES.md](./docs/EXIT_CODES.md)
 - **Checkpoint and resume:** [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md)
@@ -79,7 +79,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.7.4","network":"pubnet","meta":{"ledgerSequence":65430000,"closedAtUnix":"1794436042","closedAt":"2026-11-11T22:27:22.000Z","txHash":"165fee89...","transactionIndex":1,"operationIndex":0,"contractAddress":"CAS3J7GY...","inSuccessfulTx":true},"transfer":{"from":"GA3HLUKH...","to":"CC3TDKJD...","assetCode":"USDC","assetIssuer":"GAGVZMOD...","amount":"95667990"}}
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.7.5","network":"pubnet","meta":{"ledgerSequence":65430000,"closedAtUnix":"1794436042","closedAt":"2026-11-11T22:27:22.000Z","txHash":"165fee89...","transactionIndex":1,"operationIndex":0,"contractAddress":"CAS3J7GY...","inSuccessfulTx":true},"transfer":{"from":"GA3HLUKH...","to":"CC3TDKJD...","assetCode":"USDC","assetIssuer":"GAGVZMOD...","amount":"95667990"}}
 ```
 
 **Next steps - Build pipelines:**
