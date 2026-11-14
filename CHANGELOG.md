@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.6
+
 ### Added
 
 - **`checkpoint-entries --bucket-list hot` reads the hot archive**, the bucket list holding entries state archival has evicted. Nothing in nebu touched it before, and no Stellar SDK example covers `ingest.NewHotArchiveIterator` either. It matters more than a second code path: on testnet checkpoint 5727039 there are **9,403,519 archived contract data entries against 1,001,740 live ones**, and 48,748 archived contract code entries against 7,568 live. Both figures are complete, hash-verified reads, 37 and 45 seconds. "How many contract data entries exist" has two answers nine times apart depending on which list you read, so every event now carries a `bucket_list` field and a file holding both is still countable. Only Soroban entry types appear in the hot archive; classic entries are never archived.
@@ -18,6 +20,12 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - It is deliberately not a `processor.Origin`: a checkpoint is a snapshot, there is no `LedgerCloseMeta` to process, and the shared origin CLI is ledger-stream shaped. It keeps its own command, reads through `ingest.CheckpointChangeReader`, and implements `--describe-json` like any other processor.
   - **The documented commands pin `--checkpoint`.** Without it the archive's latest checkpoint is resolved, which advances every 64 ledgers: the same `--limit 200000` command reported 26,988 accounts and then 25,977 minutes later, because it had sampled a different snapshot. With the checkpoint pinned the read is deterministic, and two runs produce identical counts. The README says so, since a reader checking the numbers would otherwise conclude the tool is wrong.
   - Two `docs-smoke` assertions, both against testnet so they cost seconds: a bounded read whose entries all carry an `entry_type`, and the statistics query the README answers the SDK example with.
+
+### Fixed
+
+- **The registry pin check could report a stale pin as current.** It asked the module proxy's `@latest` endpoint, which caches: after the registry's main moved to the trade-extractor migration, the proxy kept answering with the previous commit, so the check — whose entire purpose is to notice exactly that — said the pin was current. It now asks the registry's git HEAD, which does not lag, and falls back to the proxy only when git cannot be reached.
+  - Its advice gained the step that was missing. Repinning failed with `module github.com/withObsrvr/nebu-processor-registry@… found, but does not contain package …/processors/nats-sink/cmd/nats-sink`, because the proxy does not index a nested module until something asks for it by path and `go install` resolved the parent instead. A `go list -m <module>@<version>` per module primes it, and the check now says so rather than leaving the next person to work it out.
+- **The documented samples move to `_nebu_version: v0.7.5`**, which is what the published processors emit now that the registry has rebuilt against it, and `registry_version` moves to the registry main that carries the trade-extractor migration.
 
 ## v0.7.5
 
