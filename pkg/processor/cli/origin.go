@@ -293,6 +293,16 @@ func RunOriginCLI(config OriginConfig, createProcessor func(networkPass string) 
 	registerLastFlag(rootCmd, &lastFlag)
 	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
 
+	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
+
+	// Short-circuit into the describe-json protocol before cobra validates
+	// required flags, as every other helper does.
+	//
+	// No output schema: this helper emits a simplified map rather than the
+	// protobuf event it reads, so publishing the proto's descriptor would
+	// describe a shape the processor does not produce.
+	emitDescribeIfRequested(buildOriginEnvelope(rootCmd, config, nil))
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(nebuErrors.ExitCode(err))

@@ -178,7 +178,6 @@ Examples:
 
 			// Create processor
 			origin := createProcessor(networkPass)
-			defer origin.Close()
 
 			// Start event output goroutine
 			eventCount := 0
@@ -254,6 +253,15 @@ Examples:
 				return err
 			}
 
+			// Close the origin before waiting, which the deferred Close this
+			// replaces could never do: the writer goroutine below ranges over
+			// Out() and only finishes when Out() is closed, so waiting on it
+			// first meant waiting for a close that could not happen until RunE
+			// returned. Every processor on this helper processed its ledgers,
+			// wrote every event, and then hung. The proto and token-transfer
+			// helpers always closed here; this one was the odd one out.
+			origin.Close()
+
 			// Wait for events
 			if err := <-done; err != nil {
 				return err
@@ -274,6 +282,19 @@ Examples:
 	registerPolicyFlag(rootCmd, &policyFlag)
 	registerLastFlag(rootCmd, &lastFlag)
 	status = attachProgramStatus(rootCmd, config.Name, &quietMode)
+
+	rootCmd.Flags().Bool(describeFlagName, false, "Emit machine-readable describe envelope to stdout and exit")
+
+	// Short-circuit into the describe-json protocol before cobra validates
+	// required flags. --describe-json must work even when mandatory processor
+	// flags are missing.
+	//
+	// There is no output schema to publish: the event type is any Go struct,
+	// and jsonschema derives schemas from protobuf descriptors. The envelope
+	// still carries the schema id and the real flag set, which is what a
+	// consumer needs to tell processors apart. This is the same shape a
+	// transform over arbitrary JSON reports.
+	emitDescribeIfRequested(buildOriginEnvelope(rootCmd, config, nil))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
