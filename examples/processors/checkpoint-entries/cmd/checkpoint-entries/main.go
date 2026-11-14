@@ -29,6 +29,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/network"
 
 	checkpointentries "github.com/withObsrvr/nebu/examples/processors/checkpoint-entries"
+	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
 	"github.com/withObsrvr/nebu/pkg/processor"
 	"github.com/withObsrvr/nebu/pkg/version"
 )
@@ -39,9 +40,10 @@ var (
 	networkName string
 	archiveURLs []string
 	checkpoint  uint32
+	bucketList  string
 	limit       uint64
 	quiet       bool
-	exampleVer  = "0.1.0"
+	exampleVer  = "0.2.0"
 )
 
 func main() {
@@ -55,16 +57,30 @@ A checkpoint is a full state snapshot the archive publishes every 64 ledgers,
 not a ledger range, so this reads the bucket list rather than LedgerCloseMeta
 and is not a nebu origin processor.
 
+A checkpoint publishes two bucket lists, and --bucket-list chooses:
+
+  live  current state: accounts, trustlines, offers, contract data, the rest
+  hot   the entries state archival has evicted, which are restorable but no
+        longer live
+
+"How many contract data entries exist" is two different questions over those
+two lists, and the gap grows with every eviction. Each event carries a
+bucket_list field so a file holding both can still be counted correctly.
+
 A pubnet checkpoint holds tens of millions of entries and takes a long time to
 read in full. Use --limit while exploring; the output is in bucket order, not
 any order worth sampling, so a limited run is a sample of the bucket list
-rather than of the network.`,
+rather than of the network -- and because each bucket's hash is checked only
+after its entries have been read, a run that stops at a limit is not
+hash-verified.`,
 		RunE: func(cmd *cobra.Command, _ []string) error { return run(cmd.Context()) },
 	}
 
 	rootCmd.Flags().StringVar(&networkName, "network", "mainnet", "Network: 'mainnet' or 'testnet' (or set NEBU_NETWORK)")
 	rootCmd.Flags().StringArrayVar(&archiveURLs, "archive-url", nil, "History archive URL, repeatable (defaults to the network's published archives)")
 	rootCmd.Flags().Uint32Var(&checkpoint, "checkpoint", 0, "Checkpoint ledger sequence (0 resolves the archive's latest)")
+	rootCmd.Flags().StringVar(&bucketList, "bucket-list", checkpointentries.BucketListLive,
+		"Which bucket list to read: 'live' for current state, 'hot' for entries state archival has evicted")
 	rootCmd.Flags().Uint64Var(&limit, "limit", 0, "Stop after N entries (0 reads the whole checkpoint)")
 	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Suppress progress output")
 	rootCmd.Flags().Bool(describeFlag, false, "Emit machine-readable describe envelope to stdout and exit")
@@ -81,7 +97,7 @@ rather than of the network.`,
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
-		os.Exit(1)
+		os.Exit(nebuErrors.ExitCode(err))
 	}
 }
 
@@ -96,7 +112,7 @@ func run(ctx context.Context) error {
 		urls = defaultArchives(passphrase)
 	}
 
-	reader, err := checkpointentries.NewReader(urls, passphrase, label, version.Version, checkpoint)
+	reader, err := checkpointentries.NewReader(urls, passphrase, label, version.Version, checkpoint, bucketList)
 	if err != nil {
 		return err
 	}
@@ -105,9 +121,15 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := checkpointentries.ValidateCheckpoint(resolved); err != nil {
+		// Checked here rather than left to the archive, which answers with a
+		// 404 the stream turns into a read failure. A ledger that is not a
+		// checkpoint is a usage mistake, and retrying it fails the same way.
+		return nebuErrors.Usage(err)
+	}
 	if !quiet {
-		fmt.Fprintf(os.Stderr, "Reading checkpoint %d from %s\n", resolved, urls[0])
-		if limit == 0 {
+		fmt.Fprintf(os.Stderr, "Reading the %s bucket list of checkpoint %d from %s\n", bucketList, resolved, urls[0])
+		if limit == 0 && bucketList == checkpointentries.BucketListLive {
 			fmt.Fprintln(os.Stderr, "Reading the whole checkpoint; a pubnet snapshot is tens of millions of entries.")
 		}
 	}
@@ -130,12 +152,47 @@ func run(ctx context.Context) error {
 		progress = nil
 	}
 
-	written, err := reader.Stream(ctx, os.Stdout, limit, progress)
+	result, err := reader.Stream(ctx, os.Stdout, limit, progress)
 	if !quiet {
-		fmt.Fprintf(os.Stderr, "\nWrote %d entries from checkpoint %d\n", written, resolved)
+		fmt.Fprintf(os.Stderr, "\nWrote %d entries from the %s bucket list of checkpoint %d\n",
+			result.Written, bucketList, resolved)
 	}
-	if err != nil && ctx.Err() == nil {
+
+	if err != nil && ctx.Err() == nil && result.Written == 0 {
+		// Nothing reached stdout, so there is nothing to distrust: this is an
+		// ordinary failure, not a partial snapshot.
 		return err
+	}
+
+	if err != nil && ctx.Err() == nil {
+		// A failed checkpoint read that already wrote entries is not a short
+		// read. Each bucket's hash is
+		// checked after its entries are yielded, so an error means a bucket
+		// either failed its check or never reached it: the entries already on
+		// stdout are not known to belong to this checkpoint. Exit code 8 is
+		// nebu's "ran, but did not cover what was asked", which is exactly
+		// this, and a pipeline reading the stream can act on it instead of
+		// treating a truncated snapshot as a whole one.
+		return &nebuErrors.NebuError{
+			Kind:    nebuErrors.KindIncomplete,
+			Cause:   err,
+			Message: fmt.Sprintf("checkpoint %d read failed after %d entries: %v", resolved, result.Written, err),
+			Suggestion: fmt.Sprintf(`The %d entries already written are not verified and should be discarded:
+a bucket's hash is checked only once its entries have been read, so a read
+that stopped here never confirmed the bucket it was in belongs to checkpoint
+%d.
+
+Retry the same checkpoint -- the archive is immutable, so a transient fetch
+failure is worth retrying and a persistent one is a real archive problem.`,
+				result.Written, resolved),
+		}
+	}
+
+	if !result.Complete && !quiet {
+		fmt.Fprintln(os.Stderr,
+			"Note: the read stopped before the end of the bucket list, so these entries are "+
+				"not hash-verified -- each bucket is checked only after all of its entries "+
+				"have been read. Drop --limit for a verified snapshot.")
 	}
 	return nil
 }
