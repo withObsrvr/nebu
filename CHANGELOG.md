@@ -6,6 +6,13 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **A one-ledger RPC run downloaded ten ledgers.** The SDK's RPC backend asks for `BufferSize` ledgers per `getLedgers` call and defaults to 10; nebu passed only the server URL, so it took the default for every range. A pubnet ledger's metadata is about a megabyte of base64, so `--start-ledger N --end-ledger N` fetched **11.9 MB to use 1.0 MB** — and the fetch was 2.0 of the run's 2.4 seconds. The buffer is now sized to the range when the range is smaller than the default.
+  - Measured against the same endpoint, five runs each: a single-ledger run went from **1.73–2.76s to 0.71–0.91s**, and a three-ledger run from 1.75–2.66s to 0.93–0.97s. Ranges at or above the default are untouched (10 ledgers: ~2.0s either way; 25 ledgers: ~8s either way) and a larger buffer stays the right trade for them — fewer round trips, and fewer of the `GetHealth` calls the backend makes on every buffer miss. Output is identical: transaction and operation totals match exactly across 1-, 3- and 10-ledger ranges.
+  - Where the rest of a single-ledger run goes, for the record: 13 ms of process startup, ~240 ms for one `getHealth` round trip, then the fetch. Decoding the ledger and emitting its 601 token-transfer events takes **26 ms** — the work was never the slow part.
+  - A source handed a `LedgerStream` directly keeps it for every range. The first version of this rebuilt the stream whenever the range was short, which quietly replaced an injected fake with a real RPC client and broke every offline test in the package; a test now pins that.
+
 ## v0.7.8
 
 ### Changed

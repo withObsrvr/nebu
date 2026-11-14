@@ -18,10 +18,24 @@ import (
 	"github.com/withObsrvr/nebu/pkg/source/internal/ledgerstream"
 )
 
+// defaultBufferSize is the SDK's own default for how many ledgers an RPC
+// getLedgers call asks for. It is restated here because Stream needs to know
+// when a range is smaller than it.
+const defaultBufferSize = 10
+
 // LedgerSource streams ledgers from Stellar RPC.
 type LedgerSource struct {
-	stream ledgerbackend.LedgerStream
-	rpcURL string
+	// opts is kept so Stream can size the request buffer to the range it is
+	// about to read, by building a stream from the same options.
+	opts ledgerbackend.RPCLedgerBackendOptions
+	// ownsOptions records that this source built its own stream from opts and
+	// may therefore build another. A source constructed with a stream handed
+	// to it directly -- which the offline tests do -- must use that stream for
+	// every range, or injecting one would silently stop working on short
+	// ranges and the fake would be replaced by a real RPC client.
+	ownsOptions bool
+	stream      ledgerbackend.LedgerStream
+	rpcURL      string
 	// httpClient carries any auth headers the caller supplied, so that
 	// LedgerWindow reaches the same endpoint on the same terms as the
 	// stream. nil means the default transport.
@@ -79,9 +93,11 @@ func NewLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*Ledg
 	}
 
 	return &LedgerSource{
-		stream:     ledgerbackend.NewRPCStream(opts, nil),
-		rpcURL:     rpcURL,
-		httpClient: opts.HttpClient,
+		opts:        opts,
+		ownsOptions: true,
+		stream:      ledgerbackend.NewRPCStream(opts, nil),
+		rpcURL:      rpcURL,
+		httpClient:  opts.HttpClient,
 	}, nil
 }
 
@@ -130,7 +146,45 @@ func (s *LedgerSource) Stream(
 		return err
 	}
 
-	return ledgerstream.Pump(ctx, s.stream, ledgerRange, out)
+	return ledgerstream.Pump(ctx, s.streamFor(start, end), ledgerRange, out)
+}
+
+// streamFor returns a stream whose RPC requests are no larger than the range
+// being read.
+//
+// The SDK's RPC backend asks for BufferSize ledgers per getLedgers call and
+// defaults to 10, so a one-ledger range downloaded ten ledgers. That is not a
+// rounding error: a pubnet ledger's metadata is around a megabyte of base64,
+// so `--start-ledger N --end-ledger N` fetched 11.9 MB to use 1.0 MB of it,
+// and the download was 2.0 of the run's 2.4 seconds. Decoding the ledger and
+// emitting its 601 events took 26 ms.
+//
+// Only ranges smaller than the default are narrowed. A larger buffer is the
+// right trade for a long range -- fewer round trips, and fewer of the
+// GetHealth calls the backend makes on every buffer miss -- so the default
+// stands wherever it is not obviously too big.
+func (s *LedgerSource) streamFor(start, end uint32) ledgerbackend.LedgerStream {
+	size := bufferSizeFor(start, end)
+	if size == 0 || !s.ownsOptions {
+		return s.stream
+	}
+
+	opts := s.opts
+	opts.BufferSize = size
+	return ledgerbackend.NewRPCStream(opts, nil)
+}
+
+// bufferSizeFor returns the request buffer a range should use, or 0 to leave
+// the SDK's default in place.
+func bufferSizeFor(start, end uint32) uint32 {
+	if end == 0 || end < start {
+		// Unbounded, or a range Range() will reject.
+		return 0
+	}
+	if ledgers := end - start + 1; ledgers < defaultBufferSize {
+		return ledgers
+	}
+	return 0
 }
 
 // Close implements source.LedgerSource.Close.
