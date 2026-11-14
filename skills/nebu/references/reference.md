@@ -91,7 +91,7 @@ Token-transfer v1 currently uses flat transfer asset fields; confirm with `token
 ```json
 {
   "_schema": "nebu.token_transfer.v1",
-  "_nebu_version": "v0.7.2",
+  "_nebu_version": "v0.7.4",
   "meta": {
     "ledgerSequence": 60200000,
     "closedAtUnix": "1765158311",

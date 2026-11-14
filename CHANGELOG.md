@@ -6,6 +6,10 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **The documented samples were missing a field the product emits.** They move to `_nebu_version: v0.7.4`, now that the registry has rebuilt against it and published processors actually report that — the field names the nebu a processor was built against, so moving it earlier would have documented a version no binary emitted. Bumping it meant repinning `registry_version` in the justfile, which had sat at an October pseudo-version since the `@latest` fix, and that is what exposed the real drift: `meta.closedAt` has been emitted since the Protocol 30 work and none of the four samples marked `complete` showed it. `docs-smoke` had been comparing them against processors built before the field existed, so it passed. All four now carry `closedAt`, each consistent with its own `closedAtUnix`.
+
 ## v0.7.4
 
 ### Fixed
