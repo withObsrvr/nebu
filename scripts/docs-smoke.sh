@@ -73,6 +73,15 @@ run "root help flags exist on the processors it names" bash -lc \
   "$ROOT/scripts/check-help-examples.py" "$ROOT/bin/nebu" \
   "$TOKEN_TRANSFER_BIN" "$USDC_FILTER_BIN" "$AMOUNT_FILTER_BIN" "$ROOT/bin/json-file-sink"
 
+# A processor's own EXAMPLES come from pkg/processor/cli/help.go, generated
+# from its name, so one wrong line there ships in every processor's help.
+run "processors use only the flags they define" bash -lc \
+  'python3 "$0" --self "$@"' \
+  "$ROOT/scripts/check-help-examples.py" \
+  "$ROOT/bin/transaction-stats" "$ROOT/bin/ledger-change-stats" \
+  "$TOKEN_TRANSFER_BIN" "$CONTRACT_EVENTS_BIN" "$USDC_FILTER_BIN" \
+  "$AMOUNT_FILTER_BIN" "$ROOT/bin/json-file-sink"
+
 # A piped fetch is the form the quickstart documents, and it was the one form
 # that dropped the resolved --last range: fetch infers quiet mode when stdout
 # is not a terminal, which silenced the only report of which ledgers it chose.

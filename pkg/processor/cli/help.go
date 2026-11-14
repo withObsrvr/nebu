@@ -129,69 +129,109 @@ INPUT MODES:
 }
 
 // DefaultOriginExamples returns common examples for origin processors.
+//
+// These examples are generated from a processor's name alone, so they must
+// only use what is true of every origin: its own flags, a pipe, and jq
+// expressions that read the shared envelope. This generator previously
+// advertised `jq 'select(.type == "transfer")'` to every origin, and no
+// origin emits a top-level `type` field — so the example selected nothing
+// for token-transfer and was not even the right idea for contract-events or
+// ttl-tracker. A reader got an empty pipe and no error. Showing how to look
+// the field names up is honest; guessing them is not.
 func DefaultOriginExamples(name string) []HelpExample {
 	return []HelpExample{
 		{
-			Comment: "Process a range of ledgers",
+			Comment: "The most recent ledgers, with no sequence number to look up",
+			Command: fmt.Sprintf("%s --last 100", name),
+		},
+		{
+			Comment: "Process an explicit range of ledgers",
 			Command: fmt.Sprintf("%s --start-ledger 60200000 --end-ledger 60200100", name),
 		},
 		{
-			Comment: "Stream continuously (like tail -f)",
-			Command: fmt.Sprintf("nebu fetch 60200000 --follow | %s", name),
+			Comment: "Stream continuously from the tip (like tail -f)",
+			Command: fmt.Sprintf("nebu fetch --last 1 --follow | %s", name),
 		},
 		{
 			Comment: "Read from stdin (piped from nebu fetch)",
-			Command: fmt.Sprintf("nebu fetch 60200000 60200100 | %s", name),
+			Command: fmt.Sprintf("nebu fetch --last 100 | %s", name),
 		},
 		{
 			Comment: "Backfill from the public AWS S3 archive via nebu fetch",
 			Command: fmt.Sprintf("nebu fetch --mode archive --datastore-type S3 --bucket-path \"aws-public-blockchain/v1.1/stellar/ledgers/pubnet\" --region us-east-2 62080000 62080100 | %s", name),
 		},
 		{
-			Comment: "Filter output with jq",
-			Command: fmt.Sprintf("%s --start-ledger 60200000 --end-ledger 60200010 | jq 'select(.type == \"transfer\")'", name),
+			Comment: "See the field names before filtering; they differ per processor",
+			Command: fmt.Sprintf("%s --last 1 -q | head -1 | jq 'keys'", name),
+		},
+		{
+			Comment: "Every event carries its schema id, whatever the processor",
+			Command: fmt.Sprintf("%s --last 10 -q | jq -r '._schema' | sort | uniq -c", name),
 		},
 		{
 			Comment: "Limit output for exploration",
-			Command: fmt.Sprintf("%s --start-ledger 60200000 --end-ledger 60200010 | head -5", name),
+			Command: fmt.Sprintf("%s --last 10 | head -5", name),
 		},
 		{
 			Comment: "Count events",
-			Command: fmt.Sprintf("%s --start-ledger 60200000 --end-ledger 60200010 -q | wc -l", name),
+			Command: fmt.Sprintf("%s --last 10 -q | wc -l", name),
 		},
 	}
 }
 
 // DefaultTransformExamples returns common examples for transform processors.
+//
+// The literal "..." the chaining examples used to carry is not a command a
+// reader can run, so every stage names a real range instead.
 func DefaultTransformExamples(originName, name string) []HelpExample {
 	return []HelpExample{
 		{
 			Comment: "Basic filtering",
-			Command: fmt.Sprintf("%s --start-ledger 60200000 --end-ledger 60200100 | %s", originName, name),
+			Command: fmt.Sprintf("%s --last 100 | %s", originName, name),
 		},
 		{
 			Comment: "Chain with other transforms",
-			Command: fmt.Sprintf("%s ... | %s | other-filter", originName, name),
+			Command: fmt.Sprintf("%s --last 100 | %s | other-filter", originName, name),
 		},
 		{
 			Comment: "Save filtered results",
-			Command: fmt.Sprintf("%s ... | %s | json-file-sink --out filtered.jsonl", originName, name),
+			Command: fmt.Sprintf("%s --last 100 | %s | json-file-sink --out filtered.jsonl", originName, name),
 		},
 	}
 }
 
 // DefaultSinkExamples returns common examples for sink processors.
+//
+// The filtering example used to be `jq 'select(.amount > "1000000")'`, which
+// fails twice over: token-transfer puts the amount at .transfer.amount, so
+// .amount is null and the filter selects nothing, and amounts are JSON
+// strings, so even at the right path `>` would compare them
+// lexicographically. The replacement guards on the event kind — a ledger
+// holds fees, mints and burns alongside transfers, and an unguarded tonumber
+// errors once per non-transfer event — and it is only written for the origin
+// whose shape is known here.
 func DefaultSinkExamples(originName, name string) []HelpExample {
 	return []HelpExample{
 		{
 			Comment: "Basic usage",
-			Command: fmt.Sprintf("%s --start-ledger 60200000 --end-ledger 60200100 | %s", originName, name),
+			Command: fmt.Sprintf("%s --last 100 | %s", originName, name),
 		},
 		{
-			Comment: "With filtering",
-			Command: fmt.Sprintf("%s ... | jq 'select(.amount > \"1000000\")' | %s", originName, name),
+			Comment: "Filter before writing",
+			Command: fmt.Sprintf("%s --last 100 | %s | %s", originName, sinkFilterExample(originName), name),
 		},
 	}
+}
+
+// sinkFilterExample returns a jq filter that is true of originName's events.
+// Anything other than the origin this package knows the shape of gets a
+// passthrough rather than a guess: a filter that silently matches nothing is
+// worse documentation than no filter at all.
+func sinkFilterExample(originName string) string {
+	if originName == "token-transfer" {
+		return `jq -c 'select(.transfer != null and (.transfer.amount|tonumber) > 1000000)'`
+	}
+	return "jq -c ."
 }
 
 // CommonEnvVars returns environment variables common to all processors.
