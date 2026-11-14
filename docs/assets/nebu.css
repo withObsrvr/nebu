@@ -296,6 +296,7 @@ a:hover { color: var(--fg); text-decoration: underline; }
 
 .content h3 { margin: 0; font-size: 17px; font-weight: 600; }
 .content h3.h3-sm { font-size: 16.5px; }
+.content h3.h3-xs { font-size: 15.5px; }
 .content h3.h3-mono { font-family: var(--font-mono); font-size: 16.5px; }
 
 h1, h2, h3 { overflow-wrap: anywhere; }
@@ -308,6 +309,8 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   color: var(--muted);
   max-width: 680px;
 }
+
+.tagline { font-size: 16px; font-weight: 500; }
 
 .toc {
   display: flex;
@@ -472,6 +475,24 @@ h1, h2, h3 { overflow-wrap: anywhere; }
 .table tbody th { padding: 10px 18px; font-weight: 400; vertical-align: top; }
 .table td { padding: 10px 18px; vertical-align: top; }
 
+/* ---- Feature grids (home) --------------------------------------------- */
+
+.grid-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 28px 40px;
+}
+
+/* Secondary tier: smaller columns under a rule */
+.grid-features--minor {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 24px 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.link-cta { font-size: 15px; font-weight: 500; }
+
 /* ---- Cards, entries, pills -------------------------------------------- */
 
 .card {
@@ -624,5 +645,5 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   border-radius: 8px;
   background: var(--bg);
 }
-.flow__stage-name { flex: 0 0 92px; font-weight: 600; color: var(--accent); }
+.flow__stage-name { flex: 0 0 240px; font-weight: 600; color: var(--accent); }
 .flow__stage-items { flex: 1 1 260px; font-family: var(--font-mono); font-size: 13px; }

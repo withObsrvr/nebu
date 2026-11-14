@@ -42,14 +42,23 @@
 
 <section class="stack gap-20">
 <div class="eyebrow">Get started</div>
-<h1>A toolkit for building Stellar indexers</h1>
-<p class="lede">A stable Go contract, standalone processors, and Unix-composable pipelines. From on-chain truth to your applications in two minutes — no orchestrator, no YAML, no daemon.</p>
+<h1>Make Stellar data composable</h1>
+<p class="lede">nebu turns Stellar ledgers into streams of JSON that any program can read. Standalone processors extract and filter events; Unix pipes connect them to jq, DuckDB, Postgres, NATS, or your own code.</p>
+<p class="tagline">Start with a pipe. Add infrastructure when you need it.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 14.5px; color: var(--muted)">
 <a href="processors.html" class="muted"><strong class="fg">35</strong> published processors</a>
 <a href="schemas.html" class="muted"><strong class="fg">5</strong> documented schemas</a>
 <a href="changelog.html" class="muted">Contract stable since <strong class="fg">v0.5.0</strong></a>
 </div>
-<nav aria-label="On this page" class="toc"><span class="muted">On this page</span><a href="#install" class="fg">Install</a><a href="#quickstart" class="fg">Quickstart</a><a href="#architecture" class="fg">How it works</a><a href="#features" class="fg">Features</a><a href="#event-format" class="fg">Event format</a><a href="#cookbook" class="fg">Cookbook</a><a href="#processors" class="fg">Processors</a><a href="#vs-flowctl" class="fg">nebu vs flowctl</a><a href="#agents" class="fg">Agents</a></nav>
+<div class="stack gap-8">
+<div data-code class="code-block code-block--inline">
+<pre class="code-block__pre">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | jq -c 'select(.transfer.assetCode == "USDC")'</pre>
+<button type="button" data-copy class="copy-btn">Copy</button>
+</div>
+<p class="small muted">One processor, one pipe. Token transfers from a ledger range, narrowed with jq.</p>
+</div>
+<nav aria-label="On this page" class="toc"><span class="muted">On this page</span><a href="#install" class="fg">Install</a><a href="#build" class="fg">What you can build</a><a href="#quickstart" class="fg">Quickstart</a><a href="#architecture" class="fg">How it works</a><a href="#features" class="fg">Features</a><a href="#event-format" class="fg">Event format</a><a href="#cookbook" class="fg">Cookbook</a><a href="#processors" class="fg">Processors</a><a href="#flowctl" class="fg">nebu and flowctl</a><a href="#agents" class="fg">Agents</a></nav>
 <div data-code style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 10px 10px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel)">
 <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
 <span class="eyebrow">Working with an AI agent? Point it at the skill file.</span>
@@ -97,15 +106,38 @@ docker run --rm withobsrvr/nebu:latest \
 </div>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; margin-top: 12px">
 <a href="quickstart.html" class="card">
-<span class="card__title">I want to query Stellar data</span>
-<span class="small muted">Install the CLI, pick a processor, pipe events through jq or duckdb. You're done. No Go required.</span>
+<span class="card__title">I want to work with Stellar data</span>
+<span class="small muted">Install the CLI, pick a processor, and pipe its events into jq or DuckDB. No Go required.</span>
 <span class="card__cta">Quickstart →</span>
 </a>
 <a href="build-processors.html" class="card">
 <span class="card__title">I want to build a processor</span>
-<span class="small muted">The contract is just Processor, Origin, Transform, Sink, Emitter[T], and Reporter. Implement, ship as a binary, register via description.yml.</span>
+<span class="small muted">Implement a small contract, ship it as its own binary, and register it with a description.yml. Your repo, your release cadence.</span>
 <span class="card__cta">Build guide →</span>
 </a>
+</div>
+</section>
+
+<section id="build" class="stack gap-18">
+<h2>What you can build</h2>
+<p class="measure">nebu doesn't ship an indexer. It gives you the parts.</p>
+<div class="grid-features">
+<div class="stack gap-6">
+<h3 class="h3-sm">Custom indexers</h3>
+<p class="small muted">Extract the transfers, contract events, and invocations your application needs, and write them where you want: a JSONL file, Postgres, or a NATS subject.</p>
+</div>
+<div class="stack gap-6">
+<h3 class="h3-sm">Analytics</h3>
+<p class="small muted">Pipe events into DuckDB and query them with SQL. There is no warehouse to stand up first.</p>
+</div>
+<div class="stack gap-6">
+<h3 class="h3-sm">Alerts and automations</h3>
+<p class="small muted">Follow the chain live and hand matching events to a queue or a script.</p>
+</div>
+<div class="stack gap-6">
+<h3 class="h3-sm">Protocol-specific tools</h3>
+<p class="small muted">Pair the generic origins with your own decoder to track one protocol, and publish it as a processor without touching nebu core.</p>
+</div>
 </div>
 </section>
 
@@ -138,9 +170,8 @@ nebu install token-transfer</pre>
 <li class="stack gap-10">
 <h3><span class="step-num">4.</span>Compose a pipeline</h3>
 <div data-code class="code-block code-block--inline">
-<pre class="code-block__pre">token-transfer --start-ledger 60200000 \
-  | jq -c 'select(.transfer.assetCode == "USDC")' \
-  | dedup --key meta.txHash \
+<pre class="code-block__pre">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | usdc-filter \
   | json-file-sink --out usdc.jsonl</pre>
 <button type="button" data-copy class="copy-btn">Copy</button>
 </div>
@@ -150,7 +181,8 @@ nebu install token-transfer</pre>
 
 <section id="architecture" class="stack gap-18">
 <h2>How it works</h2>
-<p class="measure">nebu (pronounced "neh-boo") is built on the supported building blocks Stellar provides for modern indexing — RPC-backed ledger access, the ingest SDK, XDR-native extraction — and packages them into a stable Go contract, standalone processor binaries, and Unix-composable pipelines.</p>
+<p class="measure">Stellar provides the ledger data. nebu makes it easy to pipe.</p>
+<p class="measure">nebu packages Stellar's supported indexing primitives (RPC-backed ledger access, the ingest SDK, XDR-native extraction) as standalone processor binaries behind a stable Go contract. Each processor does one job and speaks newline-delimited JSON on stdin and stdout.</p>
 <div class="flow">
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px">
 <div class="flow__source">
@@ -161,7 +193,7 @@ nebu install token-transfer</pre>
 <div class="flow__source">
 <span>GCS / S3 archive</span>
 <span class="mono xs muted">--mode archive</span>
-<span class="muted">Full history, bulk backfill</span>
+<span class="muted">Ledger history, bulk backfill</span>
 </div>
 </div>
 <div class="flow__arrow">
@@ -177,56 +209,54 @@ nebu install token-transfer</pre>
 <span>typed events (JSON, _schema=nebu.*.v1)</span>
 </div>
 <div class="flow__stage">
-<span class="flow__stage-name">Transform</span>
-<span class="flow__stage-items">usdc-filter · amount-filter · dedup · time-window</span>
+<span class="flow__stage-name">Transform, or any stream tool</span>
+<span class="flow__stage-items">usdc-filter · amount-filter · time-window · jq</span>
 </div>
 <div class="flow__arrow">
 <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 14l6 6 6-6"></path></svg>
 <span>filtered events (meta preserved)</span>
 </div>
 <div class="flow__stage">
-<span class="flow__stage-name">Sink</span>
-<span class="flow__stage-items">json-file-sink · nats-sink · postgres-sink · duckdb · jq</span>
+<span class="flow__stage-name">Sink, or your own program</span>
+<span class="flow__stage-items">json-file-sink · nats-sink · postgres-sink · duckdb · your code</span>
 </div>
 </div>
-<p class="measure"><strong>Two ledger sources, one contract.</strong> Use <code class="ic">--mode rpc</code> for live tailing and recent-range backfills. Use <code class="ic">--mode archive</code> against a GCS or S3 ledger archive to read deep history without RPC rate limits — the same XDR, the same processors, the same JSON on the way out.</p>
-<p class="measure">Everything downstream of the origin communicates via Unix pipes (stdin/stdout, newline-delimited JSON) — trivial to compose with jq, duckdb, or anything that reads a stream.</p>
-<p class="measure small muted">Named after the Nebuchadnezzar from The Matrix. nebu is the vessel that carries data from the on-chain truth to your applications.</p>
+<p class="measure"><strong>Two ledger sources, one contract.</strong> Use <code class="ic">--mode rpc</code> for live tailing and recent ranges. Use <code class="ic">--mode archive</code> against a GCS or S3 ledger archive to read as far back as the archive holds, without RPC rate limits. The XDR, the processors and the JSON on the way out are the same.</p>
+<p class="measure"><strong>Your pipeline, your tools.</strong> Processors are ordinary executables. Anything that reads a stream can sit next to them: jq, DuckDB, tee, or a program you wrote in another language.</p>
+<p class="measure small muted">Named after the Nebuchadnezzar from The Matrix: the vessel that carries data from on-chain truth to your applications.</p>
 </section>
 
-<section id="features" class="stack gap-22">
-<h2>Features</h2>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 28px 40px">
+<section id="features" class="stack gap-24">
+<h2>Designed for composition</h2>
+<div class="grid-features">
 <div class="stack gap-6">
-<h3 class="h3-sm">Stable contract</h3>
-<p class="small muted">pkg/processor and pkg/source are committed-stable, enforced by CI against API snapshots in .api/. Build your own processor, ship it as its own binary.</p>
+<h3 class="h3-sm">Compose with anything</h3>
+<p class="small muted">Processors read stdin and write stdout. Put jq, DuckDB, tee, or your own program anywhere in the pipe. No daemon, no orchestrator, no pipeline file.</p>
 </div>
 <div class="stack gap-6">
-<h3 class="h3-sm">Unix pipes</h3>
-<p class="small muted">No daemon. No orchestrator. Origin | Transform | Sink, composed with the same pipe you've used since 1973. Pipe to jq, to duckdb, to tee.</p>
+<h3 class="h3-sm">Two sources, same processors</h3>
+<p class="small muted">Stream recent ledgers from RPC or read history from a GCS or S3 archive. Archive mode skips RPC rate limits, and the events that come out are identical.</p>
 </div>
 <div class="stack gap-6">
-<h3 class="h3-sm">Archive mode</h3>
-<p class="small muted">Fetch raw XDR directly from GCS or S3 at 100–500 ledgers/sec — bypassing RPC rate limits entirely. Backfill Stellar's full history into a data lakehouse without a single custom worker.</p>
+<h3 class="h3-sm">Build and share processors</h3>
+<p class="small muted">pkg/processor and pkg/source are committed-stable and checked in CI against API snapshots. Ship your processor as its own binary and register any Git repo with a description.yml.</p>
 </div>
 <div class="stack gap-6">
-<h3 class="h3-sm">Self-describing processors</h3>
-<p class="small muted">Every processor emits a JSON-schema-valid --describe-json manifest. Agents and tools can discover flags, inputs, outputs, and schema IDs without reading source.</p>
+<h3 class="h3-sm">Self-describing, for tools and agents</h3>
+<p class="small muted">Every processor answers --describe-json with its flags, inputs, outputs, and schema IDs. A script or an agent can compose a pipeline without reading source.</p>
+</div>
+</div>
+<div class="grid-features grid-features--minor">
+<div class="stack gap-6">
+<h3 class="h3-xs">Schema versioning</h3>
+<p class="small muted">Every event carries _schema and _nebu_version. A breaking change bumps the schema version, so a query that filters on _schema keeps meaning what it meant.</p>
 </div>
 <div class="stack gap-6">
-<h3 class="h3-sm">Schema versioning</h3>
-<p class="small muted">Every event carries _schema and _nebu_version. Field rename? Bump the version. Your downstream queries never break silently.</p>
-</div>
-<div class="stack gap-6">
-<h3 class="h3-sm">Community registry</h3>
-<p class="small muted">Register any Git repo as a processor source via description.yml. nebu install your-processor just works.</p>
-</div>
-<div class="stack gap-6">
-<h3 class="h3-sm">Resumable fetch</h3>
+<h3 class="h3-xs">Resumable fetch</h3>
 <p class="small muted">Opt-in checkpoints resume bounded file backfills from the last durable ledger. Output is synchronized before checkpoint advancement, with range and path-alias validation built in.</p>
 </div>
 <div class="stack gap-6">
-<h3 class="h3-sm">Explicit status</h3>
+<h3 class="h3-xs">Explicit status</h3>
 <p class="small muted">OSC 7501 reports interactive state to terminals. Automation consumes the separate, stable nebu.status.v1 NDJSON lifecycle and progress stream.</p>
 </div>
 </div>
@@ -269,57 +299,34 @@ nebu install token-transfer</pre>
 <h2>Cookbook</h2>
 
 <div class="stack gap-10">
-<h3>Historical archives</h3>
-<p class="small muted">Read deep history from the public aws-public-blockchain S3 archive — no AWS account, no RPC rate limits.</p>
+<h3>Replay the same ledgers through different processors</h3>
+<p class="small muted">Fetch a ledger range once, then run the file through as many processors as you like. No repeated RPC calls.</p>
 <div data-code class="code-block code-block--inline">
-<pre class="code-block__pre">nebu fetch --mode archive \
-  --datastore-type S3 \
-  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
-  --region us-east-2 \
-  62080000 62080100 | gzip &gt; historical.xdr.gz</pre>
+<pre class="code-block__pre">nebu fetch 60200000 60200100 &gt; ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.transfer)'
+cat ledgers.xdr | contract-events | grep -i swap</pre>
 <button type="button" data-copy class="copy-btn">Copy</button>
+</div>
+<div role="note" class="callout">
+<strong>Separate fetch from process</strong>
+<span class="muted">nebu fetch passes raw LedgerCloseMeta XDR directly from RPC or archive storage to stdout, without a decode/re-encode cycle — capture a ledger range once and replay it through any number of processors. Great for backfills, regression tests, and comparing two schema versions over the same ledgers.</span>
 </div>
 </div>
 
 <div class="stack gap-10">
-<h3>Premium RPC</h3>
-<p class="small muted">Use authenticated RPC endpoints via NEBU_RPC_AUTH for higher throughput and private lanes.</p>
+<h3>Filter and store USDC transfers</h3>
+<p class="small muted">Extract, filter, store: three programs and two pipes.</p>
 <div data-code class="code-block code-block--inline">
-<pre class="code-block__pre">export NEBU_RPC_AUTH="Api-Key YOUR_KEY"
-token-transfer \
-  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co \
-  --start-ledger 60200000 --end-ledger 60200100</pre>
-<button type="button" data-copy class="copy-btn">Copy</button>
-</div>
-</div>
-
-<div class="stack gap-10">
-<h3>Complete pipeline</h3>
-<p class="small muted">Extract → filter → dedupe → store, composed with only the shell's pipe.</p>
-<div data-code class="code-block code-block--inline">
-<pre class="code-block__pre">token-transfer --start-ledger 60200000 \
-  | jq -c 'select(.transfer.assetCode == "USDC")' \
-  | dedup --key meta.txHash \
+<pre class="code-block__pre">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | usdc-filter \
   | json-file-sink --out usdc.jsonl</pre>
 <button type="button" data-copy class="copy-btn">Copy</button>
 </div>
 </div>
 
 <div class="stack gap-10">
-<h3>Fan out with tee</h3>
-<p class="small muted">One stream, many sinks. Live NATS for consumers, a JSONL archive on disk, a human-readable tail in the terminal.</p>
-<div data-code class="code-block code-block--inline">
-<pre class="code-block__pre">token-transfer --start-ledger 60200000 \
-  | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
-  | tee &gt;(json-file-sink --out archive.jsonl) \
-  | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre>
-<button type="button" data-copy class="copy-btn">Copy</button>
-</div>
-</div>
-
-<div class="stack gap-10">
-<h3>DuckDB analytics</h3>
-<p class="small muted">SQL aggregations directly over the stream. No database setup, no schema, no ETL job.</p>
+<h3>Query events with SQL</h3>
+<p class="small muted">DuckDB reads the stream from stdin. No database to set up, no schema to declare.</p>
 <div data-code class="code-block code-block--inline">
 <pre class="code-block__pre">token-transfer --start-ledger 60200000 --end-ledger 60200100 \
   | duckdb -c "
@@ -333,26 +340,49 @@ token-transfer \
 </div>
 
 <div class="stack gap-10">
-<h3>Fetch once, process many</h3>
-<p class="small muted">Capture raw XDR once, replay through any number of processors. Great for backfills and schema diffs.</p>
+<h3>Send one stream to several destinations</h3>
+<p class="small muted">tee splits the stream: NATS for live consumers, a JSONL file on disk, a readable tail in the terminal.</p>
 <div data-code class="code-block code-block--inline">
-<pre class="code-block__pre">nebu fetch 60200000 60200100 &gt; ledgers.xdr
-cat ledgers.xdr | token-transfer | jq 'select(.transfer)'
-cat ledgers.xdr | contract-events | grep -i swap</pre>
+<pre class="code-block__pre">token-transfer --start-ledger 60200000 \
+  | tee &gt;(nats-sink --subject "stellar.live" --jetstream) \
+  | tee &gt;(json-file-sink --out archive.jsonl) \
+  | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'</pre>
 <button type="button" data-copy class="copy-btn">Copy</button>
 </div>
 </div>
 
-<div role="note" class="callout">
-<strong>Separate fetch from process</strong>
-<span class="muted">nebu fetch passes raw LedgerCloseMeta XDR directly from RPC or archive storage to stdout, without a decode/re-encode cycle — capture a ledger range once and replay it through any number of processors. Great for backfills, regression tests, and comparing two schema versions over the same ledgers.</span>
+<div class="stack gap-10">
+<h3>Backfill from the public archive</h3>
+<p class="small muted">Read history from the public aws-public-blockchain S3 bucket. No AWS account, no RPC rate limits. Pubnet only.</p>
+<div data-code class="code-block code-block--inline">
+<pre class="code-block__pre">nebu fetch --mode archive \
+  --datastore-type S3 \
+  --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
+  --region us-east-2 \
+  62080000 62080100 | gzip &gt; historical.xdr.gz</pre>
+<button type="button" data-copy class="copy-btn">Copy</button>
 </div>
+</div>
+
+<div class="stack gap-10">
+<h3>Use your own RPC provider</h3>
+<p class="small muted">Set NEBU_RPC_AUTH and pass --rpc-url to use an authenticated endpoint.</p>
+<div data-code class="code-block code-block--inline">
+<pre class="code-block__pre">export NEBU_RPC_AUTH="Api-Key YOUR_KEY"
+token-transfer \
+  --rpc-url https://rpc-pubnet.nodeswithobsrvr.co \
+  --start-ledger 60200000 --end-ledger 60200100</pre>
+<button type="button" data-copy class="copy-btn">Copy</button>
+</div>
+</div>
+
 <p class="small muted">See also <a href="man.html">nebu(1) › Examples</a> for the exhaustive reference, and <a href="https://github.com/withObsrvr/nebu/blob/main/docs/DUCKDB_COOKBOOK.md">docs/DUCKDB_COOKBOOK.md</a> for deeper SQL recipes.</p>
 </section>
 
 <section id="processors" class="stack gap-16">
 <h2>Processors</h2>
-<p class="measure">The built-in set. Run <code class="ic">nebu list</code> to see everything in the registry, or browse <a href="processors.html">all 35 published processors</a>.</p>
+<p class="measure">Processors are independent executables. Build one to extract a new event type, decode a protocol, filter a stream, or write to another service. Publish it through the registry and anyone can <code class="ic">nebu install</code> it. You don't need to change nebu core to extend it.</p>
+<p class="measure small muted">The reference set is below. Run <code class="ic">nebu list</code> for everything in the registry.</p>
 <div class="table-wrap">
 <table class="table">
 <thead>
@@ -378,25 +408,27 @@ cat ledgers.xdr | contract-events | grep -i swap</pre>
 </tbody>
 </table>
 </div>
+<a href="build-processors.html" class="link-cta">Build a processor →</a>
 </section>
 
-<section id="vs-flowctl" class="stack gap-16">
-<h2>nebu vs flowctl</h2>
+<section id="flowctl" class="stack gap-16">
+<h2>nebu and flowctl</h2>
+<p class="measure">nebu is for building and composing: explore ledgers, write processors, connect programs with pipes. flowctl is for running and supervising: it starts a pipeline's components, monitors them, and keeps them running. Start with nebu. Move a pipeline to flowctl when it needs to be operated.</p>
 <div class="table-wrap">
 <table class="table">
 <thead>
 <tr>
-<th scope="col">Use case</th>
+<th scope="col"><span class="sr-only">Aspect</span></th>
 <th scope="col">nebu</th>
 <th scope="col">flowctl</th>
 </tr>
 </thead>
 <tbody>
-<tr><th scope="row">Prototyping / ad-hoc</th><td class="strong">Yes</td><td class="muted">Overkill</td></tr>
-<tr><th scope="row">Single-machine pipes</th><td class="strong">Yes</td><td class="muted">Possible but heavy</td></tr>
-<tr><th scope="row">Production orchestration</th><td class="muted">Out of scope</td><td class="strong">Yes</td></tr>
-<tr><th scope="row">Multi-language processors</th><td class="muted">Go only</td><td class="strong">Yes</td></tr>
-<tr><th scope="row">Distributed / DAG</th><td class="muted">No</td><td class="strong">Yes</td></tr>
+<tr><th scope="row" class="muted">Job</th><td>Build and compose</td><td>Run and supervise</td></tr>
+<tr><th scope="row" class="muted">Best for</th><td>Prototyping, ad-hoc analysis, single-machine pipes</td><td>Pipelines that need to be operated and monitored</td></tr>
+<tr><th scope="row" class="muted">Topology</th><td>A shell pipe, with tee for fan-out</td><td>DAG pipelines with fan-out and fan-in</td></tr>
+<tr><th scope="row" class="muted">Processor languages</th><td>Go SDK, or any language that implements the processor contract</td><td>Go and JavaScript/TypeScript SDKs</td></tr>
+<tr><th scope="row" class="muted">Runs as</th><td>Processes you start</td><td>Components under a control plane</td></tr>
 </tbody>
 </table>
 </div>
