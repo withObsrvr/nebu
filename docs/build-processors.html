@@ -95,7 +95,7 @@ type TxCountOrigin struct {
 func (o *TxCountOrigin) ProcessLedger(ctx context.Context, lcm xdr.LedgerCloseMeta) error {
 	return o.out.Encode(TxCount{
 		Schema:  "example.tx_count.v1",
-		NebuVer: "v0.7.5",
+		NebuVer: "v0.7.7",
 		Ledger:  uint32(lcm.LedgerSequence()),
 		TxCount: len(lcm.TransactionEnvelopes()),
 	})
