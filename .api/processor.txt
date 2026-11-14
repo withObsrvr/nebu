@@ -10,6 +10,12 @@ types:
 
 FUNCTIONS
 
+func FormatCloseTimeRFC3339(closeTimeMs int64) string
+    FormatCloseTimeRFC3339 renders a millisecond Unix timestamp the same way,
+    for a caller that already holds the value — a processor that read it once
+    and passes it down, or one whose timestamp comes from somewhere other than a
+    LedgerCloseMeta.
+
 func LedgerCloseTimeMs(ledger xdr.LedgerCloseMeta) int64
     LedgerCloseTimeMs returns the ledger's close time in milliseconds since the
     Unix epoch, in UTC.
@@ -50,6 +56,20 @@ func LedgerCloseTimeMs(ledger xdr.LedgerCloseMeta) int64
     value to read, and the whole-second close time is promoted. Those ledgers
     are unambiguous — their close times are seconds apart — so the promotion
     loses nothing.
+
+func LedgerCloseTimeRFC3339(ledger xdr.LedgerCloseMeta) string
+    LedgerCloseTimeRFC3339 returns the ledger's close time as RFC 3339 in UTC
+    with millisecond precision, e.g. "2026-11-14T13:15:44.916Z".
+
+    This is the form DATA-3 of the OBSRVR Engineering Standard asks
+    events to carry, and it is the rendering every processor should use,
+    so that one timestamp does not arrive as "...44.916Z" from one
+    processor and "...44.916000Z" or "...44Z" from another. It reads through
+    LedgerCloseTimeMs, so it is correct on both of the Protocol 30 union arms
+    and promotes a pre-Protocol-30 whole second.
+
+    It renders milliseconds and no finer. CAP-88 defines close times in
+    milliseconds, so there is nothing below that to lose.
 
 func ReportFatal(ctx context.Context, processorName string, err error)
     ReportFatal is a convenience helper that reports an unrecoverable error

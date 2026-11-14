@@ -6,6 +6,16 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+
+- **`processor.LedgerCloseTimeRFC3339` and `processor.FormatCloseTimeRFC3339`** render a ledger's close time as RFC 3339 in UTC with millisecond precision, which is the form DATA-3 asks events to carry. `LedgerCloseTimeMs` already shared the *read* — both Protocol 30 union arms, with a pre-Protocol-30 promotion — but the rendering had been solved three separate times: `"2006-01-02T15:04:05.000Z07:00"` in one processor, `"...05.000Z"` in another, and `time.RFC3339Nano` is the tempting third answer and the wrong one, because it drops trailing zeros, so a ledger closing on a whole second renders without a fractional part and the field's shape varies with its value. These render three digits always. Additive; the API snapshot diff is purely additive.
+
+### Changed
+
+- **The Protocol 30 impact review is accepted for nebu and the registry, and updated against real Protocol 30 ledgers.** Testnet voted on 2026-11-03 and now runs protocol 30, so the rows that were gated on the vote are measured rather than predicted: over 400 consecutive testnet ledgers `LedgerCloseTimeMs` returns true milliseconds (remainders 901-905, not seconds × 1000), every ledger is the `SIGNED_MS` arm, and there are zero same-second pairs — the cadence is a steady 5 seconds. So CAP-88's ambiguity is permitted but not yet observable, which keeps Option A purely forward-looking, and the `EMPTY_TX_SET_MS` arm still has no real ledger to test against, exactly as the review predicted from the code side. Option A is implemented in nebu and adopted by 12 of the registry's 14 origin processors, with the two exceptions named and explained.
+  - The review records one new defect, found by measuring rather than counting adoptions: **`token-transfer`'s millisecond field was derived from a truncated value**, because the SDK's own token transfer processor builds its event meta from `Ledger.ClosedAt()`, which is whole seconds. On testnet ledger 5727700 — true close time `1794662144916` — it emitted `2026-11-14T13:15:44.000Z`. Fixed in the registry the same day; the review carries the before and after.
+  - The owner-assessment rows for the other ten systems are **deferred by owner decision**, recorded with its date and its cost: STL-2 is unmet for those rows with nine days to the pubnet vote.
+
 ## v0.7.6
 
 ### Added
