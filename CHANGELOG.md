@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.4
+
 ### Fixed
 
 - **Every origin processor's help advertised a jq filter that selects nothing.** `pkg/processor/cli/help.go` generates each processor's EXAMPLES from its name, so one wrong line there ships in every processor built against the release. The line was `jq 'select(.type == "transfer")'` — the same filter that was wrong in `nebu --help`, and wrong here for a second reason: no origin emits a top-level `type` field, and for `contract-events` or `ttl-tracker` a transfer filter is not even the right idea. A generator that knows only the processor's name cannot know its field names, so the examples now show how to look them up (`--last 1 -q | head -1 | jq 'keys'`) and how to read the one field every nebu event does carry (`jq -r '._schema' | sort | uniq -c`). Both verified against real output.
