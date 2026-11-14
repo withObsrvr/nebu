@@ -39,7 +39,7 @@
 <main class="content">
 <section class="stack gap-20"><div class="eyebrow">Reference</div>
 <h1>nebu(1)</h1>
-<p class="lede">nebu — a toolkit for building Stellar indexers. Origin/transform/sink processors, composed with Unix pipes.</p>
+<p class="lede">nebu — composable processors for Stellar ledger data. Origin, transform, and sink programs connected with Unix pipes.</p>
 <div style="font-size: 14px; color: var(--muted)">General Commands Manual · rev 2026-08-03</div>
 <nav aria-label="On this page" class="toc"><span class="muted">On this page</span><a href="#synopsis" class="fg">Synopsis</a><a href="#description" class="fg">Description</a><a href="#commands" class="fg">Commands</a><a href="#options" class="fg">Options</a><a href="#environment" class="fg">Environment</a><a href="#files" class="fg">Files</a><a href="#exit-status" class="fg">Exit status</a><a href="#examples" class="fg">Examples</a><a href="#schema" class="fg">Schema</a><a href="#see-also" class="fg">See also</a></nav></section>
 
@@ -90,10 +90,9 @@ $ token-transfer --start-ledger 60200000</pre><button type="button" data-copy cl
 <section class="stack gap-24"><h2 id="examples">Examples</h2>
 <div class="stack gap-10"><h3>Extract token transfers</h3>
 <div data-code class="code-block code-block--inline"><pre class="code-block__pre">$ token-transfer --start-ledger 60200000 --end-ledger 60200100</pre><button type="button" data-copy class="copy-btn">Copy</button></div></div>
-<div class="stack gap-10"><h3>USDC-only, deduped, to a file</h3>
-<div data-code class="code-block code-block--inline"><pre class="code-block__pre">$ token-transfer --start-ledger 60200000 \
-  | jq -c 'select(.transfer.assetCode == "USDC")' \
-  | dedup --key meta.txHash \
+<div class="stack gap-10"><h3>USDC transfers to a file</h3>
+<div data-code class="code-block code-block--inline"><pre class="code-block__pre">$ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | usdc-filter \
   | json-file-sink --out usdc.jsonl</pre><button type="button" data-copy class="copy-btn">Copy</button></div></div>
 <div class="stack gap-10"><h3>SQL analytics with DuckDB, no database</h3>
 <div data-code class="code-block code-block--inline"><pre class="code-block__pre">$ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
