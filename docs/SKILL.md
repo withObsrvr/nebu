@@ -17,7 +17,7 @@ Nebu turns Stellar RPC/archive ledgers into schema-versioned JSONL for `jq`, Duc
 
 - Canonical: https://nebu.withobsrvr.com/SKILL.md
 - Repo: https://github.com/withObsrvr/nebu
-- Last checked: nebu v0.7.2
+- Last checked: nebu v0.7.3
 
 ## Use when
 
@@ -33,6 +33,7 @@ Use other tools for current-state lookup (`data`), tx building (`dapp`), non-Ste
 - Installed binaries are truth. Inspect before commands; do not guess names/flags/schemas/community processors.
 - Community processors vary. Mention only after `nebu list` shows them.
 - Prefer bounded ranges. Use `nebu fetch --follow` or an unbounded processor range only if the user asks for a live stream.
+- `--last N` (nebu >= v0.7.3) takes the most recent N ledgers instead of an explicit range, and prints the range it resolved to on stderr. Still bounded. Not combinable with explicit ledgers, `--checkpoint`, or stdin. Origin processors accept it only once rebuilt against a nebu that has it; published processors on v0.7.2 reject it, so reach recent ledgers through `nebu fetch --last N | <origin>`.
 - Broad scans/backfills: prefer `nebu fetch --mode archive` from public archive → pipe XDR into processors. RPC still good for latest ledgers + targeted `getEvents` by known contract/topic.
 - `contract-events` works from `nebu fetch` stdin, including S3 archive mode; it decodes contract events + diagnostics without processor RPC calls.
 - Use `NEBU_RPC_AUTH` from env; never paste secrets.
@@ -71,6 +72,8 @@ ledger source → origin → transform(s) → sink/fan-out
 go install github.com/withObsrvr/nebu/cmd/nebu@latest
 export PATH="$HOME/go/bin:$PATH"
 nebu install token-transfer
+
+nebu fetch --last 100 | token-transfer | jq -c 'select(.transfer != null)'
 
 token-transfer --start-ledger 60200000 --end-ledger 60200010 \
   | json-file-sink --out /tmp/transfers.jsonl
