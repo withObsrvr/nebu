@@ -442,8 +442,39 @@ func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, o
 		}}
 	}
 
+	// Ask for no more ledgers per request than the range needs. The SDK
+	// defaults BufferSize to 10, so `nebu fetch N N` downloaded ten ledgers
+	// to write one: 11.9 MB fetched to use 1.0 MB, and the fetch was 2.2 of
+	// the run's 2.6 seconds. pkg/source/rpc makes the same adjustment; this
+	// command builds its own stream rather than going through that package,
+	// which is how it kept the old behaviour after that was fixed.
+	if size := rpcBufferSizeFor(start, end); size != 0 {
+		options.BufferSize = size
+	}
+
 	stream := ledgerbackend.NewRPCStream(options, nil)
 	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
+}
+
+// rpcDefaultBufferSize is the SDK's own default for ledgers per getLedgers
+// request, restated so a smaller range can be recognised.
+const rpcDefaultBufferSize = 10
+
+// rpcBufferSizeFor returns the request buffer a range should use, or 0 to
+// leave the SDK's default alone.
+//
+// Only ranges below the default are narrowed: a larger buffer is the right
+// trade for a long range, since it means fewer round trips and fewer of the
+// GetHealth calls the backend makes on every buffer miss.
+func rpcBufferSizeFor(start, end uint32) uint32 {
+	if end == 0 || end < start {
+		// --follow, or a range the stream will reject anyway.
+		return 0
+	}
+	if ledgers := end - start + 1; ledgers < rpcDefaultBufferSize {
+		return ledgers
+	}
+	return 0
 }
 
 // archiveFlagTimeout bounds the manifest read that archive-mode tuning needs.

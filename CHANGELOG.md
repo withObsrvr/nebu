@@ -6,6 +6,22 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+
+- **`docs/ARCHIVE_MODE.md` now measures archive mode against RPC, and names the ten seconds the public archive costs off EC2.** Detecting a missing credential chain means walking it, and the last stop is the EC2 instance metadata service: nowhere near EC2, the probe runs until its retries expire before the anonymous fallback happens. A one-ledger fetch from the public pubnet archive takes **10.76s by default and 0.70s with `AWS_EC2_METADATA_DISABLED=true`** — a fixed per-process cost, so it hurts most exactly where archive mode is otherwise at its best.
+  - The comparison, `nebu fetch` on one machine with the probe disabled: 1 ledger 0.77s archive / 1.37s RPC, 10 ledgers 0.85 / 2.30, 25 ledgers 1.19 / 9.34, **100 ledgers 4.47 / 27.17**. The archive's objects are compressed and fetched by parallel workers where RPC returns base64 in serial batches, and the RPC backend spends an extra `getHealth` round trip per batch.
+  - Two non-fixes are documented so nobody has to find out twice: `AWS_METADATA_SERVICE_TIMEOUT` and `AWS_METADATA_SERVICE_NUM_ATTEMPTS` are SDK **v1** settings that the Go v2 SDK ignores (measured: still 10.75s), and throwaway credentials make it worse, since the chain then resolves and the bucket answers `403 InvalidAccessKeyId` — reported honestly as `fetched 0/1 ledgers` and exit 4.
+  - The two sources agree on content but not on bytes: for a 100-ledger range both produce 25,064 transactions and 67,265 operations, while their XDR first differs 158 KB into the first ledger. The docs say to compare decoded output rather than file hashes; what that difference is remains unidentified.
+
+### Fixed
+
+- **`nebu fetch` over RPC over-fetched the same way, and had to be fixed separately.** It builds its own stream rather than going through `pkg/source/rpc`, so it kept asking for ten ledgers after that package stopped: `nebu fetch N N` downloaded 11.9 MB to write 1.0 MB, 2.2 of a 2.6-second run. Now 1.37s for one ledger. Two copies of one decision is how the first fix looked complete while the command most people use kept the old behaviour.
+
+- **A one-ledger RPC run downloaded ten ledgers.** The SDK's RPC backend asks for `BufferSize` ledgers per `getLedgers` call and defaults to 10; nebu passed only the server URL, so it took the default for every range. A pubnet ledger's metadata is about a megabyte of base64, so `--start-ledger N --end-ledger N` fetched **11.9 MB to use 1.0 MB** — and the fetch was 2.0 of the run's 2.4 seconds. The buffer is now sized to the range when the range is smaller than the default.
+  - Measured against the same endpoint, five runs each: a single-ledger run went from **1.73–2.76s to 0.71–0.91s**, and a three-ledger run from 1.75–2.66s to 0.93–0.97s. Ranges at or above the default are untouched (10 ledgers: ~2.0s either way; 25 ledgers: ~8s either way) and a larger buffer stays the right trade for them — fewer round trips, and fewer of the `GetHealth` calls the backend makes on every buffer miss. Output is identical: transaction and operation totals match exactly across 1-, 3- and 10-ledger ranges.
+  - Where the rest of a single-ledger run goes, for the record: 13 ms of process startup, ~240 ms for one `getHealth` round trip, then the fetch. Decoding the ledger and emitting its 601 token-transfer events takes **26 ms** — the work was never the slow part.
+  - A source handed a `LedgerStream` directly keeps it for every range. The first version of this rebuilt the stream whenever the range was short, which quietly replaced an injected fake with a real RPC client and broke every offline test in the package; a test now pins that.
+
 ## v0.7.8
 
 ### Changed

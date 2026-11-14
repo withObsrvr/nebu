@@ -516,3 +516,40 @@ func TestFetchLastRejectsIncoherentCombinations(t *testing.T) {
 		})
 	}
 }
+
+// `nebu fetch N N` downloaded ten ledgers to write one. The SDK defaults
+// BufferSize to 10 and this command builds its own stream rather than going
+// through pkg/source/rpc, so it kept that behaviour after the package was
+// fixed: 11.9 MB fetched to use 1.0 MB, 2.2 of the run's 2.6 seconds.
+//
+// Only ranges below the default narrow. A larger buffer is the right trade
+// for a long range — fewer round trips, and fewer of the GetHealth calls the
+// backend makes on every buffer miss — so 0 means "leave the default".
+func TestRPCBufferSizeFor(t *testing.T) {
+	tests := []struct {
+		name  string
+		start uint32
+		end   uint32
+		want  uint32
+	}{
+		{name: "one ledger asks for one", start: 65447235, end: 65447235, want: 1},
+		{name: "three ledgers ask for three", start: 65447235, end: 65447237, want: 3},
+		{name: "nine ledgers ask for nine", start: 100, end: 108, want: 9},
+		{name: "ten ledgers keep the default", start: 100, end: 109, want: 0},
+		{name: "a long range keeps the default", start: 60200000, end: 60200100, want: 0},
+		{name: "--follow keeps the default", start: 65447235, end: 0, want: 0},
+		{
+			// The stream rejects this; sizing must not underflow on the way
+			// there, since end-start+1 would wrap to an enormous buffer.
+			name: "a reversed range keeps the default", start: 200, end: 100, want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := rpcBufferSizeFor(tt.start, tt.end); got != tt.want {
+				t.Errorf("rpcBufferSizeFor(%d, %d) = %d, want %d", tt.start, tt.end, got, tt.want)
+			}
+		})
+	}
+}
