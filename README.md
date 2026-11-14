@@ -1,24 +1,39 @@
 # nebu
 
-**A toolkit for building Stellar indexers.** Nebu packages Stellar's modern indexing primitives — especially RPC-backed ledger access, ingest SDK processing, and XDR-native extraction — into a stable Go contract, standalone processors, and Unix-composable pipelines.
+**Make Stellar data composable.** nebu turns Stellar ledgers into streams of JSON that any program can read. Standalone processors extract and filter events; Unix pipes connect them to `jq`, DuckDB, Postgres, NATS, or your own code.
 
-nebu (pronounced "neh-boo") is built on the supported building blocks Stellar provides for modern indexing. It turns those primitives into a practical toolkit for developers, operators, and agents.
+Start with a pipe. Add infrastructure when you need it.
+
+```bash
+token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | jq -c 'select(.transfer.assetCode == "USDC")'
+```
+
+Stellar provides the ledger data. nebu (pronounced "neh-boo") makes it easy to pipe: it packages Stellar's supported indexing primitives (RPC-backed ledger access, the ingest SDK, XDR-native extraction) as standalone processor binaries behind a stable Go contract. Each processor does one job and speaks newline-delimited JSON on stdin and stdout.
 
 nebu is two things in one repo:
 
 1. A small, **stable Go contract** ([`pkg/processor`](./pkg/processor) and [`pkg/source`](./pkg/source)) that anyone can implement to write a Stellar processor — origin, transform, or sink. External processors live in their own Go modules and depend only on this contract; they get a CLI, a JSON-schema-emitting `--describe-json` protocol, and runtime observability hooks for free.
 2. A **CLI** for discovering, installing, and composing standalone processors with `jq`, DuckDB, and other Unix tools.
 
-Reference and community processors live in the [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry). The small processors under [`examples/processors/`](./examples/processors/) are educational examples that are not published by the external registry. Build your own processor against `pkg/processor`, ship it as its own binary, register it via [`description.yml`](./docs/REGISTRY_SPEC.md), and `nebu install your-processor` works.
+Reference and community processors live in the [nebu processor registry](https://github.com/withObsrvr/nebu-processor-registry). The small processors under [`examples/processors/`](./examples/processors/) are educational examples that are not published by the external registry. Processors are independent executables: build one to extract a new event type, decode a protocol, filter a stream, or write to another service. Ship it as its own binary, register it with a [`description.yml`](./docs/REGISTRY_SPEC.md), and anyone can `nebu install` it. You don't need to change nebu core to extend it.
 
-Named after the Nebuchadnezzar from The Matrix, nebu is the vessel that carries data from the on-chain truth to your applications.
+Named after the Nebuchadnezzar from The Matrix: the vessel that carries data from on-chain truth to your applications.
+
+## What you can build
+
+nebu doesn't ship an indexer. It gives you the parts.
+
+- **Custom indexers.** Extract the transfers, contract events, and invocations your application needs, and write them where you want: a JSONL file, Postgres, or a NATS subject.
+- **Analytics.** Pipe events into DuckDB and query them with SQL. There is no warehouse to stand up first.
+- **Alerts and automations.** Follow the chain live and hand matching events to a queue or a script.
+- **Protocol-specific tools.** Pair the generic origins with your own decoder to track one protocol, and publish it as a processor without touching nebu core.
 
 ## Two ways in
 
-**I want to build a custom processor →**
-The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, `Reporter`) and [`pkg/source`](./pkg/source) (`LedgerSource`). Both are committed-stable per [docs/STABILITY.md](./docs/STABILITY.md), enforced by a CI check against committed API snapshots in [`.api/`](./.api/). The full proto-first walkthrough lives in the registry repo: [BUILDING_PROTO_PROCESSORS.md](https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md). For runtime extensibility (metrics, tracing, progress bars, agent gating), see [docs/HOOKS.md](./docs/HOOKS.md).
+**I want to work with Stellar data →** Install the CLI, pick a processor, and pipe its events into `jq` or DuckDB. No Go required. Jump to [Quick Start](#quick-start) below.
 
-**I want to query Stellar data →** Jump to [Quick Start](#quick-start) below. You'll have JSON events streaming in two minutes.
+**I want to build a processor →** Implement a small contract, ship it as its own binary, and register it with a `description.yml`. Your repo, your release cadence. The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, `Reporter`) and [`pkg/source`](./pkg/source) (`LedgerSource`). Both are committed-stable per [docs/STABILITY.md](./docs/STABILITY.md), enforced by a CI check against committed API snapshots in [`.api/`](./.api/). The full proto-first walkthrough lives in the registry repo: [BUILDING_PROTO_PROCESSORS.md](https://github.com/withObsrvr/nebu-processor-registry/blob/main/BUILDING_PROTO_PROCESSORS.md). For runtime extensibility (metrics, tracing, progress bars, agent gating), see [docs/HOOKS.md](./docs/HOOKS.md).
 
 ## Website and release notes
 
@@ -193,13 +208,12 @@ token-transfer --start-ledger 60200000 --end-ledger 60200100 \
   --rpc-url https://rpc-pubnet.nodeswithobsrvr.co
 ```
 
-**Build a complete pipeline (extract → filter → dedupe → store):**
+**Filter and store USDC transfers (extract, filter, store: three programs and two pipes):**
 
 ```bash
-nebu fetch 60200000 --follow | token-transfer | \
-  jq -c 'select(.transfer.assetCode == "USDC")' | \
-  dedup --key meta.txHash | \
-  json-file-sink --out usdc-transfers.jsonl
+token-transfer --start-ledger 60200000 --end-ledger 60200100 \
+  | usdc-filter \
+  | json-file-sink --out usdc.jsonl
 ```
 
 **List and install processors:**
@@ -418,50 +432,47 @@ nebu/
 └── Makefile
 ```
 
-## Features
+## Designed for composition
 
-### ⚡ Blazing Fast
+### Compose with anything
 
-Written in Go. Decouples fetching from processing. **Backfill 5 years of history in hours, not months**, by parallelizing `fetch` workers.
-
-```bash
-# Separate fetch from processing - reuse XDR across multiple processors
-nebu fetch 60200000 60300000 > ledgers.xdr
-
-# Process the same data multiple ways (no repeated RPC calls)
-cat ledgers.xdr | token-transfer | jq 'select(.transfer.assetCode == "USDC")'
-cat ledgers.xdr | contract-events | grep -i "swap"
-```
-
-### 🔧 The Unix Way
-
-No heavy databases required. nebu respects `stdin` and `stdout`. Pipe directly into **DuckDB** for instant SQL analytics, **jq** for filtering, or any tool you want.
+Processors read stdin and write stdout. Put `jq`, DuckDB, `tee`, or your own program anywhere in the pipe. No daemon, no orchestrator, no pipeline file.
 
 ```bash
-# Instant SQL analytics - no database setup
+# Query events with SQL: DuckDB reads the stream from stdin
 token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
   duckdb -c "SELECT COUNT(*) FROM read_json('/dev/stdin') WHERE transfer IS NOT NULL"
 
-# Filter with jq
-token-transfer --start-ledger 60200000 --end-ledger 60200100 | \
-  jq 'select(.transfer.assetCode == "USDC")'
+# Send one stream to several destinations: NATS, a JSONL file, a readable tail
+token-transfer --start-ledger 60200000 \
+  | tee >(nats-sink --subject "stellar.live" --jetstream) \
+  | tee >(json-file-sink --out archive.jsonl) \
+  | jq -r '"L\(.meta.ledgerSequence): \(.transfer.amount)"'
 ```
 
-### 🌐 SaaS Ready (NATS)
+### Two sources, same processors
 
-Bridge the gap between CLI and Cloud. Use `nats-sink` to turn your local pipeline into a distributed, real-time firehose for your API.
+Stream recent ledgers from RPC (`--mode rpc`) or read history from a GCS or S3 archive (`--mode archive`). Archive mode skips RPC rate limits, and the events that come out are identical. `nebu fetch` also lets you capture a ledger range once and replay it through as many processors as you like:
 
 ```bash
-# Stream live events to NATS for your application
-nebu fetch 60200000 --follow | token-transfer | \
-  nats-sink --subject "stellar.transfers" --jetstream
-
-# Multiple destinations with tee
-nebu fetch 60200000 --follow | token-transfer | \
-  tee >(nats-sink --subject "stellar.live") | \
-  tee >(json-file-sink --out archive.jsonl) | \
-  jq 'select(.transfer != null and (.transfer.amount | tonumber) > 1000000)'
+nebu fetch 60200000 60200100 > ledgers.xdr
+cat ledgers.xdr | token-transfer | jq 'select(.transfer)'
+cat ledgers.xdr | contract-events | grep -i swap
 ```
+
+### Build and share processors
+
+`pkg/processor` and `pkg/source` are committed-stable and checked in CI against API snapshots. Ship your processor as its own binary and register any Git repo with a `description.yml`.
+
+### Self-describing, for tools and agents
+
+Every processor answers `--describe-json` with its flags, inputs, outputs, and schema IDs. A script or an agent can compose a pipeline without reading source.
+
+### Also
+
+- **Schema versioning.** Every event carries `_schema` and `_nebu_version`. A breaking change bumps the schema version, so a query that filters on `_schema` keeps meaning what it meant.
+- **Resumable fetch.** Opt-in checkpoints resume bounded file backfills from the last durable ledger. See [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md).
+- **Explicit status.** OSC 7501 reports interactive state to terminals. Automation consumes the separate, stable `nebu.status.v1` NDJSON stream. See [docs/STATUS_STREAM.md](./docs/STATUS_STREAM.md).
 
 ## Design Principles
 
@@ -477,21 +488,17 @@ nebu is optimized for **simplicity and speed** - get from idea to results in min
 
 **Note on Protobuf:** Processors use protobuf structs _internally_ (from Stellar SDK) for type safety, but output JSON for CLI compatibility. Future flowctl integration would use native protobuf over gRPC.
 
-### When to Use nebu vs flowctl
+### nebu and flowctl
 
-**Use nebu for:**
-- Quick prototyping and ad-hoc analysis
-- Single-machine pipelines with Unix pipes
-- Piping to `jq`, DuckDB, shell scripts
-- Simple Go processors
-- When you want results in 2 minutes
+nebu is for building and composing: explore ledgers, write processors, connect programs with pipes. [flowctl](https://github.com/withObsrvr/flowctl) is for running and supervising: it starts a pipeline's components, monitors them, and keeps them running. Start with nebu. Move a pipeline to flowctl when it needs to be operated.
 
-**Use [flowctl](https://github.com/withObsrvr/flowctl) for:**
-- Production pipelines with service orchestration
-- Multi-language processors (Python, Rust, TypeScript)
-- Distributed systems across multiple machines
-- Full observability (metrics, health checks, tracing)
-- Complex DAG topologies
+| | nebu | flowctl |
+|---|---|---|
+| Job | Build and compose | Run and supervise |
+| Best for | Prototyping, ad-hoc analysis, single-machine pipes | Pipelines that need to be operated and monitored |
+| Topology | A shell pipe, with `tee` for fan-out | DAG pipelines with fan-out and fan-in |
+| Processor languages | Go SDK, or any language that implements the processor contract | Go and JavaScript/TypeScript SDKs |
+| Runs as | Processes you start | Components under a control plane |
 
 See [docs/ARCHITECTURE_DECISIONS.md](./docs/ARCHITECTURE_DECISIONS.md) for the full rationale, [docs/STABILITY.md](./docs/STABILITY.md) for which package surfaces are committed stable for external processors, and [docs/REGISTRY_SPEC.md](./docs/REGISTRY_SPEC.md) for the formal `registry.yaml` v1 and `description.yml` v1 schemas.
 
