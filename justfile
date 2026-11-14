@@ -155,6 +155,7 @@ build-processors:
     echo "Building in-repo educational processors..."
     go build -ldflags "{{ ldflags }}" -o bin/transaction-stats ./examples/processors/transaction-stats/cmd/transaction-stats
     go build -ldflags "{{ ldflags }}" -o bin/ledger-change-stats ./examples/processors/ledger-change-stats/cmd/ledger-change-stats
+    go build -ldflags "{{ ldflags }}" -o bin/checkpoint-entries ./examples/processors/checkpoint-entries/cmd/checkpoint-entries
     echo "✓ All processor binaries built in ./bin/"
 
 # Run after an intentional change to pkg/processor or pkg/source, then
