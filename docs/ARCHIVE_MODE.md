@@ -134,12 +134,37 @@ maintained by AWS. The Stellar SDK's S3 client detects the missing credential
 chain and switches to `AnonymousCredentials` automatically.
 
 ```bash
+AWS_EC2_METADATA_DISABLED=true \
 nebu fetch --mode archive \
   --datastore-type S3 \
   --bucket-path "aws-public-blockchain/v1.1/stellar/ledgers/pubnet" \
   --region us-east-2 \
   62080000 62080010 > ledgers.xdr
 ```
+
+**Set `AWS_EC2_METADATA_DISABLED=true` for a public bucket off EC2.** It is
+worth about ten seconds per invocation. Detecting the missing credential chain
+means walking it, and the last stop is the EC2 instance metadata service;
+nowhere near EC2 there is nothing at that address, so the probe runs until its
+retries expire before the anonymous fallback happens. Measured on one pubnet
+ledger from this archive:
+
+| | one-ledger fetch |
+| --- | --- |
+| default | **10.76s** |
+| `AWS_EC2_METADATA_DISABLED=true` | **0.70s** |
+
+The cost is fixed per process, not per ledger, so it hurts most where archive
+mode is otherwise at its best: a one-ledger read spends 93% of its time
+discovering that it has no credentials.
+
+Two things that do *not* help, both worth knowing before you try them:
+`AWS_METADATA_SERVICE_TIMEOUT` and `AWS_METADATA_SERVICE_NUM_ATTEMPTS` are AWS
+SDK **v1** settings and the Go v2 SDK ignores them — measured at 10.75s with
+both set to 1. And supplying throwaway credentials does not work either: the
+chain then resolves, so the anonymous fallback never happens and the bucket
+answers `403 InvalidAccessKeyId`. nebu reports that honestly rather than
+silently writing nothing — `fetched 0/1 ledgers` and exit code 4.
 
 ### Example 2: A private (or internal) S3 archive
 
@@ -287,6 +312,33 @@ SQL
 ```
 
 ## Performance Tuning
+
+### Archive versus RPC, measured
+
+Archive mode is the faster source for anything but a handful of ledgers, and
+the gap widens with the range. `nebu fetch` on the same machine, same ranges,
+pubnet, with `AWS_EC2_METADATA_DISABLED=true` set for the archive runs:
+
+| ledgers | archive | RPC |
+| --- | --- | --- |
+| 1 | 0.77s | 1.37s |
+| 10 | 0.85s | 2.30s |
+| 25 | 1.19s | 9.34s |
+| 100 | **4.47s** | **27.17s** |
+
+Two reasons, both structural rather than incidental. The archive's objects are
+compressed and fetched by parallel workers, where RPC hands back
+base64-encoded metadata in serial batches — 146 MB of ledgers for that
+100-ledger range either way, but the archive moves it concurrently. And the
+SDK's RPC backend calls `getHealth` on every buffer miss, so a long RPC range
+pays an extra round trip per batch: 25 ledgers costs three of them, a thousand
+ledgers would cost a hundred.
+
+The two sources agree on content. For the 100-ledger range above, both produce
+the same 100 ledgers with 25,064 transactions and 67,265 operations. Their XDR
+is not byte-identical, though — the first difference is 158 KB into the first
+ledger — so compare decoded output rather than file hashes when checking one
+source against the other.
 
 ### Buffer Size
 
