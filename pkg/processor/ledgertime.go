@@ -1,6 +1,8 @@
 package processor
 
 import (
+	"time"
+
 	"github.com/stellar/go-stellar-sdk/xdr"
 )
 
@@ -57,4 +59,37 @@ func LedgerCloseTimeMs(ledger xdr.LedgerCloseMeta) int64 {
 	// returning zero, so callers get a usable timestamp for historical
 	// ledgers without special-casing the protocol version.
 	return int64(scpValue.CloseTime) * 1000
+}
+
+// closeTimeLayout renders a close time as RFC 3339 in UTC with exactly three
+// decimal places. RFC3339Nano is the obvious choice and the wrong one: it
+// drops trailing zeros, so a ledger that closed on a whole second renders
+// without a fractional part and one that closed at .916 renders with three
+// digits. The field then has a varying shape, which is awkward to parse
+// strictly and invites a consumer to treat the short form as second
+// resolution.
+const closeTimeLayout = "2006-01-02T15:04:05.000Z07:00"
+
+// LedgerCloseTimeRFC3339 returns the ledger's close time as RFC 3339 in UTC
+// with millisecond precision, e.g. "2026-11-14T13:15:44.916Z".
+//
+// This is the form DATA-3 of the OBSRVR Engineering Standard asks events to
+// carry, and it is the rendering every processor should use, so that one
+// timestamp does not arrive as "...44.916Z" from one processor and
+// "...44.916000Z" or "...44Z" from another. It reads through
+// [LedgerCloseTimeMs], so it is correct on both of the Protocol 30 union arms
+// and promotes a pre-Protocol-30 whole second.
+//
+// It renders milliseconds and no finer. CAP-88 defines close times in
+// milliseconds, so there is nothing below that to lose.
+func LedgerCloseTimeRFC3339(ledger xdr.LedgerCloseMeta) string {
+	return time.UnixMilli(LedgerCloseTimeMs(ledger)).UTC().Format(closeTimeLayout)
+}
+
+// FormatCloseTimeRFC3339 renders a millisecond Unix timestamp the same way, for
+// a caller that already holds the value — a processor that read it once and
+// passes it down, or one whose timestamp comes from somewhere other than a
+// LedgerCloseMeta.
+func FormatCloseTimeRFC3339(closeTimeMs int64) string {
+	return time.UnixMilli(closeTimeMs).UTC().Format(closeTimeLayout)
 }

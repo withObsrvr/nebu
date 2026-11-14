@@ -126,3 +126,62 @@ func TestLedgerCloseTimeMsRFC3339(t *testing.T) {
 	got := time.UnixMilli(LedgerCloseTimeMs(ledger)).UTC().Format(time.RFC3339Nano)
 	assert.Equal(t, "2025-12-08T01:45:11.123Z", got)
 }
+
+// TestLedgerCloseTimeRFC3339 pins the rendering, which is the half of
+// Option A that several processors had each solved separately: one used
+// "2006-01-02T15:04:05.000Z07:00", another "2006-01-02T15:04:05.000Z", and
+// RFC3339Nano is tempting and wrong because it drops trailing zeros.
+func TestLedgerCloseTimeRFC3339(t *testing.T) {
+	tests := []struct {
+		name string
+		ext  xdr.StellarValueExt
+		// seconds is the whole-second close time, which pre-Protocol-30 arms
+		// are promoted from.
+		seconds xdr.TimePoint
+		want    string
+	}{
+		{
+			name: "a millisecond value renders three digits",
+			ext:  xdr.StellarValueExt{V: xdr.StellarValueTypeStellarValueSignedMs, SignedMsValue: &xdr.StellarValueSignedMsValue{CloseTimeMs: xdr.TimePointMs(1794662144916)}},
+			want: "2026-11-14T13:15:44.916Z",
+		},
+		{
+			// The case RFC3339Nano gets wrong: it would render
+			// "2026-11-14T13:15:44Z" and the field's shape would vary with
+			// the value.
+			name: "a whole second still renders three digits",
+			ext:  xdr.StellarValueExt{V: xdr.StellarValueTypeStellarValueSignedMs, SignedMsValue: &xdr.StellarValueSignedMsValue{CloseTimeMs: xdr.TimePointMs(1794662144000)}},
+			want: "2026-11-14T13:15:44.000Z",
+		},
+		{
+			name: "the empty-transaction-set arm renders the same",
+			ext:  xdr.StellarValueExt{V: xdr.StellarValueTypeStellarValueEmptyTxSetMs, ProposedMsValue: &xdr.StellarValueProposedMsValue{CloseTimeMs: xdr.TimePointMs(1794662149916)}},
+			want: "2026-11-14T13:15:49.916Z",
+		},
+		{
+			// Pre-Protocol-30: the whole second is promoted, so the
+			// fractional part is zero rather than absent.
+			name:    "a pre-Protocol-30 ledger promotes its whole second",
+			ext:     xdr.StellarValueExt{V: xdr.StellarValueTypeStellarValueBasic},
+			seconds: 1765158311,
+			want:    "2025-12-08T01:45:11.000Z",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, LedgerCloseTimeRFC3339(ledgerWithScpExt(tt.seconds, tt.ext)))
+		})
+	}
+}
+
+// TestFormatCloseTimeRFC3339 is the same rendering for a caller that already
+// holds the millisecond value.
+func TestFormatCloseTimeRFC3339(t *testing.T) {
+	assert.Equal(t, "2026-11-14T13:15:44.916Z", FormatCloseTimeRFC3339(1794662144916))
+	assert.Equal(t, "2026-11-14T13:15:44.000Z", FormatCloseTimeRFC3339(1794662144000))
+
+	// Same second, different millisecond: the two render differently, which
+	// is the whole point of the field.
+	assert.NotEqual(t, FormatCloseTimeRFC3339(1794662144200), FormatCloseTimeRFC3339(1794662144800))
+}
