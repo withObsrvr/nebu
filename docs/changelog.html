@@ -131,7 +131,8 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#v0-7-4">#v0.7.4</a>
+        <a class="text-tertiary hover:underline" href="#v0-7-5">#v0.7.5</a>
+<a class="text-tertiary hover:underline" href="#v0-7-4">#v0.7.4</a>
 <a class="text-tertiary hover:underline" href="#v0-7-3">#v0.7.3</a>
 <a class="text-tertiary hover:underline" href="#v0-7-2">#v0.7.2</a>
 <a class="text-tertiary hover:underline" href="#v0-7-1">#v0.7.1</a>
@@ -156,6 +157,19 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.7.5 -->
+    <section id="v0-7-5" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.5</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.5" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">A processor built on the generic origin helper hung after processing every ledger.</strong> <code class="text-on-surface">RunGenericOriginCLI</code> closed the origin in a deferred call, so the goroutine writing events waited for a channel close that could not happen until the command returned, while the command waited for the writer. The processor read its ledgers, wrote every event, and then waited forever. The protobuf and token-transfer helpers had always closed the origin explicitly before waiting; this one was the odd one out.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Two of the five CLI helpers never registered <code class="text-on-surface">--describe-json</code></strong> — the generic origin and the token-transfer origin — even though the describe protocol is a stable surface and <code class="text-on-surface">nebu install</code> shells out to it, so a processor on either could not be installed. Neither has an output schema to publish, so both report the schema id, the real flag set and the examples, which is the shape a transform over arbitrary JSON already reported.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">Both faults existed only in code nothing ran.</strong> No published processor used the generic helper, and the one that was moving onto it had hand-rolled its own describe command to work around the missing flag — so nothing ever asked the helper for one. Three tests now cover it: two run the helper for real by re-execing the test binary as a processor, since each helper builds its own command and exits the process, and the third requires every helper to register the flag and to short-circuit before required-flag validation.</li>
+      </ul>
+    </section>
 
     <!-- v0.7.4 -->
     <section id="v0-7-4" class="mb-12">
@@ -658,7 +672,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.4</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.5</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>
