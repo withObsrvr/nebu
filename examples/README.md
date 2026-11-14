@@ -83,6 +83,67 @@ bucket order, which is a sample of the bucket list and **not** a sample of the
 network — drop it for network-wide numbers, and expect the read to take a
 while.
 
+#### The two bucket lists
+
+A checkpoint publishes two, and `--bucket-list` chooses:
+
+```bash
+./bin/checkpoint-entries --bucket-list live --limit 5000   # current state
+./bin/checkpoint-entries --bucket-list hot  --limit 5000   # what state archival evicted
+```
+
+The live list is current state. The hot archive holds entries state archival
+has evicted: a persistent Soroban entry whose TTL lapsed leaves live state and
+is recorded there, still restorable but no longer live. Every event carries a
+`bucket_list` field, so a file holding both can still be counted correctly.
+
+The difference is not a rounding error. Both of these are complete, verified
+reads of the same testnet checkpoint:
+
+```bash
+./bin/checkpoint-entries --network testnet --checkpoint 5727039 -q \
+  | jq -r .entry_type | sort | uniq -c                       # 45s
+./bin/checkpoint-entries --network testnet --checkpoint 5727039 --bucket-list hot -q \
+  | jq -r .entry_type | sort | uniq -c                       # 37s
+```
+
+| entry type | live | hot archive |
+| --- | --- | --- |
+| `contract_data` | 1,001,740 | **9,403,519** |
+| `contract_code` | 7,568 | **48,748** |
+| `account` | 4,839,125 | — |
+| `trustline` | 881,894 | — |
+| `ttl` | 1,009,308 | — |
+| `offer` | 85,591 | — |
+
+Nine times as many contract data entries are archived as are live on testnet.
+"How many contract data entries exist?" has two very different answers
+depending on which list you read, and only the Soroban entry types appear in
+the hot archive at all — classic entries are never archived.
+
+#### Verification, and what `--limit` costs you
+
+Each bucket's hash is checked **after** all of its entries have been read, so:
+
+- A complete read is hash-verified end to end.
+- A read that stops at `--limit` never reaches the check for the bucket it
+  stopped in. The entries are real XDR from the archive, but nothing has
+  confirmed that bucket belongs to this checkpoint. The command says so on
+  stderr rather than leaving it to be inferred.
+- A read that **fails** mid-stream exits **8** — nebu's "ran, but did not
+  cover what was asked" — and says that the entries already written should be
+  discarded. That is the SDK's rule: on error, everything the reader returned
+  is suspect, not merely incomplete.
+
+A ledger that is not a checkpoint is rejected before any fetch, with the two
+nearest ones named:
+
+```
+$ ./bin/checkpoint-entries --checkpoint 5727000
+Error: ledger 5727000 is not a checkpoint: the archive publishes one every 64
+ledgers, at sequences where (n+1) mod 64 == 0. The nearest are 5726975 and 5727039
+```
+
 ### Standalone processor forms
 
 The same ideas also exist as example standalone processors:
@@ -101,6 +162,11 @@ shaped differently on purpose.
 | Transaction Statistics | a bounded ledger range via captive core | [`go-library/transaction-stats`](./go-library/transaction-stats) as a library, [`processors/transaction-stats`](./processors/transaction-stats) as a pipeline stage |
 | Ledger Entry Changes | a bounded ledger range via captive core | [`go-library/ledger-change-stats`](./go-library/ledger-change-stats), [`processors/ledger-change-stats`](./processors/ledger-change-stats) |
 | Ledger Entry Statistics | a checkpoint snapshot from the history archive | [`processors/checkpoint-entries`](./processors/checkpoint-entries) plus a query |
+
+The SDK also exposes `ingest.NewHotArchiveIterator`, which no SDK example
+covers. `checkpoint-entries --bucket-list hot` reads it, and the section above
+shows why it matters: on testnet there are nine times as many archived
+contract data entries as live ones.
 
 Two differences are worth knowing before you pick one.
 

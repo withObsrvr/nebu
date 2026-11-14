@@ -20,6 +20,20 @@
 // processor.Origin and does not go through nebu's origin CLI: there is no
 // LedgerCloseMeta to process. It reads the bucket list the archive publishes
 // every 64 ledgers.
+//
+// # Two bucket lists
+//
+// A checkpoint publishes two. The live bucket list holds the current state.
+// The hot archive holds entries state archival has evicted: a persistent
+// Soroban entry whose TTL lapsed leaves the live state and is recorded there,
+// where it stays restorable. Reading only the live list and reporting "there
+// are N contract data entries" is therefore a statement about what is live,
+// not about what exists, and the difference grows with every eviction.
+//
+// The SDK exposes them through separate constructors — NewCheckpointChangeReader
+// and NewHotArchiveIterator — with the same checkpoint and the same entry
+// type, so one reader covers both and each event says which list it came
+// from.
 package checkpointentries
 
 import (
@@ -43,10 +57,17 @@ const SchemaID = "nebu.checkpoint_entry.v1"
 // empty, so a reader can tell "this entry has no asset" from "this entry's
 // asset is the empty string" — the distinction a filter needs.
 type Entry struct {
-	Schema             string `json:"_schema"`
-	NebuVersion        string `json:"_nebu_version"`
-	Network            string `json:"network"`
-	CheckpointLedger   uint32 `json:"checkpoint_ledger"`
+	Schema           string `json:"_schema"`
+	NebuVersion      string `json:"_nebu_version"`
+	Network          string `json:"network"`
+	CheckpointLedger uint32 `json:"checkpoint_ledger"`
+
+	// BucketList is "live" or "hot": whether the entry is part of current
+	// state or has been evicted by state archival. Every entry carries it, so
+	// a file holding both is still analysable, and a count of one list cannot
+	// be mistaken for a count of everything.
+	BucketList string `json:"bucket_list"`
+
 	EntryType          string `json:"entry_type"`
 	LastModifiedLedger uint32 `json:"last_modified_ledger"`
 
@@ -76,17 +97,51 @@ type Entry struct {
 	NumSubEntries uint32 `json:"num_sub_entries,omitempty"`
 }
 
+// Bucket list names, as --bucket-list accepts them and as the events report
+// them.
+const (
+	BucketListLive = "live"
+	BucketListHot  = "hot"
+)
+
 // Reader streams entries out of one checkpoint.
 type Reader struct {
 	archive          historyarchive.ArchiveInterface
 	networkLabel     string
 	nebuVersion      string
 	checkpointLedger uint32
+	bucketList       string
+
+	// progress is the fraction of the bucket list read so far. The live
+	// reader reports it; the hot archive iterator exposes no equivalent, so
+	// on that path it stays zero and the progress line reports entries only.
+	progress float64
+}
+
+// Result reports what a Stream call produced.
+type Result struct {
+	// Written is the number of entries written.
+	Written uint64
+
+	// Complete is true only if the read reached the end of the bucket list.
+	//
+	// It matters more than it looks. Each bucket's hash is checked after its
+	// entries have been yielded, so a read that stops early — at a --limit,
+	// or on cancellation — never reaches the check for the bucket it stopped
+	// in. Those entries are real XDR from the archive, but nothing has
+	// verified that the bucket they came from is the bucket the checkpoint
+	// claims. Only a complete read is hash-verified end to end.
+	Complete bool
 }
 
 // NewReader opens the archive pool for a network. checkpointLedger may be 0,
-// in which case Stream resolves the archive's latest checkpoint.
-func NewReader(archiveURLs []string, networkPassphrase, networkLabel, nebuVersion string, checkpointLedger uint32) (*Reader, error) {
+// in which case Stream resolves the archive's latest checkpoint. bucketList is
+// [BucketListLive] or [BucketListHot].
+func NewReader(archiveURLs []string, networkPassphrase, networkLabel, nebuVersion string, checkpointLedger uint32, bucketList string) (*Reader, error) {
+	if bucketList != BucketListLive && bucketList != BucketListHot {
+		return nil, fmt.Errorf("unknown bucket list %q: use %q or %q", bucketList, BucketListLive, BucketListHot)
+	}
+
 	archive, err := historyarchive.NewArchivePool(archiveURLs, historyarchive.ArchiveOptions{
 		NetworkPassphrase: networkPassphrase,
 	})
@@ -99,7 +154,29 @@ func NewReader(archiveURLs []string, networkPassphrase, networkLabel, nebuVersio
 		networkLabel:     networkLabel,
 		nebuVersion:      nebuVersion,
 		checkpointLedger: checkpointLedger,
+		bucketList:       bucketList,
 	}, nil
+}
+
+// CheckpointFrequency is how often the archive publishes a checkpoint, in
+// ledgers. It matches historyarchive's default.
+const CheckpointFrequency = 64
+
+// ValidateCheckpoint reports whether sequence is a checkpoint ledger, and if
+// not, names the two nearest ones.
+//
+// The archive only holds snapshots at these sequences; asking for a ledger in
+// between gets a 404 that reads like a fetch failure rather than the mistake
+// it is.
+func ValidateCheckpoint(sequence uint32) error {
+	if (sequence+1)%CheckpointFrequency == 0 {
+		return nil
+	}
+	previous := sequence - (sequence+1)%CheckpointFrequency
+	return fmt.Errorf(
+		"ledger %d is not a checkpoint: the archive publishes one every %d ledgers, at "+
+			"sequences where (n+1) mod %d == 0. The nearest are %d and %d",
+		sequence, CheckpointFrequency, CheckpointFrequency, previous, previous+CheckpointFrequency)
 }
 
 // Checkpoint returns the checkpoint this reader will read, resolving the
@@ -120,18 +197,48 @@ func (r *Reader) Checkpoint() (uint32, error) {
 	return has.CurrentLedger, nil
 }
 
-// Stream writes every entry in the checkpoint to out as NDJSON, stopping
-// early at limit entries when limit is non-zero. progress, when non-nil, is
-// called with the fraction read so far and the running count.
-func (r *Reader) Stream(ctx context.Context, out io.Writer, limit uint64, progress func(fraction float64, written uint64)) (uint64, error) {
+// Stream writes every entry in the chosen bucket list to out as NDJSON,
+// stopping early at limit entries when limit is non-zero. progress, when
+// non-nil, is called with the fraction read so far and the running count.
+//
+// An error means the entries already written must be discarded, not merely
+// that the output is short: a bucket whose hash check failed, or never ran,
+// is not known to belong to this checkpoint. The caller gets the count
+// reached so it can say how much to throw away.
+func (r *Reader) Stream(ctx context.Context, out io.Writer, limit uint64, progress func(fraction float64, written uint64)) (Result, error) {
 	checkpoint, err := r.Checkpoint()
 	if err != nil {
-		return 0, err
+		return Result{}, err
 	}
 
+	encoder := json.NewEncoder(out)
+	var result Result
+
+	// emit writes one entry and reports whether to keep going.
+	emit := func(ledgerEntry xdr.LedgerEntry) (bool, error) {
+		if err := encoder.Encode(r.entry(checkpoint, ledgerEntry)); err != nil {
+			return false, fmt.Errorf("writing entry %d: %w", result.Written+1, err)
+		}
+		result.Written++
+		if progress != nil && result.Written%100_000 == 0 {
+			progress(r.progress, result.Written)
+		}
+		return limit == 0 || result.Written < limit, nil
+	}
+
+	if r.bucketList == BucketListHot {
+		err = r.streamHot(ctx, checkpoint, emit, &result)
+	} else {
+		err = r.streamLive(ctx, checkpoint, emit, &result)
+	}
+	return result, err
+}
+
+// streamLive reads the live bucket list, which holds current state.
+func (r *Reader) streamLive(ctx context.Context, checkpoint uint32, emit func(xdr.LedgerEntry) (bool, error), result *Result) error {
 	reader, err := ingest.NewCheckpointChangeReader(ctx, r.archive, checkpoint)
 	if err != nil {
-		return 0, fmt.Errorf("opening checkpoint %d: %w", checkpoint, err)
+		return fmt.Errorf("opening checkpoint %d: %w", checkpoint, err)
 	}
 	defer func() {
 		// Close cancels the reader's bucket-list streaming goroutine. It
@@ -140,27 +247,21 @@ func (r *Reader) Stream(ctx context.Context, out io.Writer, limit uint64, progre
 		_ = reader.Close()
 	}()
 
-	encoder := json.NewEncoder(out)
-	var written uint64
-
 	for {
-		select {
-		case <-ctx.Done():
-			return written, ctx.Err()
-		default:
+		if err := ctx.Err(); err != nil {
+			return err
 		}
+
+		r.progress = reader.Progress()
 
 		change, err := reader.Read()
 		if err == io.EOF {
-			return written, nil
+			// Only here is every bucket hash checked.
+			result.Complete = true
+			return nil
 		}
 		if err != nil {
-			// A checkpoint read that stops early has produced a partial
-			// snapshot, and a partial snapshot counted as a whole one is
-			// wrong rather than short — the SDK example's totals would simply
-			// be too low with nothing to say so. Return the error with the
-			// count reached, and let the caller decide.
-			return written, fmt.Errorf("reading entry %d of checkpoint %d: %w", written+1, checkpoint, err)
+			return fmt.Errorf("reading entry %d of checkpoint %d: %w", result.Written+1, checkpoint, err)
 		}
 
 		// A checkpoint is a snapshot, so every change is the creation of an
@@ -170,18 +271,55 @@ func (r *Reader) Stream(ctx context.Context, out io.Writer, limit uint64, progre
 			continue
 		}
 
-		if err := encoder.Encode(r.entry(checkpoint, *change.Post)); err != nil {
-			return written, fmt.Errorf("writing entry %d: %w", written+1, err)
+		keepGoing, err := emit(*change.Post)
+		if err != nil {
+			return err
 		}
-		written++
-
-		if progress != nil && written%100_000 == 0 {
-			progress(reader.Progress(), written)
-		}
-		if limit != 0 && written >= limit {
-			return written, nil
+		if !keepGoing {
+			return nil
 		}
 	}
+}
+
+// streamHot reads the hot archive bucket list, which holds the entries state
+// archival has evicted.
+//
+// The SDK exposes this one as an iterator rather than a reader, and it yields
+// only the archived entries: the hot archive also records entries that have
+// been restored to live state, and those exist to suppress the older archived
+// version of the same key rather than to be read as archived themselves.
+func (r *Reader) streamHot(ctx context.Context, checkpoint uint32, emit func(xdr.LedgerEntry) (bool, error), result *Result) error {
+	var iterationErr error
+	stoppedEarly := false
+
+	for ledgerEntry, err := range ingest.NewHotArchiveIterator(ctx, r.archive, checkpoint) {
+		if err != nil {
+			iterationErr = fmt.Errorf("reading entry %d of checkpoint %d's hot archive: %w",
+				result.Written+1, checkpoint, err)
+			break
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			iterationErr = ctxErr
+			break
+		}
+
+		keepGoing, emitErr := emit(ledgerEntry)
+		if emitErr != nil {
+			iterationErr = emitErr
+			break
+		}
+		if !keepGoing {
+			stoppedEarly = true
+			break
+		}
+	}
+
+	if iterationErr != nil {
+		return iterationErr
+	}
+	// The iterator ran to exhaustion, which is where its hash checks happen.
+	result.Complete = !stoppedEarly
+	return nil
 }
 
 // entry flattens one ledger entry into the emitted shape.
@@ -191,6 +329,7 @@ func (r *Reader) entry(checkpoint uint32, ledgerEntry xdr.LedgerEntry) Entry {
 		NebuVersion:        r.nebuVersion,
 		Network:            r.networkLabel,
 		CheckpointLedger:   checkpoint,
+		BucketList:         r.bucketList,
 		EntryType:          entryTypeName(ledgerEntry.Data.Type),
 		LastModifiedLedger: uint32(ledgerEntry.LastModifiedLedgerSeq),
 	}
@@ -313,6 +452,13 @@ func trustlineAsset(asset xdr.TrustLineAsset) string {
 
 // ReportProgress writes a progress line to stderr. Data goes to stdout and
 // everything else to stderr, so the stream stays pipeable.
+//
+// fraction is zero on the hot archive path, which reports no progress, so the
+// line falls back to the count alone rather than claiming 0%.
 func ReportProgress(fraction float64, written uint64) {
+	if fraction <= 0 {
+		fmt.Fprintf(os.Stderr, "\r%d entries written", written)
+		return
+	}
 	fmt.Fprintf(os.Stderr, "\rRead %.1f%% of the bucket list, %d entries written", fraction*100, written)
 }

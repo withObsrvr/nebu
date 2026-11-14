@@ -72,6 +72,22 @@ run "checkpoint-entries reads a testnet checkpoint" bash -lc \
   '"$0" --network testnet --limit 500 -q | jq -e -s "length == 500 and (map(.entry_type) | all(. != null))" >/dev/null' \
   "$ROOT/bin/checkpoint-entries"
 
+# The hot archive is a second bucket list, and nothing else in this suite
+# reads it. A bounded testnet read proves the path works and that every entry
+# is labelled with the list it came from -- a file mixing the two is only
+# countable if that label is there.
+run "checkpoint-entries reads the hot archive" bash -lc \
+  '"$0" --network testnet --bucket-list hot --limit 300 -q \
+    | jq -e -s "length == 300 and (map(.bucket_list) | all(. == \"hot\")) and (map(.entry_type) | all(startswith(\"contract_\")))" >/dev/null' \
+  "$ROOT/bin/checkpoint-entries"
+
+# A ledger that is not a checkpoint is a usage error, not a fetch failure, and
+# it must be refused before any network call.
+run "a non-checkpoint ledger is refused with the nearest ones" bash -lc \
+  'out=$("$0" --network testnet --checkpoint 5727000 --limit 1 2>&1); status=$?; \
+   [ "$status" -eq 2 ] && printf "%s" "$out" | grep -q "nearest are 5726975 and 5727039"' \
+  "$ROOT/bin/checkpoint-entries"
+
 # The README answers the Stellar SDK's "Ledger Entry Statistics" example with
 # this query rather than a Go program, so the query has to keep working.
 run "the ledger entry statistics query runs" bash -lc \
