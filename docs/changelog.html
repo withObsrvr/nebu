@@ -131,7 +131,8 @@
     <nav aria-label="Page sections" class="lg:hidden mb-10 bg-surface-container-low p-4 border border-outline-variant">
       <div class="text-[0.6875rem] uppercase text-tertiary mb-2">[ JUMP ]</div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <a class="text-tertiary hover:underline" href="#v0-7-2">#v0.7.2</a>
+        <a class="text-tertiary hover:underline" href="#v0-7-3">#v0.7.3</a>
+<a class="text-tertiary hover:underline" href="#v0-7-2">#v0.7.2</a>
 <a class="text-tertiary hover:underline" href="#v0-7-1">#v0.7.1</a>
 <a class="text-tertiary hover:underline" href="#v0-7-0">#v0.7.0</a>
 <a class="text-tertiary hover:underline" href="#v0-6-17">#v0.6.17</a>
@@ -154,6 +155,21 @@
         <a class="text-tertiary hover:underline" href="#v0-5-0">#v0.5.0</a>
       </div>
     </nav>
+
+    <!-- v0.7.3 -->
+    <section id="v0-7-3" class="mb-12">
+      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4 border-b border-outline-variant pb-2">
+        <h2 class="text-2xl font-bold text-on-surface">## v0.7.3</h2>
+        <a href="https://github.com/withObsrvr/nebu/releases/tag/v0.7.3" class="text-[0.6875rem] uppercase text-tertiary tracking-widest hover:underline">[ GITHUB &rarr; ]</a>
+      </div>
+      <ul class="space-y-3 text-secondary text-sm leading-relaxed">
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">The last N ledgers:</strong> <code class="text-on-surface">--last N</code> on <code class="text-on-surface">nebu fetch</code> and every origin processor takes the most recent N ledgers the source holds, so the first thing a newcomer does is no longer go find a ledger sequence number. It means something different per source — the network tip on RPC, the newest exported ledger in archive mode — so the range it resolved to is always reported. It never returns fewer ledgers than asked: a source that cannot serve the range fails the run instead of handing back a short dataset that looks complete.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">A piped fetch now says which ledgers it chose.</strong> <code class="text-on-surface">fetch</code> infers quiet mode when stdout is not a terminal, so a merged stderr cannot corrupt the binary XDR stream — and that inference also silenced the resolved <code class="text-on-surface">--last</code> range in the form the quickstart documents. An explicit <code class="text-on-surface">--quiet</code> still silences everything; being asked for quiet and inferring it are no longer the same instruction.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">The quickstart in <code class="text-on-surface">nebu --help</code> works.</strong> Two of its four commands did not: a <code class="text-on-surface">jq</code> filter on a field these events have never had, selecting nothing where the correct filter returns over a thousand, and <code class="text-on-surface">--start</code>/<code class="text-on-surface">--end</code> against a processor that exposes <code class="text-on-surface">--start-ledger</code>/<code class="text-on-surface">--end-ledger</code>. Found by installing the released binary into an empty GOBIN and running the printed commands verbatim. A check now verifies that every flag the help uses on a processor is one that processor accepts, and that the documented filter selects something.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">A cold module proxy no longer looks like a broken install.</strong> The Go proxy answers the first request for an uncached module with a 404 and <code class="text-on-surface">fetch timed out</code>, which these processor modules are large enough to hit; <code class="text-on-surface">nebu install</code> said to check write permissions, the module path and network access, none of which was the cause. It now names the proxy and says a retry usually works.</li>
+        <li><span class="text-primary-container">·</span> <strong class="text-on-surface">DuckDB 2.0.0</strong> in the dev shell, with its agent mode pinned off — it rewrites query output when <code class="text-on-surface">AI_AGENT</code> or <code class="text-on-surface">CLAUDECODE</code> is set and stdout is not a terminal, which is every scripted invocation in CI. The cookbook gained coverage verification, status-stream queries, and a section on what silently produces wrong answers: its volume queries had been summing stroops into a <code class="text-on-surface">DOUBLE</code>, which holds integers exactly only to 2^53.</li>
+      </ul>
+    </section>
 
     <!-- v0.7.2 -->
     <section id="v0-7-2" class="mb-12">
@@ -627,7 +643,7 @@
 </div>
 
 <footer class="bg-[#1c1b1b] text-[#c6c6c6] text-[0.6875rem] uppercase fixed bottom-0 w-full z-50 flex justify-between items-center px-4 py-1">
-  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.2</div>
+  <div><span class="text-[#ff7f50]">VESSEL: ONLINE</span> // VER: v0.7.3</div>
   <div class="flex gap-4">
     <a href="processors.html" class="hover:text-[#ff7f50] cursor-pointer">[ PROCESSORS ]</a>
     <span class="hidden md:inline text-[#3d3535]">::</span>

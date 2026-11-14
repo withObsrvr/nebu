@@ -19,16 +19,19 @@ Development install from a pinned tag:
 
 ```bash
 git clone --branch <release-tag> https://github.com/withObsrvr/nebu && cd nebu
-make install
+just install
 export PATH="$HOME/go/bin:$PATH"
 nebu list
 ```
 
-Published Docker image for quick previews:
+Published Docker image for quick previews. It packages the nebu CLI only —
+`Dockerfile.goreleaser` copies one binary onto distroless, and processors are
+released separately from the registry — so a processor name is not a command
+the image can run. Pipe its output into processors on the host:
 
 ```bash
-docker run --rm withobsrvr/nebu:latest \
-  token-transfer --start-ledger 60200000 --end-ledger 60200001
+docker run --rm withobsrvr/nebu:latest --version
+docker run --rm withobsrvr/nebu:latest fetch --last 100 | token-transfer
 ```
 
 ## Configuration
@@ -43,30 +46,41 @@ NEBU_BUCKET_PATH      # archive bucket/path
 NEBU_REGION           # S3 region, e.g. us-east-2
 NEBU_BUFFER_SIZE      # archive fetch buffer size
 NEBU_NUM_WORKERS      # archive fetch worker count
+NEBU_LAST             # most recent N ledgers instead of an explicit range
 ```
 
 **Trust posture:** nebu inherits the trust of the RPC endpoint or archive source. For mainnet work, use a trusted provider or your own infrastructure. Never hardcode `NEBU_RPC_AUTH` in committed scripts.
 
-## Built-in processors in v0.7.2
+## Processors you will usually see (v0.7.3)
 
 Always confirm with `nebu list` against the installed version.
 
-| Name | Type | Purpose |
-| --- | --- | --- |
-| `token-transfer` | origin | SAC/XLM transfers, mints, burns, clawbacks, fees |
-| `contract-events` | origin | All Soroban contract events |
-| `contract-invocation` | origin | Contract function calls, cross-contract calls, state changes |
-| `transaction-stats` | origin | Aggregate transaction/operation success/failure stats |
-| `ledger-change-stats` | origin | Per-ledger created/updated/deleted/change-reason stats |
-| `usdc-filter` | transform | Keep USDC token-transfer events |
-| `amount-filter` | transform | Filter token transfers by amount/asset ranges |
-| `dedup` | transform | Deduplicate by a key field |
-| `time-window` | transform | Filter by time or ledger sequence window |
-| `json-file-sink` | sink | Write JSONL files |
-| `nats-sink` | sink | Publish to NATS / JetStream |
-| `postgres-sink` | sink | Insert JSONB rows with TOID-based idempotency |
+Only two processors are embedded in the nebu binary's own `registry.yaml`.
+Everything else — `token-transfer` included — comes from the external
+processor registry and `nebu list` tags it `[community]`. The list below was
+read off `nebu list`, not off a wish list, but availability of the community
+entries is still dynamic, so do not promise one before `nebu list` shows it.
 
-A current install may also show community processors for account/asset/contract filters, DEX/swap detection, contract state, NFT events, TTL tracking, trade extraction, Kafka/S3/webhook sinks, and protocol-specific Soroswap/Aquarius workflows. Treat community availability as dynamic.
+| Name | Type | Source | Purpose |
+| --- | --- | --- | --- |
+| `transaction-stats` | origin | embedded | Aggregate transaction/operation success/failure stats |
+| `ledger-change-stats` | origin | embedded | Per-ledger created/updated/deleted/change-reason stats |
+| `token-transfer` | origin | community | SAC/XLM transfers, mints, burns, clawbacks, fees |
+| `contract-events` | origin | community | All Soroban contract events |
+| `contract-invocation` | origin | community | Contract function calls, cross-contract calls, state changes |
+| `usdc-filter` | transform | community | Keep USDC token-transfer events |
+| `amount-filter` | transform | community | Filter token transfers by amount/asset ranges |
+| `dedup` | transform | community | Deduplicate by a key field |
+| `time-window` | transform | community | Filter by time or ledger sequence window |
+| `json-file-sink` | sink | community | Write JSONL files |
+| `nats-sink` | sink | community | Publish to NATS / JetStream |
+| `postgres-sink` | sink | community | Insert JSONB rows with TOID-based idempotency |
+
+A current install also shows community processors for account/asset/contract
+filters, DEX/swap detection, contract state, NFT events, TTL tracking, trade
+extraction, validator analytics, Soroban resource footprints, rate limiting,
+aggregation, and Kafka/S3/webhook sinks, plus protocol-specific
+Soroswap/Aquarius workflows.
 
 ## Output schema
 

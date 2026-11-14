@@ -23,7 +23,7 @@ The contract is in [`pkg/processor`](./pkg/processor) (just `Processor`, `Origin
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Current release:** [v0.7.2](https://github.com/withObsrvr/nebu/releases/tag/v0.7.2)
+- **Current release:** [v0.7.3](https://github.com/withObsrvr/nebu/releases/tag/v0.7.3)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **CLI exit codes:** [docs/EXIT_CODES.md](./docs/EXIT_CODES.md)
 - **Checkpoint and resume:** [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md)
