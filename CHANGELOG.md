@@ -8,6 +8,7 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`registry_version` moves to the registry main built on nebu v0.7.9, and the samples follow it.** That bump is the one worth having in a processor: v0.7.9 stopped a one-ledger RPC read from downloading ten, and every origin processor reads through that path. `token-transfer` on a range nothing had fetched that day went from 4.61s and 3.29s to 0.80s and 0.86s; on a warm range, five runs each, 1.65–2.33s became 0.66–0.80s. Output is unchanged apart from `_nebu_version`, which is now v0.7.9 in the published processors and therefore in the documented samples.
 - **The documented samples gain the three fields token-transfer now emits**, and `registry_version` moves to the registry main that emits them. The registry's fidelity pass added `meta.operationIndexValue`, `meta.toMuxedInfo` and `transfer.assetType`, so every sample marked `complete` stopped matching real output the moment the pin moved — the sample check named all four and all three fields. They are additive: with the new fields stripped, output over 601 events of pubnet ledger 65447235 is byte-identical to before, which is why the schema id stays `nebu.token_transfer.v1`.
   - Worth knowing when reading the samples: `toMuxedInfo` is `null` on most events — 500 of those 601 — and where it is set, it usually carries the **transaction memo** rather than a muxed account id. 98 of the 101 populated cases in that ledger were `MEMO_TEXT` and 3 were `MEMO_ID`, confirmed against the ledger itself.
 
