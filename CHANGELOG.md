@@ -6,15 +6,14 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.10
+
 ### Changed
 
 - **`docs-smoke` reads its ledgers once from the archive instead of fetching them per assertion over RPC, and finishes again.** The default endpoint now refuses the third `getLedgers` call in a burst with `429 Too Many Requests` — measured: two calls through, then refusals, recovering about a second later — so a suite with twenty-odd RPC-backed assertions could not complete no matter how long it waited. It died on its third fetch.
   - Sixteen assertions whose subject is a query or a pipeline rather than an RPC command now read from three files fetched once from the public archive, about 7 MB in total. The suite runs end to end in **27 seconds** and asks RPC for four `getLedgers` calls instead of one per assertion.
   - Four assertions stay on RPC because the RPC command *is* what they document — the bounded `--start-ledger/--end-ledger` run, the root help's quickstart filter, and the piped `fetch --last` resolved range — and they are spaced with a one-second pause so the burst limit does not take them. Moving those would have made the suite pass while no longer checking what it claims to.
   - The archive fetches set `AWS_EC2_METADATA_DISABLED=true`, without which each one spends about ten seconds walking the AWS credential chain to the EC2 metadata service before falling back to anonymous access.
-
-### Changed
-
 - **`registry_version` moves to the registry main built on nebu v0.7.9, and the samples follow it.** That bump is the one worth having in a processor: v0.7.9 stopped a one-ledger RPC read from downloading ten, and every origin processor reads through that path. `token-transfer` on a range nothing had fetched that day went from 4.61s and 3.29s to 0.80s and 0.86s; on a warm range, five runs each, 1.65–2.33s became 0.66–0.80s. Output is unchanged apart from `_nebu_version`, which is now v0.7.9 in the published processors and therefore in the documented samples.
 - **The documented samples gain the three fields token-transfer now emits**, and `registry_version` moves to the registry main that emits them. The registry's fidelity pass added `meta.operationIndexValue`, `meta.toMuxedInfo` and `transfer.assetType`, so every sample marked `complete` stopped matching real output the moment the pin moved — the sample check named all four and all three fields. They are additive: with the new fields stripped, output over 601 events of pubnet ledger 65447235 is byte-identical to before, which is why the schema id stays `nebu.token_transfer.v1`.
   - Worth knowing when reading the samples: `toMuxedInfo` is `null` on most events — 500 of those 601 — and where it is set, it usually carries the **transaction memo** rather than a muxed account id. 98 of the 101 populated cases in that ledger were `MEMO_TEXT` and 3 were `MEMO_ID`, confirmed against the ledger itself.
