@@ -51,7 +51,7 @@
 <p class="measure">Every event has the same two metadata fields at the top level, regardless of which processor emitted it:</p>
 <div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">JSON · envelope</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
   "_schema": "&lt;namespace&gt;.&lt;name&gt;.v&lt;N&gt;",   // identifier — required
-  "_nebu_version": "v0.7.7",              // producing nebu CLI — required
+  "_nebu_version": "v0.7.9",              // producing nebu CLI — required
   "meta": { /* common ledger metadata */ },
   ...payload...
 }</pre></div>
@@ -64,7 +64,7 @@
 <p class="measure small muted">Event types: transfer · mint · burn · clawback · fee. Payload key: <code class="ic">transfer</code>.</p>
 <div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">JSON · shape</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
   "_schema": "nebu.token_transfer.v1",
-  "_nebu_version": "v0.7.7",
+  "_nebu_version": "v0.7.9",
   "meta": {
     "ledgerSequence": 60200000,
     "closedAtUnix": "1765158311",
@@ -86,7 +86,7 @@
 <p class="measure">One event per Soroban diagnostic event emission. Raw XDR SCVals in topics and data.</p>
 <div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">JSON · shape</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
   "_schema": "nebu.contract_events.v1",
-  "_nebu_version": "v0.7.7",
+  "_nebu_version": "v0.7.9",
   "meta": { ... },
   "event": {
     "contractAddress": "CAQ...",
@@ -99,7 +99,7 @@
 <p class="measure">One event per Soroban InvokeHostFunction operation, with function name, arguments, success flag, and nested sub-invocations.</p>
 <div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">JSON · shape</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
   "_schema": "nebu.contract_invocation.v1",
-  "_nebu_version": "v0.7.7",
+  "_nebu_version": "v0.7.9",
   "meta": { ... },
   "invocation": {
     "contractAddress": "CAQ...",
@@ -113,7 +113,7 @@
 <p class="measure">One event per ledger close, summarizing transaction activity. Emitted by the educational <a href="processors.html">transaction-stats</a> processor.</p>
 <div data-code class="code-block"><div class="code-block__head"><span class="code-block__label">JSON · shape</span><button type="button" data-copy class="copy-btn">Copy</button></div><pre class="code-block__pre">{
   "_schema": "nebu.transaction_stats.v1",
-  "_nebu_version": "v0.7.7",
+  "_nebu_version": "v0.7.9",
   "meta": { "ledgerSequence": 60200000, "closedAtUnix": "..." },
   "stats": {
     "txTotal": 42,

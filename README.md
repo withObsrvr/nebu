@@ -94,7 +94,7 @@ token-transfer --start-ledger 60200000 --end-ledger 60200001
 
 **Output:** You'll see newline-delimited JSON events streaming to stdout, like:
 ```json
-{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.7.7","network":"pubnet","meta":{"ledgerSequence":65430000,"closedAtUnix":"1794436042","closedAt":"2026-11-11T22:27:22.000Z","txHash":"165fee89...","transactionIndex":1,"operationIndex":0,"operationIndexValue":0,"contractAddress":"CAS3J7GY...","inSuccessfulTx":true,"toMuxedInfo":null},"transfer":{"from":"GA3HLUKH...","to":"CC3TDKJD...","assetCode":"USDC","assetIssuer":"GAGVZMOD...","amount":"95667990","assetType":"issued"}}
+{"_schema":"nebu.token_transfer.v1","_nebu_version":"v0.7.9","network":"pubnet","meta":{"ledgerSequence":65430000,"closedAtUnix":"1794436042","closedAt":"2026-11-11T22:27:22.000Z","txHash":"165fee89...","transactionIndex":1,"operationIndex":0,"operationIndexValue":0,"contractAddress":"CAS3J7GY...","inSuccessfulTx":true,"toMuxedInfo":null},"transfer":{"from":"GA3HLUKH...","to":"CC3TDKJD...","assetCode":"USDC","assetIssuer":"GAGVZMOD...","amount":"95667990","assetType":"issued"}}
 ```
 
 **Next steps - Build pipelines:**
