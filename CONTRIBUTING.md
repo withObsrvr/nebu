@@ -91,6 +91,13 @@ breaking output change.
   — timeouts, malformed input, write errors — not for showing that a feature
   works.
 - Concurrent code must pass `go test -race`.
+- Before claiming a user-facing surface works, install the published version
+  into an empty `GOBIN` and run its documented commands verbatim. `just ci` and
+  `just docs-smoke` check the tree, not what a user receives, and that gap is
+  where this repo's real defects have lived: a `jq` filter in `nebu --help`
+  that matched nothing, flags that did not exist, a millisecond field carrying
+  whole seconds. All of them read as correct. `AGENTS.md` has the longer
+  version.
 
 ## Changing a contract
 

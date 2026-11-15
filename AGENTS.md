@@ -29,6 +29,33 @@ Keep this file lean. Add rules only when agents repeatedly get something wrong.
   your change without checking `main`.
 - Vulnerabilities: `govulncheck ./...` must report none reachable.
 
+### Verify against the shipped artifact
+
+`just ci` and `just docs-smoke` check the tree. They do not check what a user
+receives, and that gap is where this repo's real defects have lived. Before
+claiming a user-facing surface works:
+
+- Install the published version into an empty `GOBIN` and run the printed
+  quickstart **verbatim**, not a paraphrase of it.
+- Run the real binary against real data and compare it to independently known
+  truth, never to its own output.
+- Ask what a check reads. A local build, a cache, or a pinned copy is what it
+  validates — a check never run against what users get is a claim, not
+  evidence.
+- If a number looks too good, confirm the exit code and that output was
+  produced before believing it.
+
+This is here because reading missed all of it: a `jq` filter in `nebu --help`
+that selected nothing, the same filter generated into 30-odd processors, flags
+that did not exist, `RunGenericOriginCLI` hanging after emitting every event
+(a `defer` that reviews as *more* careful than an explicit close), a
+millisecond field carrying whole seconds, and a one-ledger read downloading
+ten because of a default inside the SDK. Each failure was silence-shaped —
+empty output, a null, `.000`, a hang — and absence reads as a plausible
+answer. See `docs/protocol-30-impact-review.md` for the one counter-case:
+ledger states that do not exist yet can only be reasoned about and
+constructed, never run.
+
 ## Governing docs
 
 - `docs/engineering-profile.md` — which OBSRVR Engineering Standard rules
