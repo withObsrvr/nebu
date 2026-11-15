@@ -105,15 +105,18 @@ Token-transfer events are newline-delimited JSON. A transfer event looks like:
     "txHash": "abc123...",
     "transactionIndex": 1,
     "operationIndex": 0,
+    "operationIndexValue": 0,
     "contractAddress": "CABC...",
-    "inSuccessfulTx": true
+    "inSuccessfulTx": true,
+    "toMuxedInfo": null
   },
   "transfer": {
     "from": "GABC...",
     "to": "GDEF...",
     "assetCode": "USDC",
     "assetIssuer": "GA5Z...",
-    "amount": "100"
+    "amount": "100",
+    "assetType": "issued"
   }
 }
 ```
