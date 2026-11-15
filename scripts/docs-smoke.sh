@@ -57,12 +57,58 @@ run() {
   pass "$name"
 }
 
+# Most assertions here are about a query or a pipeline, not about where the
+# ledgers came from, and every one of those used to fetch its own ledgers over
+# RPC. That became untenable: the default endpoint now refuses the third
+# getLedgers call in a burst with 429, so the suite died partway through no
+# matter how long it waited -- measured at two calls, then refusals, with
+# recovery about a second later.
+#
+# So the ledgers are fetched once from the public archive and fed to the
+# assertions from a file. It is also much faster: the archive serves 100
+# ledgers in 4.5s where RPC takes 27s, and these three fetches replace about
+# twenty.
+#
+# The assertions that are genuinely *about* an RPC command keep using RPC --
+# the documented quickstart, --last resolution, a bounded range -- and are
+# spaced out with rpc_pause so the burst limit does not take them.
+ARCHIVE_FLAGS=(--mode archive --datastore-type S3
+  --bucket-path aws-public-blockchain/v1.1/stellar/ledgers/pubnet
+  --region us-east-2)
+
+# Off EC2 the AWS credential chain ends at the instance metadata service,
+# which answers nothing until its retries expire: about ten seconds per
+# process, before the anonymous fallback a public bucket needs. See
+# docs/ARCHIVE_MODE.md.
+export AWS_EC2_METADATA_DISABLED=true
+
+# Exported because the assertions run in `bash -lc`, which is a fresh shell:
+# an unexported path arrives empty and the redirect becomes `< ""`.
+export LEDGER_1="$TMPDIR/ledger-60200000.xdr"
+export LEDGER_3="$TMPDIR/ledgers-60200000-60200002.xdr"
+export LEDGER_5="$TMPDIR/ledgers-60200000-60200004.xdr"
+
+echo "==> fetching the documented ledgers once, from the archive"
+"$NEBU_BIN" fetch "${ARCHIVE_FLAGS[@]}" 60200000 60200000 --output "$LEDGER_1" >/dev/null
+"$NEBU_BIN" fetch "${ARCHIVE_FLAGS[@]}" 60200000 60200002 --output "$LEDGER_3" >/dev/null
+"$NEBU_BIN" fetch "${ARCHIVE_FLAGS[@]}" 60200000 60200004 --output "$LEDGER_5" >/dev/null
+for f in "$LEDGER_1" "$LEDGER_3" "$LEDGER_5"; do
+  [[ -s "$f" ]] || { echo "archive fetch produced nothing: $f" >&2; exit 1; }
+done
+pass "fetching the documented ledgers once, from the archive"
+
+# rpc_pause keeps the few remaining RPC assertions under the endpoint's burst
+# limit. One second is what recovery measured at; it is cheap because there
+# are only a handful left.
+rpc_pause() { sleep 1; }
+
 run "nebu --version" bash -lc '"$0" --version >/dev/null' "$NEBU_BIN"
 run "nebu list" bash -lc '"$0" list >/dev/null' "$NEBU_BIN"
 run "nebu describe token-transfer" bash -lc '"$0" describe token-transfer >/dev/null' "$NEBU_BIN"
 run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
 
+rpc_pause
 run "token-transfer bounded run" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
 # checkpoint-entries reads a history archive checkpoint rather than a ledger
 # stream, so none of the ledger-range assertions reach it. A bounded testnet
@@ -125,49 +171,51 @@ run "processors use only the flags they define" bash -lc \
 # A piped fetch is the form the quickstart documents, and it was the one form
 # that dropped the resolved --last range: fetch infers quiet mode when stdout
 # is not a terminal, which silenced the only report of which ledgers it chose.
+rpc_pause
 run "piped fetch still reports the range --last resolved to" bash -lc \
   '"$0" fetch --last 2 2>&1 >/dev/null | grep -q "Resolved --last 2 to ledgers"' \
   "$ROOT/bin/nebu"
 
+rpc_pause
 run "root help jq filter actually selects events" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
   | jq -c "select(.transfer != null)" | head -1 | jq -e ".transfer.amount" >/dev/null' "$TOKEN_TRANSFER_BIN"
 
-run "SAMPLE_EVENT matches real output" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -c "select(.transfer != null)" | head -1 | python3 "$1"' "$TOKEN_TRANSFER_BIN" "$ROOT/scripts/check-sample-event.py"
-run "token-transfer jq USDC filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | jq -e "select(.transfer != null and .transfer.assetCode == \"USDC\")" | head -1 >/dev/null' "$TOKEN_TRANSFER_BIN"
-run "contract-events jq eventType filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.eventType == \"fee\")" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
-run "contract-events jq contractId filter" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.contractId != null and .inSuccessfulTx == true)" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
-run "contract-invocation jq argument extraction" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | jq -e "select(.functionName == \"work\") | (.arguments[0] | fromjson | startswith(\"G\"))" | head -1 >/dev/null' "$ROOT/bin/contract-invocation"
-run "contract-invocation duckdb top contracts" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM (SELECT contractId, COUNT(*) AS invocations FROM read_json_auto('\''/dev/stdin'\'') GROUP BY contractId) t) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$ROOT/bin/contract-invocation"
-run "contract-invocation duckdb array_length stats" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM (SELECT functionName, AVG(array_length(stateChanges)) AS avg_state_changes FROM read_json_auto('\''/dev/stdin'\'') GROUP BY functionName) t) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$ROOT/bin/contract-invocation"
+run "SAMPLE_EVENT matches real output" bash -lc '"$0" --quiet < "$LEDGER_3" | jq -c "select(.transfer != null)" | head -1 | python3 "$1"' "$TOKEN_TRANSFER_BIN" "$ROOT/scripts/check-sample-event.py"
+run "token-transfer jq USDC filter" bash -lc '"$0" --quiet < "$LEDGER_3" | jq -e "select(.transfer != null and .transfer.assetCode == \"USDC\")" | head -1 >/dev/null' "$TOKEN_TRANSFER_BIN"
+run "contract-events jq eventType filter" bash -lc '"$0" --quiet < "$LEDGER_1" | jq -e "select(.eventType == \"fee\")" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
+run "contract-events jq contractId filter" bash -lc '"$0" --quiet < "$LEDGER_1" | jq -e "select(.contractId != null and .inSuccessfulTx == true)" | head -1 >/dev/null' "$CONTRACT_EVENTS_BIN"
+run "contract-invocation jq argument extraction" bash -lc '"$0" --quiet < "$LEDGER_1" | jq -e "select(.functionName == \"work\") | (.arguments[0] | fromjson | startswith(\"G\"))" | head -1 >/dev/null' "$ROOT/bin/contract-invocation"
+run "contract-invocation duckdb top contracts" bash -lc '"$0" --quiet < "$LEDGER_1" | duckdb -c "COPY (SELECT COUNT(*) AS c FROM (SELECT contractId, COUNT(*) AS invocations FROM read_json_auto('\''/dev/stdin'\'') GROUP BY contractId) t) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$ROOT/bin/contract-invocation"
+run "contract-invocation duckdb array_length stats" bash -lc '"$0" --quiet < "$LEDGER_1" | duckdb -c "COPY (SELECT COUNT(*) AS c FROM (SELECT functionName, AVG(array_length(stateChanges)) AS avg_state_changes FROM read_json_auto('\''/dev/stdin'\'') GROUP BY functionName) t) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$ROOT/bin/contract-invocation"
 run "nebu fetch | token-transfer" bash -lc '"$0" fetch 60200000 60200000 | "$1" --quiet | head -1 | jq -e "._schema == \"nebu.token_transfer.v1\"" >/dev/null' "$NEBU_BIN" "$TOKEN_TRANSFER_BIN"
 
-run "json-file-sink write" bash -lc 'out="$1/out.jsonl"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | "$3" --out "$out" >/dev/null; test -s "$out"; jq -e "has(\"_schema\")" "$out" >/dev/null' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN" "$JSON_FILE_SINK_BIN"
+run "json-file-sink write" bash -lc 'out="$1/out.jsonl"; "$2" --quiet < "$LEDGER_1" | "$3" --out "$out" >/dev/null; test -s "$out"; jq -e "has(\"_schema\")" "$out" >/dev/null' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN" "$JSON_FILE_SINK_BIN"
 run "usdc-filter flat assetCode" bash -lc 'printf "%s\n" "{\"_schema\":\"nebu.token_transfer.v1\",\"meta\":{\"ledgerSequence\":60200000,\"txHash\":\"abc\"},\"transfer\":{\"from\":\"GA\",\"to\":\"GB\",\"assetCode\":\"USDC\",\"assetIssuer\":\"GI\",\"amount\":\"1000000\"}}" | "$0" | jq -e ".transfer.assetCode == \"USDC\"" >/dev/null' "$USDC_FILTER_BIN"
 run "amount-filter flat assetCode" bash -lc 'printf "%s\n" "{\"_schema\":\"nebu.token_transfer.v1\",\"meta\":{\"ledgerSequence\":60200000,\"txHash\":\"abc\"},\"transfer\":{\"from\":\"GA\",\"to\":\"GB\",\"assetCode\":\"USDC\",\"assetIssuer\":\"GI\",\"amount\":\"1000000\"}}" | "$0" --min 999999 --asset USDC | jq -e ".transfer.assetCode == \"USDC\"" >/dev/null' "$AMOUNT_FILTER_BIN"
 run "dedup nested key" bash -lc 'printf "%s\n%s\n" "{\"meta\":{\"txHash\":\"a\"},\"transfer\":{\"assetCode\":\"USDC\",\"amount\":\"1\"}}" "{\"meta\":{\"txHash\":\"a\"},\"transfer\":{\"assetCode\":\"USDC\",\"amount\":\"1\"}}" | "$0" --key meta.txHash | wc -l | grep -qx 1' "$DEDUP_BIN"
 
-run "pipeline doc: token-transfer | json-file-sink" bash -lc 'out="$1/pipeline.jsonl"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | "$3" --out "$out" >/dev/null; jq -e "select(.transfer != null or .fee != null)" "$out" >/dev/null' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN" "$JSON_FILE_SINK_BIN"
+run "pipeline doc: token-transfer | json-file-sink" bash -lc 'out="$1/pipeline.jsonl"; "$2" --quiet < "$LEDGER_1" | "$3" --out "$out" >/dev/null; jq -e "select(.transfer != null or .fee != null)" "$out" >/dev/null' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN" "$JSON_FILE_SINK_BIN"
 run "readme fetch reuse jq" bash -lc 'xdr="$1/ledgers.xdr"; "$2" fetch 60200000 60200000 > "$xdr"; cat "$xdr" | "$3" --quiet | jq -e "select(.transfer != null or .fee != null)" | head -1 >/dev/null' _ "$TMPDIR" "$NEBU_BIN" "$TOKEN_TRANSFER_BIN"
-run "pipeline doc: token-transfer | duckdb" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json('\''/dev/stdin'\'') WHERE transfer IS NOT NULL OR fee IS NOT NULL) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
-run "duckdb cookbook assetCode query" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json('\''/dev/stdin'\'') WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.assetCode'\'') IS NOT NULL) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
-run "duckdb cookbook event type aggregation" bash -lc 'db="$1/cookbook.db"; "$2" --quiet --start-ledger 60200000 --end-ledger 60200000 | duckdb "$db" -c "CREATE OR REPLACE TABLE transfers AS SELECT * FROM read_json('\''/dev/stdin'\'')" >/dev/null; duckdb "$db" -c "COPY (SELECT CASE WHEN json_exists(to_json(transfers), '\''$.transfer'\'') AND transfer IS NOT NULL THEN '\''transfer'\'' WHEN json_exists(to_json(transfers), '\''$.mint'\'') AND mint IS NOT NULL THEN '\''mint'\'' WHEN json_exists(to_json(transfers), '\''$.fee'\'') AND fee IS NOT NULL THEN '\''fee'\'' ELSE '\''other'\'' END AS event_type, COUNT(*) AS count FROM transfers GROUP BY event_type) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "(transfer|fee|mint|other),[0-9]+"' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN"
-run "duckdb cookbook address activity" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 | duckdb -c "COPY (WITH events AS (SELECT * FROM read_json('\''/dev/stdin'\'')), address_activity AS (SELECT json_extract_string(transfer, '\''$.from'\'') AS address, COUNT(*) AS sends, 0 AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.from'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.from'\'') UNION ALL SELECT json_extract_string(transfer, '\''$.to'\'') AS address, 0 AS sends, COUNT(*) AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.to'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.to'\'')) SELECT COUNT(*) AS c FROM address_activity) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
+run "pipeline doc: token-transfer | duckdb" bash -lc '"$0" --quiet < "$LEDGER_3" | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json('\''/dev/stdin'\'') WHERE transfer IS NOT NULL OR fee IS NOT NULL) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
+run "duckdb cookbook assetCode query" bash -lc '"$0" --quiet < "$LEDGER_3" | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json('\''/dev/stdin'\'') WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.assetCode'\'') IS NOT NULL) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
+run "duckdb cookbook event type aggregation" bash -lc 'db="$1/cookbook.db"; "$2" --quiet < "$LEDGER_1" | duckdb "$db" -c "CREATE OR REPLACE TABLE transfers AS SELECT * FROM read_json('\''/dev/stdin'\'')" >/dev/null; duckdb "$db" -c "COPY (SELECT CASE WHEN json_exists(to_json(transfers), '\''$.transfer'\'') AND transfer IS NOT NULL THEN '\''transfer'\'' WHEN json_exists(to_json(transfers), '\''$.mint'\'') AND mint IS NOT NULL THEN '\''mint'\'' WHEN json_exists(to_json(transfers), '\''$.fee'\'') AND fee IS NOT NULL THEN '\''fee'\'' ELSE '\''other'\'' END AS event_type, COUNT(*) AS count FROM transfers GROUP BY event_type) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "(transfer|fee|mint|other),[0-9]+"' _ "$TMPDIR" "$TOKEN_TRANSFER_BIN"
+run "duckdb cookbook address activity" bash -lc '"$0" --quiet < "$LEDGER_3" | duckdb -c "COPY (WITH events AS (SELECT * FROM read_json('\''/dev/stdin'\'')), address_activity AS (SELECT json_extract_string(transfer, '\''$.from'\'') AS address, COUNT(*) AS sends, 0 AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.from'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.from'\'') UNION ALL SELECT json_extract_string(transfer, '\''$.to'\'') AS address, 0 AS sends, COUNT(*) AS receives FROM events WHERE transfer IS NOT NULL AND json_extract_string(transfer, '\''$.to'\'') IS NOT NULL GROUP BY json_extract_string(transfer, '\''$.to'\'')) SELECT COUNT(*) AS c FROM address_activity) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" | grep -Eq "^[1-9][0-9]*$"' "$TOKEN_TRANSFER_BIN"
 
 # Cookbook: "Getting the numbers right". These assert the documented queries
 # produce the right *value*, not merely that they run — the existing
 # assertions all count rows, which is why none of them caught the volume
 # query summing stroops into a DOUBLE and losing precision.
-run "cookbook exact amounts do not lose precision" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
+run "cookbook exact amounts do not lose precision" bash -lc '"$0" --quiet < "$LEDGER_3" \
   | duckdb -c "COPY (SELECT CASE WHEN SUM(json_extract_string(transfer, '\''$.amount'\'')::HUGEINT) <> SUM(json_extract_string(transfer, '\''$.amount'\'')::DOUBLE)::HUGEINT THEN '\''differs'\'' ELSE '\''same'\'' END AS cmp FROM read_json('\''/dev/stdin'\'') WHERE transfer IS NOT NULL) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" \
   | grep -Eq "^(same|differs)$"' "$TOKEN_TRANSFER_BIN"
 
-run "cookbook fee events split by transaction outcome" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200002 \
+run "cookbook fee events split by transaction outcome" bash -lc '"$0" --quiet < "$LEDGER_3" \
   | duckdb -c "COPY (SELECT COUNT(*) AS c FROM read_json('\''/dev/stdin'\'') WHERE fee IS NOT NULL AND meta.inSuccessfulTx) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" \
   | grep -Eq "^[0-9]+$"' "$TOKEN_TRANSFER_BIN"
 
 # Cookbook: "Verifying coverage". A contiguous fetch must report no holes, so
 # a query that always returns rows — or always returns none — is detectable.
-run "cookbook coverage query finds no holes in a contiguous fetch" bash -lc '"$0" --quiet --start-ledger 60200000 --end-ledger 60200004 \
+run "cookbook coverage query finds no holes in a contiguous fetch" bash -lc '"$0" --quiet < "$LEDGER_5" \
   | duckdb -c "COPY (WITH seen AS (SELECT DISTINCT meta.ledgerSequence AS seq FROM read_json('\''/dev/stdin'\'')), bounds AS (SELECT MIN(seq) AS lo, MAX(seq) AS hi FROM seen) SELECT COUNT(*) AS missing FROM bounds, range(bounds.lo, bounds.hi + 1) AS g(seq) WHERE g.seq NOT IN (SELECT seq FROM seen)) TO '\''/dev/stdout'\'' (FORMAT CSV, HEADER FALSE)" \
   | grep -Eq "^0$"' "$TOKEN_TRANSFER_BIN"
 
