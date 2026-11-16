@@ -334,11 +334,73 @@ SDK's RPC backend calls `getHealth` on every buffer miss, so a long RPC range
 pays an extra round trip per batch: 25 ledgers costs three of them, a thousand
 ledgers would cost a hundred.
 
-The two sources agree on content. For the 100-ledger range above, both produce
-the same 100 ledgers with 25,064 transactions and 67,265 operations. Their XDR
-is not byte-identical, though — the first difference is 158 KB into the first
-ledger — so compare decoded output rather than file hashes when checking one
-source against the other.
+### The two sources agree on content, not on byte order
+
+For the 100-ledger range above, both produce the same 100 ledgers with 25,064
+transactions and 67,265 operations — and their XDR is still not
+byte-identical. The files are even exactly the same length, which is the clue:
+the difference is a permutation, not a quantity.
+
+Decoding pubnet ledger 65447235 from both and comparing structure first, then
+bytes:
+
+| | archive | RPC |
+| --- | --- | --- |
+| transactions / operations | 169 / 324 | 169 / 324 |
+| diagnostic events | 307 | 307 |
+| contract events | 177 | 177 |
+| `LedgerCloseMeta` arm, `Ext.V` | V2, 1 | V2, 1 |
+| live Soroban state bytes | 1,552,041,818 | 1,552,041,818 |
+| change types | 365 STATE, 365 UPDATED | 365 STATE, 365 UPDATED |
+
+Everything counted matches. Comparing the encoded bytes transaction by
+transaction then narrows it to **`LedgerEntryChanges` emitted in a different
+order within an operation**:
+
+```
+transaction 17, operation 0
+  change 2   archive: Trustline STATE      rpc: Offer STATE
+  change 3   archive: Trustline UPDATED    rpc: Offer REMOVED
+  change 4   archive: Offer STATE          rpc: Account STATE
+  change 5   archive: Offer REMOVED        rpc: Account UPDATED
+  change 6   archive: Account STATE        rpc: Trustline STATE
+```
+
+Whole (STATE, UPDATED/REMOVED) pairs move together, so the two are the same
+set of entry changes with the entries visited in a different sequence. Across
+the ledger: **30 of 169 transactions differ, 81 operations differ, and all 81
+hold identical change sets — zero cases of genuinely different data.**
+
+So: compare decoded output rather than file hashes when checking one source
+against the other, and do not treat the order of changes within an operation
+as meaningful. The final state is the same either way.
+
+### What the core flags do and do not explain
+
+Galexie's default `core.cfg` turns on parameters that make stellar-core emit
+*more* metadata than it otherwise would:
+
+| parameter | effect |
+| --- | --- |
+| `ENABLE_SOROBAN_DIAGNOSTIC_EVENTS` | diagnostic Soroban events, which are not part of the protocol |
+| `EMIT_SOROBAN_TRANSACTION_META_EXT_V1` | Soroban extension V1 data |
+| `EMIT_LEDGER_CLOSE_META_EXT_V1` | ledger metadata extension V1 data |
+| `EMIT_CLASSIC_EVENTS` | classic events, protocol ≥ 23 |
+| `BACKFILL_STELLAR_ASSET_EVENTS` | classic events for protocol ≤ 22; needs `EMIT_CLASSIC_EVENTS` |
+| `BACKFILL_RESTORE_META` | `LedgerEntryChange` RESTORE entries for protocols before 23 |
+
+A source missing these emits *less*, and the difference shows up as absent
+diagnostic events, an `Ext.V` of 0, or missing classic events — not as a
+reordering. On ledger 65447235 both sources already have them: `Ext.V` is 1 on
+each, and the diagnostic and contract event counts match exactly. The two
+backfill parameters cannot apply at all, since that ledger is protocol 29.
+
+Worth checking against your own infrastructure, though: these were measured
+against the AWS public archive and `archive-rpc.lightsail.network`. A
+self-hosted Galexie or RPC started without those flags will differ from the
+public archive by **missing data**, which is a materially different problem
+from differing byte order, and the counts in the table above are how to tell
+the two apart.
 
 ### Buffer Size
 
