@@ -38,7 +38,7 @@ nebu doesn't ship an indexer. It gives you the parts.
 ## Website and release notes
 
 - **Website / quickstart:** [nebu.withobsrvr.com](https://nebu.withobsrvr.com)
-- **Current release:** [v0.7.10](https://github.com/withObsrvr/nebu/releases/tag/v0.7.10)
+- **Current release:** [v0.7.11](https://github.com/withObsrvr/nebu/releases/tag/v0.7.11)
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **CLI exit codes:** [docs/EXIT_CODES.md](./docs/EXIT_CODES.md)
 - **Checkpoint and resume:** [docs/CHECKPOINTS.md](./docs/CHECKPOINTS.md)

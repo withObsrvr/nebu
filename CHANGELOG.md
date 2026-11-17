@@ -6,6 +6,8 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.7.11
+
 ### Changed
 
 - **The archive/RPC byte difference is explained: it is a reordering, not different data.** `docs/ARCHIVE_MODE.md` carried this as an open question — the same 100 ledgers from both sources, identical transaction and operation totals, XDR diverging 158 KB into the first ledger. Decoding ledger 65447235 from each shows every structural count matching (169 transactions, 324 operations, 307 diagnostic events, 177 contract events, `Ext.V` 1, identical change-type totals), and a byte-level walk narrows it to **`LedgerEntryChanges` emitted in a different order within an operation**: whole STATE/UPDATED pairs move together, so the entries are visited in a different sequence. Across the ledger, 30 of 169 transactions and 81 operations differ, and **all 81 hold identical change sets — zero cases of different data**. That is also why the files were exactly the same length: a permutation preserves it.
