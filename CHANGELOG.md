@@ -6,6 +6,11 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+
+- **`registry_version` moves to the registry main built on nebu v0.7.11 and SDK v0.9.0, and the documented samples report `_nebu_version: v0.7.11` with it.** That bump carries the close-time delegation into all 36 processor modules, which is where it matters: twelve origins call `processor.LedgerCloseTimeMs` from `ProcessLedger`, and the hand-rolled read it replaces panicked on a millisecond arm with no value — a crash in the one method that is contractually not allowed to end a run. Output is unchanged, verified per processor on pubnet ledger 65447235: `token-transfer` 601 events, `contract-events` 604, `account-effects` 590, all byte-identical to their previous builds.
+  - The whole published fleet is now on the SDK release that carries CAP-88 support, five days before the pubnet Protocol 30 vote on 2026-11-23.
+
 ## v0.7.11
 
 ### Changed

@@ -26,7 +26,7 @@ version := `git describe --tags --always --dirty 2>/dev/null || echo dev`
 # The registry publishes no per-module semver tags, so a pseudo-version is
 # what there is to pin. Bump this when the registry moves; `just
 # build-processors` then tells you exactly which registry build you have.
-registry_version := "v0.0.0-20261115125519-c33614cd31c6"
+registry_version := "v0.0.0-20261117211606-d0ff56c0c7ee"
 ldflags := "-X github.com/withObsrvr/nebu/pkg/version.Version=" + version
 
 # List all recipes (default when `just` is run with no arguments).
