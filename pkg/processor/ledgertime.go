@@ -41,24 +41,41 @@ import (
 // fixture captured from a busy ledger will ever reveal, which is exactly why
 // this read belongs in one tested place rather than in each processor.
 //
+// # Where the read now happens
+//
+// SDK v0.9.0 added [xdr.LedgerCloseMeta.LedgerCloseTimeMs], which walks the
+// same five arms, and this delegates to it rather than keeping a second copy
+// of that walk. Two reasons beyond having one copy: the SDK errors on an arm
+// it does not recognise instead of promoting whole seconds, and it errors on a
+// millisecond arm whose value pointer is nil. The hand-rolled read *panicked*
+// on the second case, because the generated accessor dereferences the arm, and
+// a panic inside ProcessLedger ends a run that "streams never throw" says must
+// continue. No well-formed ledger reaches it — the decoder allocates the arm —
+// but a hand-built LedgerCloseMeta does, which is exactly what
+// docs/protocol-30-impact-review.md says to construct for the EMPTY_TX_SET_MS
+// case the network has not produced.
+//
+// This signature keeps no error, because it is a stable surface that twelve
+// registry processors call from ProcessLedger, where there is nothing to do
+// with one. On the SDK's error it returns the promoted whole second: the same
+// answer this function already gave for an unrecognised arm, and for a
+// malformed arm a defensible guess rather than a crash. A caller that needs to
+// distinguish the cases should call the SDK method directly.
+//
 // For ledgers before Protocol 30 (arms 0 through 2) there is no millisecond
 // value to read, and the whole-second close time is promoted. Those ledgers
 // are unambiguous — their close times are seconds apart — so the promotion
 // loses nothing.
 func LedgerCloseTimeMs(ledger xdr.LedgerCloseMeta) int64 {
-	scpValue := ledger.LedgerHeaderHistoryEntry().Header.ScpValue
-
-	if signed, ok := scpValue.Ext.GetSignedMsValue(); ok {
-		return int64(signed.CloseTimeMs)
-	}
-	if proposed, ok := scpValue.Ext.GetProposedMsValue(); ok {
-		return int64(proposed.CloseTimeMs)
+	if closeTimeMs, err := ledger.LedgerCloseTimeMs(); err == nil {
+		return closeTimeMs
 	}
 
-	// Pre-Protocol-30: only whole seconds exist. Promote rather than
-	// returning zero, so callers get a usable timestamp for historical
-	// ledgers without special-casing the protocol version.
-	return int64(scpValue.CloseTime) * 1000
+	// An arm the SDK does not recognise, or a millisecond arm with no value.
+	// Promote the whole second rather than returning zero or panicking, so a
+	// caller gets a usable timestamp either way; see the note above on why
+	// this returns a value instead of an error.
+	return int64(ledger.LedgerHeaderHistoryEntry().Header.ScpValue.CloseTime) * 1000
 }
 
 // closeTimeLayout renders a close time as RFC 3339 in UTC with exactly three

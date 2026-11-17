@@ -91,6 +91,53 @@ func TestLedgerCloseTimeMs(t *testing.T) {
 	}
 }
 
+// A millisecond arm whose value pointer is nil used to panic here: the
+// generated accessor dereferences the arm, and a panic inside ProcessLedger
+// ends a run that "streams never throw" says must continue. No well-formed
+// ledger reaches it, since the decoder allocates the arm — but a hand-built
+// LedgerCloseMeta does, and the Protocol 30 review says to build exactly that
+// for the EMPTY_TX_SET_MS case the network has not produced yet.
+//
+// The SDK reports it as an error; this function has no error to return, so it
+// promotes the whole second, which is also what it answers for an arm it does
+// not recognise.
+func TestLedgerCloseTimeMsSurvivesAMalformedArm(t *testing.T) {
+	const seconds xdr.TimePoint = 1765158311
+
+	tests := []struct {
+		name string
+		ext  xdr.StellarValueExt
+	}{
+		{
+			name: "SIGNED_MS with no value",
+			ext:  xdr.StellarValueExt{V: xdr.StellarValueTypeStellarValueSignedMs},
+		},
+		{
+			name: "EMPTY_TX_SET_MS with no value",
+			ext:  xdr.StellarValueExt{V: xdr.StellarValueTypeStellarValueEmptyTxSetMs},
+		},
+		{
+			// An arm from a protocol this build predates.
+			name: "an arm this build does not know",
+			ext:  xdr.StellarValueExt{V: xdr.StellarValueType(99)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ledger := ledgerWithScpExt(seconds, tt.ext)
+
+			assert.NotPanics(t, func() {
+				assert.Equal(t, int64(seconds)*1000, LedgerCloseTimeMs(ledger),
+					"a malformed arm promotes the whole second")
+			})
+
+			// And the rendering built on it stays well-formed.
+			assert.Equal(t, "2025-12-08T01:45:11.000Z", LedgerCloseTimeRFC3339(ledger))
+		})
+	}
+}
+
 // TestLedgerCloseTimeMsDistinguishesSameSecondLedgers is the behaviour the
 // helper exists for: two Protocol 30 ledgers closing inside one whole second
 // must be distinguishable, which is what a second-resolution close time
