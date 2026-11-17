@@ -6,6 +6,13 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+
+- **Upgraded to go-stellar-sdk v0.9.0, and `processor.LedgerCloseTimeMs` now delegates to it.** v0.9.0 added `xdr.StellarValue.CloseTimeMs` and `xdr.LedgerCloseMeta.LedgerCloseTimeMs`, which walk the same five `StellarValueExt` arms this package has been walking since the Protocol 30 work — so the walk lives upstream now rather than in two places. The upgrade is otherwise clean: `just ci` and the full `just test` pass, nothing in `clients/rpcclient` or `processors/token_transfer` changed between the versions, and output is identical on real data — `transaction-stats` and `ledger-change-stats` over pubnet ledger 65447235 match byte for byte.
+  - **It also fixes a panic.** The hand-rolled read dereferenced the arm through the generated accessor, so a `SIGNED_MS` arm with a nil value pointer panicked, and a panic inside `ProcessLedger` ends a run that "streams never throw" says must continue. No well-formed ledger reaches it — the decoder allocates the arm — but a hand-built `LedgerCloseMeta` does, and `docs/protocol-30-impact-review.md` says to construct exactly that for the `EMPTY_TX_SET_MS` case the network has not produced. A test pins it, and fails against the old implementation with `should not panic`.
+  - The signature keeps no error, because twelve registry processors call it from `ProcessLedger` where there is nothing to do with one. On the SDK's error it returns the promoted whole second: the same answer it already gave for an unrecognised arm, and a defensible guess rather than a crash for a malformed one. A caller that needs to tell those apart should call the SDK method directly. The API snapshot diff is documentation only — no signature moved.
+  - **The one behavioural change in v0.9.0 does not reach us, which was checked rather than assumed.** `LedgerChangeReader` now streams a parallel Soroban phase in ledger apply order, so one transaction's changes are no longer contiguous and `ChangeCompactor` no longer reports a stale final state. Nothing in nebu or the registry uses `ChangeCompactor`; seven registry processors read changes through `LedgerTransaction.GetChanges`, which the SDK leaves unchanged; and `ledger-change-stats`, the only direct reader, counts rather than groups and reports identical totals across both versions.
+
 ## v0.7.10
 
 ### Changed
