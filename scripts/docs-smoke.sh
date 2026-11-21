@@ -103,7 +103,23 @@ pass "fetching the documented ledgers once, from the archive"
 rpc_pause() { sleep 1; }
 
 run "nebu --version" bash -lc '"$0" --version >/dev/null' "$NEBU_BIN"
-run "nebu list" bash -lc '"$0" list >/dev/null' "$NEBU_BIN"
+# `nebu list` exits 0 when the external registry is unreachable: FetchAll
+# warns on stderr and returns the embedded catalog alone. Asserting the exit
+# code therefore asserts nothing, and this suite proved it — a 403 from the
+# GitHub API let "nebu list" PASS and the run died three assertions later on
+# `nebu describe token-transfer`, pointing at the wrong thing. Require the
+# community catalog to have actually arrived, and fail here with the reason.
+run "nebu list" bash -lc '
+  out="$("$0" list 2>"$1/list.err")" || exit $?
+  if [ -s "$1/list.err" ]; then
+    echo "nebu list wrote to stderr, so the catalog is degraded:" >&2
+    cat "$1/list.err" >&2
+    exit 1
+  fi
+  printf "%s" "$out" | grep -q "\[community\]" || {
+    echo "nebu list returned no [community] processors: the external registry did not load" >&2
+    exit 1
+  }' "$NEBU_BIN" "$TMPDIR"
 run "nebu describe token-transfer" bash -lc '"$0" describe token-transfer >/dev/null' "$NEBU_BIN"
 run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
@@ -136,10 +152,19 @@ run "a non-checkpoint ledger is refused with the nearest ones" bash -lc \
 
 # The README answers the Stellar SDK's "Ledger Entry Statistics" example with
 # this query rather than a Go program, so the query has to keep working.
+#
+# TMPDIR is passed positionally, like every other assertion here, because the
+# script's own TMPDIR is not exported. This one used to interpolate it into
+# the child instead, and the result was worse than a plain failure: on a
+# developer machine the child inherited the *shell's* TMPDIR, so the
+# assertion passed while writing outside the directory the cleanup trap
+# removes. On a runner, where nothing exports TMPDIR, it resolved to "" and
+# the redirect became /entries.jsonl. Same bug the LEDGER_* comment above
+# describes.
 run "the ledger entry statistics query runs" bash -lc \
-  '"$0" --network testnet --limit 2000 -q > "$TMPDIR/entries.jsonl" && \
-   duckdb -c "SELECT count(*) AS total, count_if(entry_type = '"'"'account'"'"') AS accounts, count(DISTINCT CASE WHEN entry_type = '"'"'trustline'"'"' THEN account_id END) AS with_trustlines FROM read_json('"'"'$TMPDIR/entries.jsonl'"'"')" | grep -Eq "[0-9]+"' \
-  "$ROOT/bin/checkpoint-entries"
+  'out="$1/entries.jsonl"; "$0" --network testnet --limit 2000 -q > "$out" && \
+   duckdb -c "SELECT count(*) AS total, count_if(entry_type = '"'"'account'"'"') AS accounts, count(DISTINCT CASE WHEN entry_type = '"'"'trustline'"'"' THEN account_id END) AS with_trustlines FROM read_json('"'"'$out'"'"')" | grep -Eq "[0-9]+"' \
+  "$ROOT/bin/checkpoint-entries" "$TMPDIR"
 
 # Pinning the registry version is right -- @latest is not a contract, and it
 # had already installed pre-Protocol-30 processors from a warm module cache --

@@ -126,6 +126,47 @@ If API drift is intentional and acceptable per `docs/STABILITY.md`, run
 - Do not create plan files, markdown summaries, patches, or extra files unless
   explicitly asked.
 
+## Rules and what enforces them
+
+Every rule here is either enforced by something that fails, or it is a
+judgment call that an agent can skip with nothing going red. The second kind
+is the kind that gets broken, so the column is worth reading before you trust
+a rule to hold.
+
+When a rule in this table is broken: fix the mistake, then look at the
+Enforced by column. If it says "nothing", move the rule up a level in the same
+change — architecture, then types, then a check whose error names the fix,
+then a test. If something was supposed to enforce it and did not, that is a
+repeat, and the check is what needs fixing. Drop a row once its mistake can no
+longer happen.
+
+| Rule | Enforced by |
+|---|---|
+| gofmt-clean, vet-clean, builds, tests pass | `just ci` → `ci.yml` gate job |
+| `pkg/processor` / `pkg/source` public API does not drift silently | `just api-check` in `just ci`, plus `api-stability.yml` |
+| No reachable known vulnerabilities | `govulncheck ./...` in `ci.yml` |
+| `go.work` and `go.mod` pin the same Go toolchain | `just toolchain-check` in `just ci` |
+| Ledger-stream construction belongs to `pkg/source` | `just stream-owner-check` in `just ci` |
+| The root help's flags exist on the processors it names | `scripts/check-help-examples.py` in `just docs-smoke` → `docs-smoke.yml` |
+| Documented samples match real processor output | `scripts/check-sample-event.py` in `just docs-smoke` → `docs-smoke.yml` |
+| The pinned registry version is the newest published | `scripts/check-registry-pin.py` in `just docs-smoke` → `docs-smoke.yml` |
+| Documented CLI and DuckDB examples actually run | `just docs-smoke` → `docs-smoke.yml` |
+| `--describe-json` is registered by every CLI helper and skips required-flag validation | `pkg/processor/cli/describe_contract_test.go` |
+| `--describe-json` emits valid JSON that round-trips | `pkg/processor/cli/describe_test.go` (`TestWriteDescribeJSON_RoundTrip`) |
+| A real processor's `--describe-json` exits 0 with the right schema id | `just docs-smoke` → `docs-smoke.yml`, and `/verify-nebu` doctor |
+| Events carry `_schema` and `_nebu_version` | `pkg/processor/cli/envelope_test.go` covers the proto envelope; asserted end to end in `just docs-smoke` |
+| A bounded fetch that returns a short range fails | `cmd/nebu/fetch_test.go`, and the coverage query in `just docs-smoke` |
+| Exit codes match `docs/EXIT_CODES.md` | table tests in `pkg/errors/errors_test.go`, `cmd/nebu/main_test.go`, `cmd/nebu/fetch_test.go` |
+| A user-facing surface works in the shipped artifact | **nothing automatic** — `/verify-nebu`, run by a person |
+| Streaming paths honor `ctx.Done()` | **nothing** — reviewed by hand |
+| Per-event issues use `ReportWarning`, fatal ones `ReportFatal` | **nothing** — reviewed by hand |
+| Returned errors are never ignored | **nothing in the gate** — `golangci-lint` is not wired in, see `docs/engineering-profile.md` |
+| No hardcoded secrets | **nothing** — GitHub secret scanning is not enabled yet |
+| Processor binary names are kebab-case and match their registry names | **nothing** — reviewed by hand |
+| nebu stays CLI-first; no orchestrator, service manager, or pipeline YAML | **nothing** — judgment, and the reason this file says it |
+| Bounded ranges by default; `--follow` only when asked | **nothing** — judgment |
+| Data on stdout, diagnostics on stderr | **nothing directly** — relied on by every `just docs-smoke` assertion, so a break usually shows up there |
+
 ## General rules
 
 - Never ignore returned errors. If intentionally discarded, assign to `_` with a

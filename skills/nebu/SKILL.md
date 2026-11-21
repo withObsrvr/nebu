@@ -37,6 +37,11 @@ Use other tools for current-state lookup (`data`), tx building (`dapp`), non-Ste
 - Broad scans/backfills: prefer `nebu fetch --mode archive` from public archive → pipe XDR into processors. RPC still good for latest ledgers + targeted `getEvents` by known contract/topic.
 - `contract-events` works from `nebu fetch` stdin, including S3 archive mode; it decodes contract events + diagnostics without processor RPC calls.
 - Use `NEBU_RPC_AUTH` from env; never paste secrets.
+- `nebu list`/`install`/`describe` read the community registry over the GitHub
+  API, which allows 60 unauthenticated requests per hour per IP. Past that the
+  catalog silently drops to the two built-in processors and `nebu list` still
+  exits 0 — check its stderr. Set `NEBU_REGISTRY_TOKEN` (or `GITHUB_TOKEN`,
+  `GH_TOKEN`) in CI or behind shared NAT.
 - Scripting pipelines: keep `set -o pipefail` so any failed stage fails the pipeline. A bounded `nebu fetch` now exits nonzero if the source ends before the requested final ledger and reports the emitted count and last ledger on stderr.
 
 ```bash

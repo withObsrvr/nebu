@@ -1,0 +1,104 @@
+name: Docs smoke
+
+# `just docs-smoke` is the only check that compares nebu's documentation and
+# help text against what the real binaries actually print and emit. It has
+# caught a jq filter that selected nothing in every processor's help, flags
+# that did not exist in the root help, samples missing a field, and a registry
+# pin two weeks and four merged PRs behind.
+#
+# Nothing ran it. It was not in CI, on a schedule, or anywhere else — only a
+# human typing it, which is how each of those shipped in the first place.
+#
+# It is not in the `just ci` merge gate because it needs the network, DuckDB,
+# and processor binaries installed from the external registry, and the default
+# RPC endpoint rate-limits bursts. So it runs here instead:
+#
+#   - on pull requests that touch a surface it guards,
+#   - daily, because two of the things it checks drift without anyone
+#     touching this repo: the pinned registry version falling behind the
+#     registry's main, and published processors changing under the
+#     documentation,
+#   - and on demand.
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'skills/**'
+      - 'README.md'
+      - 'SKILL.md'
+      - 'registry.yaml'
+      - 'justfile'
+      - 'scripts/**'
+      - 'cmd/nebu/**'
+      - 'pkg/processor/cli/**'
+      - 'examples/processors/**'
+      - '.github/workflows/docs-smoke.yml'
+  schedule:
+    # Daily, off the hour to avoid the GitHub-wide cron spike.
+    - cron: '37 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-smoke:
+    name: Docs and help examples
+    runs-on: ubuntu-latest
+    # Installing processors from the registry dominates the runtime.
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          # Same reasoning as ci.yml: read the toolchain from go.mod so CI,
+          # the dev shell and go.mod cannot drift (BUILD-2).
+          go-version-file: go.mod
+          cache: true
+
+      # Pinned to a commit SHA, and just-version must match the just this
+      # repo's flake.lock resolves to — keep in step with ci.yml.
+      - name: Install just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: '1.43.1'
+
+      # jq ships on ubuntu-latest; DuckDB does not, and docs-smoke asserts the
+      # documented DuckDB queries actually run.
+      - name: Install DuckDB
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/duckdb.tar.gz \
+            https://github.com/duckdb/duckdb/releases/latest/download/duckdb-cli-linux-amd64.tar.gz
+          sudo tar -xzf /tmp/duckdb.tar.gz -C /usr/local/bin
+          duckdb --version
+          jq --version
+
+      - name: Build the CLI
+        run: just build-cli
+
+      # Installs the published processors at the pinned registry version, plus
+      # the in-repo educational ones. The pin itself is one of the things
+      # docs-smoke checks.
+      - name: Build processors
+        run: just build-processors
+
+      - name: Run docs smoke
+        # The registry catalog comes from the GitHub API, and unauthenticated
+        # calls are limited to 60 per hour per IP — which a shared Actions
+        # runner pool burns through on its own. Without this the API answers
+        # 403, `nebu list` falls back to the two embedded processors, and the
+        # run dies on `nebu describe token-transfer`. GITHUB_TOKEN is issued
+        # to the workflow automatically and only needs the `contents: read`
+        # already declared above.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: just docs-smoke
