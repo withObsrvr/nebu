@@ -37,7 +37,7 @@ default:
 # surface fast. Run this before pushing.
 
 # Run every check the CI merge gate enforces.
-ci: fmt-check vet build test-short api-check toolchain-check
+ci: fmt-check vet build test-short api-check toolchain-check stream-owner-check
     @echo "✓ CI checks passed"
 
 alias all := everything
@@ -111,6 +111,16 @@ vet:
 # and go.work still said go1.26.10, so every local `just ci` ran on the
 # vulnerable toolchain and `govulncheck ./...` reported one reachable
 # vulnerability while the merge gate passed.
+
+# Turning a ledger range into a stream is one decision and pkg/source owns it.
+# cmd/nebu/fetch.go keeps a second copy, which already cost a real bug: the
+# over-fetch fix landed in pkg/source/rpc and never reached `nebu fetch`.
+# Collapsing them moves a stable surface, so the copies that exist are frozen
+# by count and a third one fails here.
+
+# Fail when a new package builds its own ledger stream.
+stream-owner-check:
+    python3 scripts/check-ledger-stream-owners.py
 
 # Fail if go.work and go.mod disagree on the Go toolchain.
 toolchain-check:
