@@ -75,9 +75,14 @@ COMMON WORKFLOWS:
     json-file-sink --out large-usdc.jsonl
 
 ENVIRONMENT:
-  NEBU_RPC_URL    RPC endpoint (default: mainnet)
-  NEBU_RPC_AUTH   Authorization header (e.g., 'Api-Key xxx')
-  NEBU_NETWORK    Network: 'mainnet' or 'testnet'`,
+  NEBU_RPC_URL          RPC endpoint (default: mainnet)
+  NEBU_RPC_AUTH         Authorization header (e.g., 'Api-Key xxx')
+  NEBU_NETWORK          Network: 'mainnet' or 'testnet'
+  NEBU_REGISTRY_TOKEN   GitHub token for the processor registry. Unauthenticated
+                        GitHub API calls are capped at 60/hour per IP, and when
+                        that runs out 'nebu list' quietly shows only built-in
+                        processors. GITHUB_TOKEN and GH_TOKEN are used as
+                        fallbacks, so CI and the gh CLI usually need no setup.`,
 		Version: version.Version,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validateProgramStatusMode(programStatusMode); err != nil {

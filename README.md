@@ -834,6 +834,7 @@ nebu fetch 60200000 60200100 | token-transfer
 - `NEBU_RPC_URL` - Stellar RPC endpoint (default: `https://archive-rpc.lightsail.network`)
 - `NEBU_NETWORK` - Network: `mainnet`, `testnet`, or full passphrase (default: mainnet)
 - `NEBU_RPC_AUTH` - RPC authorization header value (e.g., `Api-Key YOUR_KEY`)
+- `NEBU_REGISTRY_TOKEN` - GitHub token used to list and install community processors. Falls back to `GITHUB_TOKEN`, then `GH_TOKEN`. Without one, GitHub caps the API at 60 requests per hour per IP; past that `nebu list` prints a warning and shows only the built-in processors, so set this in CI or behind shared NAT.
 
 **RPC Authorization:**
 

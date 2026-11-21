@@ -39,6 +39,9 @@ docker run --rm withobsrvr/nebu:latest fetch --last 100 | token-transfer
 ```bash
 NEBU_RPC_URL          # Stellar RPC endpoint; default is mainnet archive RPC
 NEBU_RPC_AUTH         # Authorization header, e.g. 'Api-Key ...' (keep secret in env)
+NEBU_REGISTRY_TOKEN   # GitHub token for the community registry; falls back to
+                      # GITHUB_TOKEN then GH_TOKEN. Unauthenticated GitHub allows
+                      # 60 req/hour/IP; past that nebu list shows built-ins only
 NEBU_NETWORK          # 'mainnet', 'testnet', or full passphrase
 NEBU_MODE             # 'rpc' or 'archive' for nebu fetch
 NEBU_DATASTORE_TYPE   # 'S3' or 'GCS' for archive mode
