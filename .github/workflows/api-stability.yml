@@ -21,6 +21,7 @@ on:
     paths:
       - 'pkg/processor/**'
       - 'pkg/source/**'
+      - 'pkg/runtime/**'
       - '.api/**'
       - 'justfile'
       - 'Makefile' # the deprecated just-forwarding shim
@@ -31,6 +32,7 @@ on:
     paths:
       - 'pkg/processor/**'
       - 'pkg/source/**'
+      - 'pkg/runtime/**'
       - '.api/**'
 
 jobs:

@@ -212,6 +212,7 @@ api-snapshot:
     go doc -all ./pkg/source > .api/source.txt
     go doc -all ./pkg/source/rpc > .api/source-rpc.txt
     go doc -all ./pkg/source/storage > .api/source-storage.txt
+    go doc -all ./pkg/runtime > .api/runtime.txt
     @echo "✓ API snapshots regenerated in .api/"
 
 # On drift: confirm the change is acceptable per docs/STABILITY.md, run
@@ -254,4 +255,24 @@ api-check:
             exit 1
         fi
     done
+    # pkg/runtime is committed at its entry points: NewRuntime, the signatures
+    # of RunOrigin/SetPolicy/Use, and the existing fields of the hook structs.
+    #
+    # This is a drift detector, not a break detector: `go doc -all` lists every
+    # exported method, so *adding* one trips this too even though it breaks no
+    # caller. That is the intended cost. Runtime is a struct rather than an
+    # interface and the hook structs are built with keyed fields, so the growth
+    # STABILITY.md predicts is additive and permitted by policy -- it just has
+    # to be acknowledged by regenerating the snapshot, the same bargain
+    # pkg/processor and pkg/source already make.
+    if ! diff -u .api/runtime.txt <(go doc -all ./pkg/runtime); then
+        echo ""
+        echo "ERROR: pkg/runtime public API has drifted from the committed snapshot."
+        echo "Changing NewRuntime, RunOrigin, SetPolicy, Use, or an existing hook"
+        echo "struct field is a breaking change: see the deprecation process in"
+        echo "docs/STABILITY.md. ADDING a method, field or hook is permitted --"
+        echo "it shows up here only so it is acknowledged."
+        echo "Either way, if the change is intended: just api-snapshot"
+        exit 1
+    fi
     echo "✓ Stable API surfaces match committed snapshots"
