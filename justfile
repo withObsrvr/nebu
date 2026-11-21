@@ -37,7 +37,7 @@ default:
 # surface fast. Run this before pushing.
 
 # Run every check the CI merge gate enforces.
-ci: fmt-check vet build test-short api-check
+ci: fmt-check vet build test-short api-check toolchain-check
     @echo "✓ CI checks passed"
 
 alias all := everything
@@ -100,6 +100,40 @@ fmt-check:
 # Run go vet.
 vet:
     go vet ./...
+
+# go.mod's `toolchain` line is the single source of truth for the compiler:
+# CI resolves Go from it, and the dev shell's Go is a bootstrap that switches
+# to it. But in workspace mode `go.work`'s own toolchain line wins, so a
+# go.work left behind pins developers to the older compiler while CI, which
+# installs from go.mod and never downgrades, stays green.
+#
+# That is not hypothetical: go.mod was moved to go1.26.11 for GO-2026-6859
+# and go.work still said go1.26.10, so every local `just ci` ran on the
+# vulnerable toolchain and `govulncheck ./...` reported one reachable
+# vulnerability while the merge gate passed.
+
+# Fail if go.work and go.mod disagree on the Go toolchain.
+toolchain-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mod="$(awk '/^toolchain /{print $2}' go.mod)"
+    if [ -z "$mod" ]; then
+        echo "ERROR: go.mod has no toolchain line to pin the compiler."
+        exit 1
+    fi
+    if [ ! -f go.work ]; then
+        echo "✓ Toolchain pinned by go.mod ($mod); no go.work to diverge"
+        exit 0
+    fi
+    work="$(awk '/^toolchain /{print $2}' go.work)"
+    if [ "$work" != "$mod" ]; then
+        echo "ERROR: go.work pins $work but go.mod pins $mod."
+        echo "In workspace mode go.work wins, so developers would build with"
+        echo "$work while CI builds with $mod. Make them match:"
+        echo "  go work edit -toolchain $mod"
+        exit 1
+    fi
+    echo "✓ go.work and go.mod agree on the toolchain ($mod)"
 
 # Not part of `just ci`: the existing findings are untriaged, so wiring
 # it into the merge gate would block every PR. Provided by the dev shell.
