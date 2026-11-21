@@ -231,6 +231,21 @@ type githubContent struct {
 	Type string `json:"type"`
 }
 
+// githubToken returns the first GitHub token set in the environment, or "".
+//
+// NEBU_REGISTRY_TOKEN wins so a user can point nebu at a different token than
+// whatever else the shell holds; GITHUB_TOKEN and GH_TOKEN follow because CI
+// and the gh CLI already set them, which makes the common case need no
+// configuration at all.
+func githubToken() string {
+	for _, key := range []string{"NEBU_REGISTRY_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"} {
+		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func (r *ExternalRegistry) discoverProcessors(owner, repo string) ([]string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/processors", owner, repo)
 
@@ -240,6 +255,18 @@ func (r *ExternalRegistry) discoverProcessors(owner, repo string) ([]string, err
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("User-Agent", "nebu-cli")
+	// Unauthenticated GitHub API calls are limited to 60 per hour per IP,
+	// which a CI runner or anything behind shared NAT burns through without
+	// the user doing anything unusual. The failure is quiet: FetchAll warns
+	// and falls back, so `nebu list` still exits 0 with the embedded catalog
+	// and the community processors simply are not there.
+	//
+	// Only the API host gets the token. fetchDescription reads
+	// raw.githubusercontent.com, a different host with different limits, and
+	// credentials should not follow a request there.
+	if token := githubToken(); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := r.client.Do(req)
 	if err != nil {
@@ -248,6 +275,25 @@ func (r *ExternalRegistry) discoverProcessors(owner, repo string) ([]string, err
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// 403 and 429 from this endpoint are nearly always the rate limit, and
+		// the remedy is a token rather than a retry. Say so: the bare status
+		// code sent readers looking for a permissions problem that is not
+		// there. Never echo the token itself.
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+			if githubToken() == "" {
+				return nil, fmt.Errorf(
+					"GitHub API returned %d, which is the unauthenticated rate limit "+
+						"(60 requests per hour per IP). Set NEBU_REGISTRY_TOKEN, GITHUB_TOKEN "+
+						"or GH_TOKEN to a token with public read access to raise it",
+					resp.StatusCode,
+				)
+			}
+			return nil, fmt.Errorf(
+				"GitHub API returned %d with a token set; check that the token is "+
+					"valid and not itself rate-limited",
+				resp.StatusCode,
+			)
+		}
 		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
 

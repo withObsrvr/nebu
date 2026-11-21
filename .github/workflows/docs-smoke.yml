@@ -92,4 +92,13 @@ jobs:
         run: just build-processors
 
       - name: Run docs smoke
+        # The registry catalog comes from the GitHub API, and unauthenticated
+        # calls are limited to 60 per hour per IP — which a shared Actions
+        # runner pool burns through on its own. Without this the API answers
+        # 403, `nebu list` falls back to the two embedded processors, and the
+        # run dies on `nebu describe token-transfer`. GITHUB_TOKEN is issued
+        # to the workflow automatically and only needs the `contents: read`
+        # already declared above.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: just docs-smoke

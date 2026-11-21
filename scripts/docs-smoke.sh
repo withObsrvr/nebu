@@ -103,7 +103,23 @@ pass "fetching the documented ledgers once, from the archive"
 rpc_pause() { sleep 1; }
 
 run "nebu --version" bash -lc '"$0" --version >/dev/null' "$NEBU_BIN"
-run "nebu list" bash -lc '"$0" list >/dev/null' "$NEBU_BIN"
+# `nebu list` exits 0 when the external registry is unreachable: FetchAll
+# warns on stderr and returns the embedded catalog alone. Asserting the exit
+# code therefore asserts nothing, and this suite proved it — a 403 from the
+# GitHub API let "nebu list" PASS and the run died three assertions later on
+# `nebu describe token-transfer`, pointing at the wrong thing. Require the
+# community catalog to have actually arrived, and fail here with the reason.
+run "nebu list" bash -lc '
+  out="$("$0" list 2>"$1/list.err")" || exit $?
+  if [ -s "$1/list.err" ]; then
+    echo "nebu list wrote to stderr, so the catalog is degraded:" >&2
+    cat "$1/list.err" >&2
+    exit 1
+  fi
+  printf "%s" "$out" | grep -q "\[community\]" || {
+    echo "nebu list returned no [community] processors: the external registry did not load" >&2
+    exit 1
+  }' "$NEBU_BIN" "$TMPDIR"
 run "nebu describe token-transfer" bash -lc '"$0" describe token-transfer >/dev/null' "$NEBU_BIN"
 run "token-transfer --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.token_transfer.v1\"" >/dev/null' "$TOKEN_TRANSFER_BIN"
 run "contract-events --describe-json" bash -lc '"$0" --describe-json | jq -e ".schema.id == \"nebu.contract_events.v1\"" >/dev/null' "$CONTRACT_EVENTS_BIN"
