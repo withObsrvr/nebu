@@ -11,6 +11,7 @@ This document says what is and is not covered by that commitment. If you're writ
 | **`pkg/processor`** | The types `Processor`, `Origin`, `Transform`, `Sink`, `Emitter[T]`, the `Type` enum (`TypeOrigin`, `TypeTransform`, `TypeSink`), the describe-protocol types (`DescribeEnvelope`, `DescribeSchema`, `DescribeFlag`, `DescribeExample`), and the function `LedgerCloseTimeMs` are permanent. They exist at this path with these names. |
 | **`pkg/source`** | The `LedgerSource` interface is permanent. It exists at this path with this name. |
 | **`pkg/source/rpc`, `pkg/source/storage`** | The constructors (`rpc.NewLedgerSource`, `rpc.NewLedgerSourceWithHeaders`, `storage.NewLedgerSource`) and the interfaces their types satisfy (`LedgerSource`, `WindowedSource`, `RawLedgerSource`) are permanent. These are the only documented way to obtain a `LedgerSource`, and every shipped library example imports them, so a stable `LedgerSource` interface with unstable constructors would commit to nothing usable. **Internal defaults and tuning are explicitly not frozen** — see the entry under Unstable surfaces. |
+| **`pkg/runtime`** | The entry points are permanent: `NewRuntime`, the signatures of `RunOrigin`, `SetPolicy` and `Use`, and the existing fields of `Hooks`, `LedgerStats`, `PipelineInfo`, `PipelineSummary`, `Coverage` and `Policy`. `Runtime` is a struct, not an interface, and the hook structs are built with keyed fields — so the engine growing **new** methods, fields and hooks is expected and breaks nobody. Construct the hook structs with keyed fields; an unkeyed literal breaks the moment a field is added. Everything unexported, and the behaviour of a run, stays free. |
 | **`registry.yaml` v1** | The field set and types defined by the v1 schema are permanent. External registries may author YAML against this schema. |
 | **`--describe-json` protocol** | Every processor binary must implement a `--describe-json` flag that prints a [`DescribeEnvelope`](../pkg/processor/describe.go) to stdout and exits 0. The envelope shape is permanent; nebu may add new optional fields in minor releases but will not rename or remove existing ones without a major version bump. |
 | **`nebu.status.v1` protocol** | The opt-in NDJSON status record defined in [STATUS_STREAM.md](STATUS_STREAM.md) is stable. Consumers must ignore unknown fields; existing fields and meanings will not be renamed or removed without a schema-version change. |
@@ -31,7 +32,7 @@ breaking changes to the stable surface are planned before 1.0.
 
 ### Enforcement
 
-The promises above are mechanically enforced by a CI check ([`.github/workflows/api-stability.yml`](../.github/workflows/api-stability.yml)) that runs on every pull request touching `pkg/processor` or `pkg/source`. The check compares the live `go doc -all` output of each stable package against committed snapshots in [`.api/`](../.api/) and fails if they differ.
+The promises above are mechanically enforced by a CI check ([`.github/workflows/api-stability.yml`](../.github/workflows/api-stability.yml)) that runs on every pull request touching `pkg/processor`, `pkg/source` (including `rpc` and `storage`), or `pkg/runtime`. The check compares the live `go doc -all` output of each stable package against committed snapshots in [`.api/`](../.api/) and fails if they differ.
 
 When the check fails, the PR diff shows exactly which symbol or signature changed. The expected workflow on intentional contract changes is:
 
@@ -104,7 +105,7 @@ The envelope shape is defined by [`processor.DescribeEnvelope`](../pkg/processor
 Explicit non-commitments. These can and will change without notice in the 0.x line:
 
 - **Defaults and tuning inside `pkg/source/rpc` and `pkg/source/storage`** — buffer sizes, worker counts, and how a stream is sized for the range it is about to read. The constructors and interfaces are stable (see above); what those constructors choose internally is not, and freezing it would have blocked a real repair: the request-buffer sizing that stopped a one-ledger RPC read from downloading ten ledgers was a change to a default. Such changes are observable as performance, not as API. Both sources stream through the SDK's `ledgerbackend.LedgerStream`, which opens its backend on the first pull of a `Stream` call and tears it down when that call ends; `Close` is therefore a no-op that stays safe to call.
-- **`pkg/runtime`** — the execution engine is a stub. Expect `Runtime` to grow methods, fields, hooks, and configuration.
+- **`pkg/runtime` internals** — the execution engine is still a stub, and how a run behaves inside it is not committed. Expect `Runtime` to grow methods, fields, hooks and configuration; that growth is additive and the entry points above hold through it. The previous wording said only that it would grow, which readers reasonably took to mean it would break — and the runnable examples under `examples/go-library/` have imported it the whole time.
 - **`pkg/registry` (Go API)** — the `registry.yaml` protocol is stable; the Go parser that reads it isn't. Import `pkg/registry` at your own risk.
 - **`cmd/nebu` human-readable output** — tables, headings, column order, colour, and wording in the default (non-JSON) output are a product UI, not a contract. They can be reshaped at any time. Scripts must use the machine-readable output instead.
 - **`examples/processors/*`** — reference implementations, not API. They exist to show contributors what good processors look like.
@@ -147,7 +148,9 @@ Emit valid `registry.yaml` v1. Do not depend on nebu's Go types — the YAML _is
 
 If you only use the stable surface, you're covered by this policy. That includes the concrete sources: `rpc.NewLedgerSource` and `storage.NewLedgerSource` are how the runnable examples under `examples/go-library/` obtain ledgers.
 
-Those same examples also import `pkg/runtime`, which is **not** stable — the engine is expected to grow methods, fields, hooks and configuration. Pin to an exact version if you depend on it, and expect the examples to be updated when it moves. Closing that gap, by committing to a runtime surface or by offering a stable entry point that does not expose one, is an open question rather than a promise.
+Those same examples also import `pkg/runtime`. Its entry points are now committed too, so `runtime.NewRuntime().RunOrigin(ctx, src, origin, start, end)` — the whole of what those three examples use — is covered by this policy. What is not committed is how a run behaves inside the engine, and the engine will keep growing methods and hooks around that entry point.
+
+If you import `pkg/registry` or CLI internals, pin to an exact version — those can still change without notice.
 
 ## The path to 1.0
 
