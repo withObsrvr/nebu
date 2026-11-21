@@ -181,7 +181,7 @@ cmd_up() {
 
 cmd_doctor() {
   resolve_run; load_env
-  local fails=0
+  local fails=0 blocked=0
   check() {
     local label="$1"; shift
     if "$@" > /dev/null 2>&1; then
@@ -191,10 +191,25 @@ cmd_doctor() {
       fails=$((fails + 1))
     fi
   }
+  # A check whose tooling is absent has not failed — it did not run. Saying
+  # FAIL there accuses the thing being checked: on a machine without jq, three
+  # --describe-json checks failed and read as three broken processors.
+  block() {
+    printf 'BLOCK %s (needs %s)\n' "$1" "$2"
+    blocked=$((blocked + 1))
+  }
 
   printf 'doctor: run %s (mode %s)\n' "$RUN" "$NEBU_VERIFY_MODE"
   printf 'root     %s\n' "$ROOT"
   printf 'evidence %s\n' "$EVID"
+
+  # Prerequisites first, because what is missing here decides how to read
+  # everything below. Both come from the dev shell; a bare machine has neither.
+  local have_jq=yes
+  for t in jq duckdb; do
+    check "$t is on PATH" command -v "$t"
+  done
+  command -v jq > /dev/null 2>&1 || have_jq=no
 
   # Is this the instance we built? A nebu found anywhere else is someone
   # else's installation and must not be driven.
@@ -225,12 +240,12 @@ cmd_doctor() {
     # PROCESSOR_CONTRACT.md:113 — origins and transforms carry schema.id;
     # a sink legitimately reports an empty schema object, so requiring an id
     # for every processor fails json-file-sink on a working installation.
-    check "$p --describe-json names itself, exits 0, and carries a schema id unless it is a sink" \
-      bash -c "$p --describe-json | jq -e '.name == \"$p\" and (if .type == \"sink\" then true else (.schema.id | type == \"string\") end)'"
-  done
-
-  for t in jq duckdb; do
-    check "$t is on PATH" command -v "$t"
+    if [[ "$have_jq" == no ]]; then
+      block "$p --describe-json is well-formed" jq
+    else
+      check "$p --describe-json names itself, exits 0, and carries a schema id unless it is a sink" \
+        bash -c "$p --describe-json | jq -e '.name == \"$p\" and (if .type == \"sink\" then true else (.schema.id | type == \"string\") end)'"
+    fi
   done
 
   if [[ -n "$(find "$FIXTURES" -name '*.xdr' -size +0 2>/dev/null | head -1)" ]]; then
@@ -239,8 +254,13 @@ cmd_doctor() {
     printf 'WARN  no ledger fixtures yet; run: nebu-verify fixture\n'
   fi
 
-  if [[ "$fails" -ne 0 ]]; then
-    printf '\ndoctor: %d check(s) failed. This instance is not worth driving.\n' "$fails"
+  if [[ "$fails" -ne 0 || "$blocked" -ne 0 ]]; then
+    printf '\ndoctor: %d check(s) failed, %d blocked by missing tooling.\n' "$fails" "$blocked"
+    if [[ "$blocked" -ne 0 ]]; then
+      printf 'Install the missing prerequisite and re-run doctor before reading the\n'
+      printf 'failures above as defects — a blocked check proved nothing either way.\n'
+    fi
+    printf 'This instance is not worth driving.\n'
     return 1
   fi
   printf '\ndoctor: all checks passed.\n'
