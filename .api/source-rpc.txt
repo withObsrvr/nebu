@@ -1,0 +1,69 @@
+package rpc // import "github.com/withObsrvr/nebu/pkg/source/rpc"
+
+Package rpc provides a LedgerSource implementation backed by Stellar RPC.
+
+This package implements the source.LedgerSource interface from the parent
+pkg/source package. Importers pay the full cost of the Stellar RPC ledgerbackend
+dependencies; code that only needs the interface should import pkg/source
+directly.
+
+TYPES
+
+type LedgerSource struct {
+	// Has unexported fields.
+}
+    LedgerSource streams ledgers from Stellar RPC.
+
+func NewLedgerSource(rpcURL string) (*LedgerSource, error)
+    NewLedgerSource creates a new ledger source that connects to
+    Stellar RPC. The rpcURL should be a fully qualified URL (e.g.,
+    "https://archive-rpc.lightsail.network").
+
+func NewLedgerSourceWithHeaders(rpcURL string, headers map[string]string) (*LedgerSource, error)
+    NewLedgerSourceWithHeaders creates a new ledger source with custom HTTP
+    headers. The headers map allows adding authentication headers like:
+
+        headers := map[string]string{"Authorization": "Api-Key YOUR_KEY"}
+
+func (s *LedgerSource) Close() error
+    Close implements source.LedgerSource.Close.
+
+    There is nothing to release: a LedgerStream sets its backend up on the
+    first pull of a Stream call and tears it down when that iteration ends,
+    so a source that is not streaming holds no connection. Close remains part of
+    the contract and stays safe to call at any time.
+
+func (s *LedgerSource) LedgerWindow(ctx context.Context) (source.LedgerWindow, error)
+    LedgerWindow implements source.WindowedSource.
+
+    It reads the RPC health endpoint, which reports both the network tip the
+    endpoint has seen and the oldest ledger it has retained. Both are needed:
+    an endpoint will happily tell you the tip and then fail part-way through a
+    range that fell out of its retention window.
+
+    This goes to the health endpoint rather than the ledger backend because a
+    LedgerStream only streams — it has no tip query — so there is no backend
+    handle to ask.
+
+func (s *LedgerSource) Stream(
+	ctx context.Context,
+	start, end uint32,
+	out chan<- xdr.LedgerCloseMeta,
+) error
+    Stream implements source.LedgerSource.Stream. Supports both bounded and
+    unbounded ranges:
+      - Bounded: start > 0, end > 0 (streams ledgers from start to end)
+      - Unbounded: start > 0, end == 0 (streams ledgers from start continuously)
+
+func (s *LedgerSource) StreamRaw(
+	ctx context.Context,
+	start, end uint32,
+	fn source.RawLedgerFunc,
+) (uint32, error)
+    StreamRaw implements source.RawLedgerSource.StreamRaw.
+
+    It goes through streamFor exactly as Stream does, which is the point:
+    the request-buffer sizing that stopped a one-ledger read from downloading
+    ten applies to the raw path too. A separate copy of this is what let `nebu
+    fetch` keep over-fetching after that fix landed here.
+

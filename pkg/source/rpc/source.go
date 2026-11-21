@@ -149,6 +149,25 @@ func (s *LedgerSource) Stream(
 	return ledgerstream.Pump(ctx, s.streamFor(start, end), ledgerRange, out)
 }
 
+// StreamRaw implements source.RawLedgerSource.StreamRaw.
+//
+// It goes through streamFor exactly as Stream does, which is the point: the
+// request-buffer sizing that stopped a one-ledger read from downloading ten
+// applies to the raw path too. A separate copy of this is what let `nebu
+// fetch` keep over-fetching after that fix landed here.
+func (s *LedgerSource) StreamRaw(
+	ctx context.Context,
+	start, end uint32,
+	fn source.RawLedgerFunc,
+) (uint32, error) {
+	ledgerRange, err := ledgerstream.Range(start, end)
+	if err != nil {
+		return 0, err
+	}
+
+	return ledgerstream.PumpRaw(ctx, s.streamFor(start, end), ledgerRange, fn)
+}
+
 // streamFor returns a stream whose RPC requests are no larger than the range
 // being read.
 //
