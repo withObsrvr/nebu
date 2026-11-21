@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +56,7 @@ func TestInterruptedWriteFlushesCheckpoint(t *testing.T) {
 
 	err = fetchRawLedgers(
 		context.Background(),
-		fakeRawLedgerStream{records: [][]byte{{1}, {2}}, err: context.Canceled},
+		fakeRawLedgerSource{records: [][]byte{{1}, {2}}, err: context.Canceled},
 		200,
 		203,
 		outputPath,
@@ -111,8 +110,7 @@ func TestOutputSyncPrecedesCheckpointPersistence(t *testing.T) {
 	syncCalls := 0
 	_, err = writeRawLedgersWithCheckpoint(
 		context.Background(),
-		fakeRawLedgerStream{records: [][]byte{{1}}},
-		ledgerbackend.BoundedRange(400, 400),
+		fakeRawLedgerSource{records: [][]byte{{1}}},
 		io.Discard,
 		400,
 		400,
@@ -137,8 +135,7 @@ func TestOutputSyncFailureDoesNotAdvanceCheckpoint(t *testing.T) {
 
 	_, err = writeRawLedgersWithCheckpoint(
 		context.Background(),
-		fakeRawLedgerStream{records: [][]byte{{1}}},
-		ledgerbackend.BoundedRange(500, 500),
+		fakeRawLedgerSource{records: [][]byte{{1}}},
 		io.Discard,
 		500,
 		500,
@@ -164,7 +161,7 @@ func TestFetchRawLedgersAppendsWhenResuming(t *testing.T) {
 
 	err = fetchRawLedgers(
 		context.Background(),
-		fakeRawLedgerStream{records: [][]byte{{3}, {4}}},
+		fakeRawLedgerSource{records: [][]byte{{3}, {4}}},
 		start,
 		303,
 		outputPath,

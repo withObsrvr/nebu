@@ -6,17 +6,17 @@ Turning a ledger range into a stream of ledgers is one decision, and
 construction and the pump, and `pkg/source/rpc` and `pkg/source/storage` go
 through it.
 
-`cmd/nebu/fetch.go` does not. It constructs `ledgerbackend` streams and ranges
-itself, and that second copy has already cost a real bug: when over-fetching
-was fixed in `pkg/source/rpc`, `nebu fetch` kept asking for ten ledgers to
-write one, so the fix looked complete while the command most people use still
-had the old behaviour. Two copies of one decision is how that happens.
+`cmd/nebu/fetch.go` used to be the exception. It built `ledgerbackend` streams
+and ranges itself, and that second copy cost a real bug: when over-fetching was
+fixed in `pkg/source/rpc`, `nebu fetch` kept asking for ten ledgers to write
+one, so the fix looked complete while the command most people use still had the
+old behaviour. Two copies of one decision is how that happens.
 
-Collapsing fetch onto `pkg/source` is the real fix, but it moves a stable
-surface (`docs/STABILITY.md`, `.api/source.txt`), so it is an owner's call
-rather than something a passing agent should do. Until then this check freezes
-the damage: the copies that exist are grandfathered by exact count, and a
-third copy anywhere fails the build.
+Fetch now goes through `pkg/source`, so there is nothing left to grandfather
+and this is an absolute rule: any construction outside `pkg/source` fails the
+build. The grandfathering machinery stays because it is the honest way to
+reintroduce one if a genuine need appears — visibly, with a count, rather than
+by quietly reopening the door.
 
 `pkg/source/internal/ledgerstream` is deliberately internal, so code outside
 `pkg/source` cannot import it. That is why fetch re-implemented it, and why a
@@ -39,8 +39,9 @@ PATTERN = re.compile(
 OWNER_PREFIX = "pkg/source/"
 
 # Known copies outside the owner, frozen at the count that exists today.
-# Lower these when fetch moves onto pkg/source; never raise them.
-GRANDFATHERED = {"cmd/nebu/fetch.go": 4}
+# Empty, and meant to stay that way: cmd/nebu/fetch.go held four until it
+# moved onto pkg/source. Adding an entry here is a deliberate, reviewable act.
+GRANDFATHERED: dict[str, int] = {}
 
 FIX = """
 Build the ledger stream through pkg/source instead of constructing
@@ -104,10 +105,13 @@ def main() -> int:
         return 1
 
     total = sum(counts.values())
-    print(
-        f"✓ Ledger-stream construction owned by pkg/source "
-        f"({total} grandfathered copy/copies outside it, unchanged)"
-    )
+    if total == 0:
+        print("✓ Ledger-stream construction is owned by pkg/source alone")
+    else:
+        print(
+            f"✓ Ledger-stream construction owned by pkg/source "
+            f"({total} grandfathered copy/copies outside it, unchanged)"
+        )
     return 0
 
 

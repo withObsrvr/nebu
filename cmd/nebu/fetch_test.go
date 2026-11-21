@@ -5,39 +5,43 @@ import (
 	"context"
 	"errors"
 	"io"
-	"iter"
 	"net/http"
 	"testing"
 
 	"github.com/stellar/go-stellar-sdk/ingest"
-	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	nebuErrors "github.com/withObsrvr/nebu/pkg/errors"
+	"github.com/withObsrvr/nebu/pkg/source"
 )
 
-type fakeRawLedgerStream struct {
+// fakeRawLedgerSource stands in for a concrete source. The tests used to
+// inject a fake ledgerbackend.LedgerStream, but fetch no longer builds a
+// stream — it asks pkg/source for one — so the seam moved up with it. This is
+// a stub rather than a second pump: no range handling, no SDK iteration.
+type fakeRawLedgerSource struct {
 	records [][]byte
 	err     error
 }
 
-func (s fakeRawLedgerStream) RawLedgers(
-	_ context.Context,
-	_ ledgerbackend.Range,
-	_ ...ledgerbackend.StreamOption,
-) iter.Seq2[[]byte, error] {
-	return func(yield func([]byte, error) bool) {
-		for _, record := range s.records {
-			if !yield(record, nil) {
-				return
-			}
+func (s fakeRawLedgerSource) StreamRaw(
+	ctx context.Context,
+	start, _ uint32,
+	fn source.RawLedgerFunc,
+) (uint32, error) {
+	var count uint32
+	for i, record := range s.records {
+		if ctx.Err() != nil {
+			return count, ctx.Err()
 		}
-		if s.err != nil {
-			yield(nil, s.err)
+		if err := fn(start+uint32(i), record); err != nil {
+			return count, err
 		}
+		count++
 	}
+	return count, s.err
 }
 
 func TestWriteRawLedgersPreservesExistingXDRStreamFormat(t *testing.T) {
@@ -56,8 +60,7 @@ func TestWriteRawLedgersPreservesExistingXDRStreamFormat(t *testing.T) {
 	var got bytes.Buffer
 	count, err := writeRawLedgers(
 		context.Background(),
-		fakeRawLedgerStream{records: records},
-		ledgerbackend.BoundedRange(10, 11),
+		fakeRawLedgerSource{records: records},
 		&got,
 		10,
 		11,
@@ -74,8 +77,7 @@ func TestWriteRawLedgersDoesNotDecodeRecords(t *testing.T) {
 
 	count, err := writeRawLedgers(
 		context.Background(),
-		fakeRawLedgerStream{records: records},
-		ledgerbackend.BoundedRange(20, 21),
+		fakeRawLedgerSource{records: records},
 		&got,
 		20,
 		21,
@@ -91,8 +93,7 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 		sentinel := errors.New("stream failed")
 		count, err := writeRawLedgers(
 			context.Background(),
-			fakeRawLedgerStream{err: sentinel},
-			ledgerbackend.SingleLedgerRange(30),
+			fakeRawLedgerSource{err: sentinel},
 			io.Discard,
 			30,
 			30,
@@ -105,8 +106,7 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 	t.Run("short write", func(t *testing.T) {
 		count, err := writeRawLedgers(
 			context.Background(),
-			fakeRawLedgerStream{records: [][]byte{{1, 2, 3}}},
-			ledgerbackend.SingleLedgerRange(40),
+			fakeRawLedgerSource{records: [][]byte{{1, 2, 3}}},
 			shortWriter{},
 			40,
 			40,
@@ -120,8 +120,7 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 	t.Run("truncated bounded range", func(t *testing.T) {
 		count, err := writeRawLedgers(
 			context.Background(),
-			fakeRawLedgerStream{records: [][]byte{{1}, {2}}},
-			ledgerbackend.BoundedRange(50, 52),
+			fakeRawLedgerSource{records: [][]byte{{1}, {2}}},
 			io.Discard,
 			50,
 			52,
@@ -135,8 +134,7 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 	t.Run("unbounded range may end without a target count", func(t *testing.T) {
 		count, err := writeRawLedgers(
 			context.Background(),
-			fakeRawLedgerStream{records: [][]byte{{1}, {2}}},
-			ledgerbackend.UnboundedRange(60),
+			fakeRawLedgerSource{records: [][]byte{{1}, {2}}},
 			io.Discard,
 			60,
 			0,
@@ -149,8 +147,7 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 	t.Run("unbounded stream cancellation is preserved", func(t *testing.T) {
 		count, err := writeRawLedgers(
 			context.Background(),
-			fakeRawLedgerStream{err: context.Canceled},
-			ledgerbackend.UnboundedRange(70),
+			fakeRawLedgerSource{err: context.Canceled},
 			io.Discard,
 			70,
 			0,
@@ -165,8 +162,7 @@ func TestWriteRawLedgersReportsStreamAndWriteErrors(t *testing.T) {
 		cancel()
 		count, err := writeRawLedgers(
 			ctx,
-			fakeRawLedgerStream{records: [][]byte{{1}}},
-			ledgerbackend.UnboundedRange(80),
+			fakeRawLedgerSource{records: [][]byte{{1}}},
 			io.Discard,
 			80,
 			0,
@@ -210,60 +206,6 @@ func TestWriteFetchFailureSummary(t *testing.T) {
 			assert.Equal(t, tt.want, output.String())
 		})
 	}
-}
-
-func TestRawLedgerRange(t *testing.T) {
-	tests := []struct {
-		name        string
-		start       uint32
-		end         uint32
-		wantFrom    uint32
-		wantTo      uint32
-		wantBounded bool
-		wantErr     bool
-	}{
-		{name: "bounded", start: 10, end: 12, wantFrom: 10, wantTo: 12, wantBounded: true},
-		{name: "unbounded", start: 10, end: 0, wantFrom: 10},
-		{name: "zero start", start: 0, end: 1, wantErr: true},
-		{name: "reversed", start: 12, end: 10, wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := rawLedgerRange(tt.start, tt.end)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantFrom, got.From())
-			assert.Equal(t, tt.wantTo, got.To())
-			assert.Equal(t, tt.wantBounded, got.Bounded())
-		})
-	}
-}
-
-func TestFetchHeaderTransportAddsHeadersWithoutMutatingRequest(t *testing.T) {
-	request, err := http.NewRequest(http.MethodPost, "https://example.test", nil)
-	require.NoError(t, err)
-
-	transport := &fetchHeaderTransport{
-		base: roundTripperFunc(func(got *http.Request) (*http.Response, error) {
-			assert.Equal(t, "Api-Key secret", got.Header.Get("Authorization"))
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewReader(nil)),
-				Header:     make(http.Header),
-				Request:    got,
-			}, nil
-		}),
-		headers: map[string]string{"Authorization": "Api-Key secret"},
-	}
-
-	response, err := transport.RoundTrip(request)
-	require.NoError(t, err)
-	require.NoError(t, response.Body.Close())
-	assert.Empty(t, request.Header.Get("Authorization"))
 }
 
 type shortWriter struct{}
@@ -513,43 +455,6 @@ func TestFetchLastRejectsIncoherentCombinations(t *testing.T) {
 
 			assert.Equal(t, 2, execute(cmd),
 				"an incoherent range request is a usage error, not a guess")
-		})
-	}
-}
-
-// `nebu fetch N N` downloaded ten ledgers to write one. The SDK defaults
-// BufferSize to 10 and this command builds its own stream rather than going
-// through pkg/source/rpc, so it kept that behaviour after the package was
-// fixed: 11.9 MB fetched to use 1.0 MB, 2.2 of the run's 2.6 seconds.
-//
-// Only ranges below the default narrow. A larger buffer is the right trade
-// for a long range — fewer round trips, and fewer of the GetHealth calls the
-// backend makes on every buffer miss — so 0 means "leave the default".
-func TestRPCBufferSizeFor(t *testing.T) {
-	tests := []struct {
-		name  string
-		start uint32
-		end   uint32
-		want  uint32
-	}{
-		{name: "one ledger asks for one", start: 65447235, end: 65447235, want: 1},
-		{name: "three ledgers ask for three", start: 65447235, end: 65447237, want: 3},
-		{name: "nine ledgers ask for nine", start: 100, end: 108, want: 9},
-		{name: "ten ledgers keep the default", start: 100, end: 109, want: 0},
-		{name: "a long range keeps the default", start: 60200000, end: 60200100, want: 0},
-		{name: "--follow keeps the default", start: 65447235, end: 0, want: 0},
-		{
-			// The stream rejects this; sizing must not underflow on the way
-			// there, since end-start+1 would wrap to an enormous buffer.
-			name: "a reversed range keeps the default", start: 200, end: 100, want: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := rpcBufferSizeFor(tt.start, tt.end); got != tt.want {
-				t.Errorf("rpcBufferSizeFor(%d, %d) = %d, want %d", tt.start, tt.end, got, tt.want)
-			}
 		})
 	}
 }

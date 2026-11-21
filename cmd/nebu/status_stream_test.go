@@ -11,7 +11,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/withObsrvr/nebu/pkg/programstatus"
@@ -87,8 +86,7 @@ func TestStructuredFetchProgressIncludesLedgerLag(t *testing.T) {
 
 	count, err := writeRawLedgers(
 		context.Background(),
-		fakeRawLedgerStream{records: [][]byte{{1}, {2}}},
-		ledgerbackend.BoundedRange(700, 701),
+		fakeRawLedgerSource{records: [][]byte{{1}, {2}}},
 		&bytes.Buffer{},
 		700,
 		701,
