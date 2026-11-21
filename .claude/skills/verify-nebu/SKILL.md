@@ -7,6 +7,7 @@ description: >
   text, or documented example works; after changing cmd/nebu, pkg/processor,
   pkg/source, registry.yaml, or the README quickstart; and whenever a check
   that only read the tree needs to become a check that ran the binary.
+user-invocable: true
 ---
 
 # Verify nebu
