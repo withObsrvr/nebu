@@ -325,13 +325,23 @@ Recorded so they are not mistaken for conformance:
 - **The CI gate does not literally use the flake, and the flake's Go is
   behind.** BUILD-2 says "CI MUST use the same flake as developers." CI
   resolves Go from `go.mod`'s `toolchain` line, so CI and developers build with
-  the same compiler — but that line pins **go1.26.10**, not the 1.26.6 the
-  flake's nixpkgs provides, because 1.26.6's standard library carries 11
-  reachable vulnerabilities fixed in 1.26.9. Go's toolchain switching fetches
-  1.26.10 in both places, so the dev shell's `go` is effectively a bootstrap.
-  Closing this properly needs a nixpkgs bump to a Go ≥ 1.26.9 and then moving
-  the gate onto `nix develop`. Until then SEC-9 is being prioritised over a
-  literal reading of BUILD-2, which is the correct order under P-1 and §1.
+  the same compiler — but that line pins **go1.26.11**, not the Go the flake's
+  nixpkgs provides, because the older standard library carries reachable
+  vulnerabilities (most recently GO-2026-6859, fixed in 1.26.11). Go's
+  toolchain switching fetches the pinned version in both places, so the dev
+  shell's `go` is effectively a bootstrap. Closing this properly needs a
+  nixpkgs bump and then moving the gate onto `nix develop`. Until then SEC-9
+  is being prioritised over a literal reading of BUILD-2, which is the correct
+  order under P-1 and §1.
+
+  The "same compiler" half of that claim is only true while **`go.work`
+  carries the same `toolchain` line as `go.mod`**. In workspace mode go.work
+  wins, and `actions/setup-go` installs from go.mod and never downgrades — so
+  a go.work left behind pins developers to the older compiler while CI stays
+  green on the newer one. That is how go.mod reached go1.26.11 while every
+  local build ran go1.26.10 and `govulncheck ./...` reported one reachable
+  vulnerability against a passing merge gate. `just toolchain-check`, part of
+  `just ci`, now fails when the two files disagree.
 - **Secret scanning is not in the gate** (SEC-6, and part of the §9 merge gate).
   The intended route is GitHub's native secret scanning with push protection,
   which is free for public repositories and is a repository-settings change
