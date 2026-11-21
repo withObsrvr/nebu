@@ -134,6 +134,13 @@ unreachable source, 8 on incomplete output — `docs/EXIT_CODES.md`) makes the
 helper exit nonzero too. That is expected: read the `.exit` file, do not treat
 it as a harness error.
 
+`nebu` is **not** on your own shell's `PATH` after `up`. The isolation env is
+applied per helper invocation, so a bare `nebu --version` typed at your prompt
+finds nothing (or worse, finds the developer's installation). Drive through
+`run`/`sh`, or `source "$($V where | awk '/^root/{print $2}')/env.sh"` first.
+The version `up` resolved is kept in the run root's `installed-version.txt`
+and printed by `doctor`.
+
 Use the stable handles the CLI itself documents, not positions or guesses:
 subcommand names, long flags from `--help`, `_schema` ids, `jq` field paths
 from `--describe-json`, exit codes from `docs/EXIT_CODES.md`. Confirm a flag
