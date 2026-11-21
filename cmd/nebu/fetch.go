@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -414,72 +413,30 @@ Archive Mode Examples:
 	return cmd
 }
 
-// fetchHeaderTransport adds fetch-specific headers without mutating requests
-// owned by the Stellar RPC client.
-type fetchHeaderTransport struct {
-	base    http.RoundTripper
-	headers map[string]string
-}
-
-func (t *fetchHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	reqCopy := req.Clone(req.Context())
-	for key, value := range t.headers {
-		reqCopy.Header.Set(key, value)
-	}
-	return t.base.RoundTrip(reqCopy)
-}
-
 func fetchLedgersRPC(ctx context.Context, rpcURL, _ string, start, end uint32, outputFile, authHeader string, checkpoint *checkpointWriter) error {
-	if rpcURL == "" {
-		return nebuErrors.FailedToCreateSource("RPC", errors.New("rpcURL cannot be empty"))
-	}
-
-	options := ledgerbackend.RPCLedgerBackendOptions{RPCServerURL: rpcURL}
+	headers := map[string]string{}
 	if authHeader != "" {
-		options.HttpClient = &http.Client{Transport: &fetchHeaderTransport{
-			base:    http.DefaultTransport,
-			headers: map[string]string{"Authorization": authHeader},
-		}}
+		headers["Authorization"] = authHeader
 	}
 
-	// Ask for no more ledgers per request than the range needs. The SDK
-	// defaults BufferSize to 10, so `nebu fetch N N` downloaded ten ledgers
-	// to write one: 11.9 MB fetched to use 1.0 MB, and the fetch was 2.2 of
-	// the run's 2.6 seconds. pkg/source/rpc makes the same adjustment; this
-	// command builds its own stream rather than going through that package,
-	// which is how it kept the old behaviour after that was fixed.
-	if size := rpcBufferSizeFor(start, end); size != 0 {
-		options.BufferSize = size
+	// pkg/source/rpc sizes each getLedgers request to the range being read,
+	// so `nebu fetch N N` no longer downloads ten ledgers to write one. This
+	// command used to build its own stream and carry its own copy of that
+	// adjustment, which is how it kept the old behaviour for a release after
+	// the fix landed in that package.
+	src, err := rpc.NewLedgerSourceWithHeaders(rpcURL, headers)
+	if err != nil {
+		return nebuErrors.FailedToCreateSource("RPC", err)
 	}
+	defer func() { _ = src.Close() }()
 
-	stream := ledgerbackend.NewRPCStream(options, nil)
-	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
+	return fetchRawLedgers(ctx, src, start, end, outputFile, checkpoint)
 }
 
-// rpcDefaultBufferSize is the SDK's own default for ledgers per getLedgers
-// request, restated so a smaller range can be recognised.
-const rpcDefaultBufferSize = 10
-
-// rpcBufferSizeFor returns the request buffer a range should use, or 0 to
-// leave the SDK's default alone.
-//
-// Only ranges below the default are narrowed: a larger buffer is the right
-// trade for a long range, since it means fewer round trips and fewer of the
-// GetHealth calls the backend makes on every buffer miss.
-func rpcBufferSizeFor(start, end uint32) uint32 {
-	if end == 0 || end < start {
-		// --follow, or a range the stream will reject anyway.
-		return 0
-	}
-	if ledgers := end - start + 1; ledgers < rpcDefaultBufferSize {
-		return ledgers
-	}
-	return 0
-}
-
-// archiveFlagTimeout bounds the manifest read that archive-mode tuning needs.
-// It is a single small object fetch; if the datastore is slow enough to miss
-// this, the stream that follows will retry it properly with its own policy.
+// archiveManifestTimeout bounds the manifest read that archive-mode tuning
+// needs. It is a single small object fetch; if the datastore is slow enough to
+// miss this, the stream that follows will retry it properly with its own
+// policy.
 const archiveManifestTimeout = 30 * time.Second
 
 // flagUint32 narrows a resolved numeric option to the uint32 the SDK
@@ -689,21 +646,25 @@ func fetchLedgersArchive(
 	outputFile string,
 	checkpoint *checkpointWriter,
 ) error {
-	stream := ledgerbackend.NewBufferedStorageStream(buffer, config, nil)
-	return fetchRawLedgers(ctx, stream, start, end, outputFile, checkpoint)
+	src, err := storage.NewLedgerSource(config, buffer)
+	if err != nil {
+		return nebuErrors.FailedToCreateSource("archive", err)
+	}
+	defer func() { _ = src.Close() }()
+
+	return fetchRawLedgers(ctx, src, start, end, outputFile, checkpoint)
 }
 
 func fetchRawLedgers(
 	ctx context.Context,
-	stream ledgerbackend.LedgerStream,
+	src source.RawLedgerSource,
 	start, end uint32,
 	outputFile string,
 	checkpoint *checkpointWriter,
 ) error {
-	ledgerRange, err := rawLedgerRange(start, end)
-	if err != nil {
-		return err
-	}
+	// The range is validated and built inside StreamRaw now; this command
+	// used to construct its own, which was the second copy of that decision.
+	var err error
 
 	var output io.Writer = os.Stdout
 	var outputFileHandle *os.File
@@ -732,7 +693,7 @@ func fetchRawLedgers(
 	}
 
 	ledgerCount, streamErr := writeRawLedgersWithCheckpoint(
-		ctx, stream, ledgerRange, output, start, end, checkpoint, syncOutput,
+		ctx, src, output, start, end, checkpoint, syncOutput,
 	)
 	if outputFileHandle != nil {
 		if syncErr := syncOutput(); syncErr != nil {
@@ -766,33 +727,18 @@ func fetchRawLedgers(
 	return nil
 }
 
-func rawLedgerRange(start, end uint32) (ledgerbackend.Range, error) {
-	if start == 0 {
-		return ledgerbackend.Range{}, errors.New("start ledger must be greater than zero")
-	}
-	if end > 0 && start > end {
-		return ledgerbackend.Range{}, fmt.Errorf("invalid ledger range: start %d exceeds end %d", start, end)
-	}
-	if end == 0 {
-		return ledgerbackend.UnboundedRange(start), nil
-	}
-	return ledgerbackend.BoundedRange(start, end), nil
-}
-
 func writeRawLedgers(
 	ctx context.Context,
-	stream ledgerbackend.LedgerStream,
-	ledgerRange ledgerbackend.Range,
+	src source.RawLedgerSource,
 	output io.Writer,
 	start, end uint32,
 ) (int, error) {
-	return writeRawLedgersWithCheckpoint(ctx, stream, ledgerRange, output, start, end, nil, nil)
+	return writeRawLedgersWithCheckpoint(ctx, src, output, start, end, nil, nil)
 }
 
 func writeRawLedgersWithCheckpoint(
 	ctx context.Context,
-	stream ledgerbackend.LedgerStream,
-	ledgerRange ledgerbackend.Range,
+	src source.RawLedgerSource,
 	output io.Writer,
 	start, end uint32,
 	checkpoint *checkpointWriter,
@@ -803,40 +749,45 @@ func writeRawLedgersWithCheckpoint(
 		reportInterval = 100
 	}
 
-	for raw, streamErr := range stream.RawLedgers(ctx, ledgerRange) {
-		if streamErr != nil {
-			if errors.Is(streamErr, context.Canceled) {
-				return ledgerCount, context.Canceled
-			}
-			return ledgerCount, nebuErrors.StreamError(streamErr)
-		}
+	// StreamRaw returns a callback's error unwrapped, which is what makes it
+	// usable here — but a stream failure arrives through the same return, so
+	// keeping our own copy is what tells "the source stopped" apart from "we
+	// could not write what it gave us". They need different exit codes.
+	var writeErr error
 
-		select {
-		case <-ctx.Done():
-			return ledgerCount, ctx.Err()
-		default:
-		}
+	fail := func(err error) error {
+		writeErr = err
+		return err
+	}
 
-		sequence := uint64(start) + uint64(ledgerCount)
+	_, streamErr := src.StreamRaw(ctx, start, end, func(sequence uint32, raw []byte) error {
+		// The sequence now comes from the range rather than being inferred
+		// from how many ledgers have been written, so a gap would be visible
+		// rather than silently renumbering everything after it.
 		n, err := output.Write(raw)
 		if err != nil {
-			return ledgerCount, fmt.Errorf("failed to write ledger %d: %w", sequence, err)
+			return fail(fmt.Errorf("failed to write ledger %d: %w", sequence, err))
 		}
 		if n != len(raw) {
-			return ledgerCount, fmt.Errorf("failed to write ledger %d: wrote %d of %d bytes: %w", sequence, n, len(raw), io.ErrShortWrite)
+			return fail(fmt.Errorf(
+				"failed to write ledger %d: wrote %d of %d bytes: %w",
+				sequence, n, len(raw), io.ErrShortWrite,
+			))
 		}
 
 		ledgerCount++
-		if err := writeStructuredProgress(uint32(sequence), end); err != nil {
-			return ledgerCount, fmt.Errorf("write status after ledger %d: %w", sequence, err)
+		if err := writeStructuredProgress(sequence, end); err != nil {
+			return fail(fmt.Errorf("write status after ledger %d: %w", sequence, err))
 		}
 		if checkpoint.willPersist(false) && syncOutput != nil {
 			if err := syncOutput(); err != nil {
-				return ledgerCount, fmt.Errorf("sync output before checkpoint after ledger %d: %w", sequence, err)
+				return fail(fmt.Errorf(
+					"sync output before checkpoint after ledger %d: %w", sequence, err,
+				))
 			}
 		}
-		if err := checkpoint.advance(uint32(sequence), false); err != nil {
-			return ledgerCount, fmt.Errorf("save checkpoint after ledger %d: %w", sequence, err)
+		if err := checkpoint.advance(sequence, false); err != nil {
+			return fail(fmt.Errorf("save checkpoint after ledger %d: %w", sequence, err))
 		}
 		if ledgerCount%reportInterval == 0 {
 			if end == 0 {
@@ -845,6 +796,16 @@ func writeRawLedgersWithCheckpoint(
 				logInfo("Fetched %d ledgers...", ledgerCount)
 			}
 		}
+		return nil
+	})
+
+	switch {
+	case writeErr != nil:
+		return ledgerCount, writeErr
+	case errors.Is(streamErr, context.Canceled):
+		return ledgerCount, context.Canceled
+	case streamErr != nil:
+		return ledgerCount, nebuErrors.StreamError(streamErr)
 	}
 
 	if end > 0 {
