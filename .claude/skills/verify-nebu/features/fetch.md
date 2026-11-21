@@ -100,12 +100,23 @@ Preconditions:
 - **`--follow` and `--end-ledger 0` never terminate.** Only drive them through
   `nebu-verify bg`, only when the task explicitly asks for a live stream, and
   take the run `down` afterwards so the PID is killed.
-- **RPC and archive XDR are not byte-identical, even for a settled range.**
-  Measured on 60200000..60200004: both sources return exactly 7,322,200 bytes,
-  the first ledger matches, and then roughly 807,000 bytes differ from offset
-  171924 on. The decoded event stream *is* identical (4,041 events,
-  byte-for-byte), so compare what a processor emits, never the XDR. A `cmp` on
-  the XDR files fails on a perfectly healthy pair of sources.
+- **RPC and archive XDR are not byte-identical, even for a settled range, and
+  that is expected.** It is a reordering of ledger entry changes, not a
+  content difference — `docs/ARCHIVE_MODE.md`, "The two sources agree on
+  content, not on byte order". Measured here on 60200000..60200004: both
+  sources return exactly 7,322,200 bytes, the first ledger matches, then about
+  807,000 bytes differ from offset 171924 on, while the decoded event stream is
+  identical (4,041 events, byte-for-byte). A `cmp` on the XDR files therefore
+  fails on a perfectly healthy pair of sources; compare what a processor emits.
+- **Decoded output that differs in *count* is a different problem entirely.**
+  Reordering preserves every event; a source missing the Galexie/RPC backfill
+  parameters emits *less* — absent diagnostic events, `Ext.V` of 0, missing
+  classic events (`docs/ARCHIVE_MODE.md`, "What the core flags do and do not
+  explain"). So read the comparison two ways: `cmp` silent means the sources
+  agree; equal counts with differing content, or unequal counts, means a
+  misconfigured self-hosted archive or RPC and is a finding, not noise. The
+  measurements above are against the AWS public archive and
+  `archive-rpc.lightsail.network`; your own infrastructure needs its own run.
 - Ledger 60200000-60200004 is mainnet (`pubnet`) and settled, which is why
   the decoded streams can be compared at all. Near the tip the two sources
   legitimately disagree on availability; a recent range cannot be compared
