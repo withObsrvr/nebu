@@ -110,6 +110,24 @@ func (s *LedgerSource) Stream(
 	return ledgerstream.Pump(ctx, s.stream, ledgerRange, out)
 }
 
+// StreamRaw implements source.RawLedgerSource.StreamRaw.
+//
+// Unlike the RPC source there is no per-range stream selection: the buffered
+// storage stream reads the datastore manifest for the bucket's real layout
+// when it opens, so its sizing already tracks the data rather than the range.
+func (s *LedgerSource) StreamRaw(
+	ctx context.Context,
+	start, end uint32,
+	fn source.RawLedgerFunc,
+) (uint32, error) {
+	ledgerRange, err := ledgerstream.Range(start, end)
+	if err != nil {
+		return 0, err
+	}
+
+	return ledgerstream.PumpRaw(ctx, s.stream, ledgerRange, fn)
+}
+
 // Close implements source.LedgerSource.Close.
 //
 // There is nothing to release: a LedgerStream opens the datastore on the
@@ -140,3 +158,7 @@ func DefaultDataStoreSchema() datastore.DataStoreSchema {
 
 // assert at compile time that the source can report its window.
 var _ source.WindowedSource = (*LedgerSource)(nil)
+
+// The raw path must satisfy RawLedgerSource, or a caller type-asserting for
+// it silently falls back to the decoding path.
+var _ source.RawLedgerSource = (*LedgerSource)(nil)

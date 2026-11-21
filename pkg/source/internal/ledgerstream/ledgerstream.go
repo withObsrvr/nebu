@@ -79,3 +79,58 @@ func Pump(
 	// caller that gave up.
 	return ctx.Err()
 }
+
+// PumpRaw streams every ledger in ledgerRange from stream, handing each one's
+// undecoded XDR to fn, in order. It returns the number of ledgers fn accepted.
+//
+// This is the sibling of [Pump] for consumers that want the bytes rather than
+// a decoded ledger — writing an archive file, say — and it exists so that
+// those consumers do not have to reach for ledgerbackend themselves. A second
+// copy of this loop is how `nebu fetch` kept over-fetching after the fix
+// landed in pkg/source/rpc.
+//
+// fn is called synchronously, inside the iteration, and raw is only valid
+// until fn returns: RawLedgers reuses the slice on the next step. That is
+// precisely why this takes a callback instead of a channel — a chan []byte
+// would hand out memory that changes underneath the receiver, and the
+// corruption would be silent. fn must copy anything it keeps.
+//
+// An error from fn stops the stream and is returned unwrapped, so callers can
+// match on their own error values. Otherwise the contract matches [Pump]: nil
+// when a bounded range completes, the context error when the caller
+// cancelled, and a wrapped error when the stream could not be read.
+func PumpRaw(
+	ctx context.Context,
+	stream ledgerbackend.LedgerStream,
+	ledgerRange ledgerbackend.Range,
+	fn func(sequence uint32, raw []byte) error,
+) (uint32, error) {
+	sequence := ledgerRange.From()
+	var count uint32
+
+	for raw, err := range stream.RawLedgers(ctx, ledgerRange) {
+		if err != nil {
+			return count, fmt.Errorf("failed to get ledger %d: %w", sequence, err)
+		}
+
+		// Checked before fn rather than after, so a cancelled caller does not
+		// get one more write it did not ask for.
+		select {
+		case <-ctx.Done():
+			return count, ctx.Err()
+		default:
+		}
+
+		if err := fn(sequence, raw); err != nil {
+			return count, err
+		}
+
+		count++
+		sequence++
+	}
+
+	// Same as Pump: RawLedgers stops yielding on cancellation without saying
+	// so, and the context is the only thing that tells a completed range apart
+	// from a caller that gave up.
+	return count, ctx.Err()
+}
