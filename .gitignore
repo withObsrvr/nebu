@@ -54,3 +54,6 @@ examples/processors/time-window/time-window
 examples/processors/token-transfer/token-transfer
 examples/processors/usdc-filter/usdc-filter
 examples/processors/token-transfer/go.mod.backup
+
+# Verification evidence from .claude/skills/verify-nebu
+.verify-artifacts/
