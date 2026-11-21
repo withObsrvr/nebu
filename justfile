@@ -210,6 +210,8 @@ api-snapshot:
     mkdir -p .api
     go doc -all ./pkg/processor > .api/processor.txt
     go doc -all ./pkg/source > .api/source.txt
+    go doc -all ./pkg/source/rpc > .api/source-rpc.txt
+    go doc -all ./pkg/source/storage > .api/source-storage.txt
     @echo "✓ API snapshots regenerated in .api/"
 
 # On drift: confirm the change is acceptable per docs/STABILITY.md, run
@@ -235,4 +237,21 @@ api-check:
         echo "regenerate the snapshot with: just api-snapshot"
         exit 1
     fi
+    # The concrete sources are stable in their constructors and the interfaces
+    # they satisfy -- the only documented way to obtain a LedgerSource, and
+    # what every shipped library example imports. Their internal defaults and
+    # tuning are deliberately NOT frozen: `go doc` does not show a function
+    # body, so a change like the request-buffer sizing that stopped a
+    # one-ledger read from downloading ten moves nothing here. See the
+    # "concrete ledger sources" row in docs/STABILITY.md.
+    for pkg in rpc storage; do
+        if ! diff -u ".api/source-$pkg.txt" <(go doc -all "./pkg/source/$pkg"); then
+            echo ""
+            echo "ERROR: pkg/source/$pkg public API has drifted from the committed snapshot."
+            echo "Constructors and the interfaces these types satisfy are stable."
+            echo "If this change is intentional and acceptable per docs/STABILITY.md,"
+            echo "regenerate the snapshot with: just api-snapshot"
+            exit 1
+        fi
+    done
     echo "✓ Stable API surfaces match committed snapshots"
