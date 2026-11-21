@@ -152,10 +152,19 @@ run "a non-checkpoint ledger is refused with the nearest ones" bash -lc \
 
 # The README answers the Stellar SDK's "Ledger Entry Statistics" example with
 # this query rather than a Go program, so the query has to keep working.
+#
+# TMPDIR is passed positionally, like every other assertion here, because the
+# script's own TMPDIR is not exported. This one used to interpolate it into
+# the child instead, and the result was worse than a plain failure: on a
+# developer machine the child inherited the *shell's* TMPDIR, so the
+# assertion passed while writing outside the directory the cleanup trap
+# removes. On a runner, where nothing exports TMPDIR, it resolved to "" and
+# the redirect became /entries.jsonl. Same bug the LEDGER_* comment above
+# describes.
 run "the ledger entry statistics query runs" bash -lc \
-  '"$0" --network testnet --limit 2000 -q > "$TMPDIR/entries.jsonl" && \
-   duckdb -c "SELECT count(*) AS total, count_if(entry_type = '"'"'account'"'"') AS accounts, count(DISTINCT CASE WHEN entry_type = '"'"'trustline'"'"' THEN account_id END) AS with_trustlines FROM read_json('"'"'$TMPDIR/entries.jsonl'"'"')" | grep -Eq "[0-9]+"' \
-  "$ROOT/bin/checkpoint-entries"
+  'out="$1/entries.jsonl"; "$0" --network testnet --limit 2000 -q > "$out" && \
+   duckdb -c "SELECT count(*) AS total, count_if(entry_type = '"'"'account'"'"') AS accounts, count(DISTINCT CASE WHEN entry_type = '"'"'trustline'"'"' THEN account_id END) AS with_trustlines FROM read_json('"'"'$out'"'"')" | grep -Eq "[0-9]+"' \
+  "$ROOT/bin/checkpoint-entries" "$TMPDIR"
 
 # Pinning the registry version is right -- @latest is not a contract, and it
 # had already installed pre-Protocol-30 processors from a warm module cache --
