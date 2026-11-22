@@ -6,10 +6,38 @@ This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+## v0.8.0
+
+### Added
+
+- **`pkg/source` can stream raw ledger XDR, and `nebu fetch` now goes through it.** `source.RawLedgerSource` and `source.RawLedgerFunc` expose the undecoded bytes, implemented by both concrete sources as `StreamRaw`. It is a separate interface rather than a method on `LedgerSource`, for the reason `WindowedSource` already records: adding a method to a stable interface breaks every external implementation.
+  - The callback is not a style choice. The SDK's `RawLedgers` reuses its slice on the next iteration step, so a `chan []byte` would hand the receiver memory that changes underneath it, and the corruption would be silent. `fn` is called synchronously and must copy anything it keeps.
+  - This is what let `nebu fetch` stop building its own ledger streams. **Direct `ledgerbackend` construction outside `pkg/source` went from four sites to zero**, and `just stream-owner-check` now fails the build on any new one. The duplication was not cosmetic: when over-fetching was fixed in `pkg/source/rpc`, `nebu fetch` kept asking for ten ledgers to write one, so the fix looked complete while the command most people run still had the old behaviour.
+- **`NEBU_REGISTRY_TOKEN` authenticates the community-registry lookup**, falling back to `GITHUB_TOKEN` then `GH_TOKEN`, so CI and the `gh` CLI need no configuration. Unauthenticated GitHub API calls are capped at 60 per hour per IP, which a shared runner pool or anything behind NAT exhausts without doing anything unusual.
+- **Two new gate checks.** `just toolchain-check` fails when `go.work` and `go.mod` disagree on the Go toolchain; `just stream-owner-check` fails when anything outside `pkg/source` constructs a ledger stream. Both are in `just ci`.
+- **A `Docs and help examples` CI workflow.** `just docs-smoke` compares nebu's documentation and help text against what the real binaries print, and nothing ran it — not CI, not a schedule, only a human who remembered, which is how each of the defects it guards against shipped in the first place. It now runs on pull requests touching a guarded path, daily, and on demand.
+
 ### Changed
 
+- **`pkg/source/rpc`, `pkg/source/storage` and `pkg/runtime` are now part of the stable surface, narrowly.** Frozen: the constructors, the interfaces their types satisfy, `runtime.NewRuntime`, the signatures of `RunOrigin`/`SetPolicy`/`Use`, and the existing hook-struct fields. Not frozen: the defaults and tuning those constructors choose, and how a run behaves inside the engine.
+  - The split matters. The over-fetch repair **was a change to a default**, so a wholesale freeze would have owed it a deprecation window. A `go doc` snapshot gives the split for free, since it shows no function bodies.
+  - The policy had been incoherent: `source.LedgerSource` was permanent while nothing in `pkg/processor` or `pkg/source` could produce one, and the only documented route — `rpc.NewLedgerSource`, which every `examples/go-library/` program imports — was listed as an explicit non-commitment. `pkg/runtime` said only that it would "grow methods, fields, hooks, and configuration", which reads as a warning it would break; `Runtime` is a struct and the hook structs take keyed fields, so that growth is additive.
+  - `.api/` now snapshots all five packages, and `api-stability.yml` triggers on `pkg/runtime/**` as well.
 - **`registry_version` moves to the registry main built on nebu v0.7.11 and SDK v0.9.0, and the documented samples report `_nebu_version: v0.7.11` with it.** That bump carries the close-time delegation into all 36 processor modules, which is where it matters: twelve origins call `processor.LedgerCloseTimeMs` from `ProcessLedger`, and the hand-rolled read it replaces panicked on a millisecond arm with no value — a crash in the one method that is contractually not allowed to end a run. Output is unchanged, verified per processor on pubnet ledger 65447235: `token-transfer` 601 events, `contract-events` 604, `account-effects` 590, all byte-identical to their previous builds.
   - The whole published fleet is now on the SDK release that carries CAP-88 support, five days before the pubnet Protocol 30 vote on 2026-11-23.
+
+### Fixed
+
+- **`go.work` pinned a Go toolchain that `govulncheck` flags, so every local build used it.** `go.mod` had been moved to `toolchain go1.26.11` for GO-2026-6859 — an HTTP/1 server crash via a `MaxBytesReader` header race in `net/http` — but `go.work` still said `go1.26.10`, and in workspace mode `go.work` decides. `govulncheck ./...` reported one reachable vulnerability against the bar `AGENTS.md` sets.
+  - CI never noticed and structurally could not: `actions/setup-go` installs from `go.mod` and Go never *downgrades*, so with 1.26.11 installed the stale line was ignored. The pin only bit where the local toolchain was older, which is every nix dev shell. `just toolchain-check` now fails when the two files disagree.
+- **The registry's GitHub API calls carried no `Authorization` header at all**, so a shared IP answered 403 and the catalog silently fell back to the two built-in processors. A 403 or 429 now says it is the rate limit and names the variables to set.
+- **`nebu list` reported success while the catalog was degraded.** `FetchAll` warns on stderr and returns the embedded entries, so exit 0 proved nothing — and `just docs-smoke` asserted only the exit code, so a 403 passed there and the run died three assertions later pointing at the wrong thing. The assertion now requires empty stderr and at least one `[community]` entry.
+- **A `docs-smoke` assertion wrote outside its own temp directory.** The script sets `TMPDIR` with `mktemp -d` and does not export it, so the one assertion that interpolated it into a `bash -lc` child got the *shell's* value instead — passing while leaving its file where the cleanup trap could not reach, and failing outright on a runner where nothing exports it.
+
+### Security
+
+- **GO-2026-6859 is no longer reachable**, and `govulncheck ./...` reports none reachable in both modules. All twelve open Dependabot alerts are addressed: they were six advisories counted twice, once per manifest, with `examples/hooks/go.mod` a patch behind on `grpc`. `x/net` to v0.63.0, `x/crypto` to v0.59.0, `go-jose/v4` to v4.1.6, the otel family to v1.47.0, `grpc` to v1.83.2.
+  - What remains is `aws-sdk-go` v1.45.27, whose two advisories have **no patched v1**. Both are confined to `service/s3/s3crypto`, which `go list -deps ./...` finds in no nebu binary's dependency graph — so the vulnerable code is not in the artifact, SEC-9 passes, and it is recorded in `docs/engineering-profile.md` §4b as a non-exception rather than a non-conformance.
 
 ## v0.7.11
 
